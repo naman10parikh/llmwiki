@@ -14,7 +14,7 @@ export function createProgram(): Command {
   const program = new Command();
 
   program
-    .name('llmwiki')
+    .name('wikimem')
     .description('Build self-improving knowledge bases with LLMs. Ingest anything, query everything, auto-evolve.')
     .version('0.1.0');
 
