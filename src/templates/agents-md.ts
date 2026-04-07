@@ -45,7 +45,7 @@ summary: "One-line summary"     # Used in index.md
 ## Wikilinks
 
 Use \`[[Page Title]]\` to link between pages. The LLM maintains these links.
-Orphan pages (no inbound links) are flagged by \`llmwiki lint\`.
+Orphan pages (no inbound links) are flagged by \`wikimem lint\`.
 
 ## Operations
 

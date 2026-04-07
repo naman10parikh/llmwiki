@@ -6,7 +6,7 @@ import { basename, extname } from 'node:path';
 
 /**
  * Obsidian integration — generates .obsidian/ config directory
- * for optimal graph display when `llmwiki init` runs.
+ * for optimal graph display when `wikimem init` runs.
  */
 
 export interface ObsidianConfig {

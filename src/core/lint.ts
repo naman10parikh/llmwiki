@@ -30,7 +30,7 @@ export async function lintWiki(
   const pages = listWikiPages(config.wikiDir);
 
   if (pages.length === 0) {
-    return { score: 0, issues: [{ category: 'empty', severity: 'error', message: 'Wiki has no pages. Run `llmwiki ingest` to add content.' }] };
+    return { score: 0, issues: [{ category: 'empty', severity: 'error', message: 'Wiki has no pages. Run `wikimem ingest` to add content.' }] };
   }
 
   // Collect all page titles and wikilinks

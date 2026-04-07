@@ -64,7 +64,7 @@ _This index is auto-maintained by llmwiki. Each page is listed with a one-line s
 
 ## Sources
 
-_No sources ingested yet. Run \`llmwiki ingest <file>\` to get started._
+_No sources ingested yet. Run \`wikimem ingest <file>\` to get started._
 
 ## Entities
 
@@ -113,8 +113,8 @@ node_modules/
       console.log();
       console.log(chalk.dim('Next steps:'));
       console.log(chalk.dim('  1. Drop source files into raw/'));
-      console.log(chalk.dim('  2. Run: llmwiki ingest raw/<file>'));
+      console.log(chalk.dim('  2. Run: wikimem ingest raw/<file>'));
       console.log(chalk.dim('  3. Open in Obsidian to see the graph'));
-      console.log(chalk.dim('  4. Run: llmwiki query "your question"'));
+      console.log(chalk.dim('  4. Run: wikimem query "your question"'));
     });
 }

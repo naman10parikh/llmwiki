@@ -18,14 +18,14 @@ export function registerStatusCommand(program: Command): void {
       const config = getVaultConfig(vaultRoot);
 
       if (!existsSync(config.schemaPath)) {
-        console.error(chalk.red('Not a llmwiki vault. Run `llmwiki init` first.'));
+        console.error(chalk.red('Not a wikimem vault. Run `wikimem init` first.'));
         process.exit(1);
       }
 
       const stats = getVaultStats(config);
 
       console.log();
-      console.log(chalk.bold('llmwiki vault status'));
+      console.log(chalk.bold('wikimem vault status'));
       console.log(chalk.dim('─'.repeat(40)));
       console.log(`  ${chalk.blue('Pages:')}        ${stats.pageCount}`);
       console.log(`  ${chalk.blue('Words:')}        ${stats.wordCount.toLocaleString()}`);

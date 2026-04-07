@@ -21,7 +21,7 @@ export function registerServeCommand(program: Command): void {
       const config = getVaultConfig(vaultRoot);
 
       if (!existsSync(config.schemaPath)) {
-        console.error(chalk.red('Not a llmwiki vault. Run `llmwiki init` first.'));
+        console.error(chalk.red('Not a wikimem vault. Run `wikimem init` first.'));
         process.exit(1);
       }
 

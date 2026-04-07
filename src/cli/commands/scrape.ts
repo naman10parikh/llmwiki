@@ -24,7 +24,7 @@ export function registerScrapeCommand(program: Command): void {
       const userConfig = loadConfig(config.configPath);
 
       if (!existsSync(config.schemaPath)) {
-        console.error(chalk.red('Not a llmwiki vault. Run `llmwiki init` first.'));
+        console.error(chalk.red('Not a wikimem vault. Run `wikimem init` first.'));
         process.exit(1);
       }
 
@@ -47,7 +47,7 @@ export function registerScrapeCommand(program: Command): void {
 
         if (result.filesDeposited > 0) {
           console.log();
-          console.log(chalk.dim('Run `llmwiki ingest` to process new raw files into the wiki.'));
+          console.log(chalk.dim('Run `wikimem ingest` to process new raw files into the wiki.'));
         }
       } catch (error) {
         spinner.fail(chalk.red('Scraping failed'));
