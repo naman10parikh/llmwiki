@@ -102,8 +102,8 @@ _Chronological record of wiki operations. Auto-maintained by wikimem._
       // Write .gitignore
       writeFileSync(
         join(root, '.gitignore'),
-        `# llmwiki
-.llmwiki-cache/
+        `# wikimem
+.wikimem-cache/
 node_modules/
 `,
         'utf-8',

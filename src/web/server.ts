@@ -33,10 +33,15 @@ function buildGraph(config: VaultConfig): GraphData {
   const links: GraphLink[] = [];
   const incomingCount = new Map<string, number>();
 
-  // First pass: build nodes and title→id map
-  for (const pagePath of pages) {
-    const page = readWikiPage(pagePath);
-    const id = basename(pagePath, '.md');
+  // Cache all pages and build lookups
+  const pageData = pages.map((p) => {
+    const page = readWikiPage(p);
+    const id = basename(p, '.md');
+    return { id, page };
+  });
+
+  // Build multiple lookup strategies for resolving wikilinks
+  for (const { id, page } of pageData) {
     const category = (page.frontmatter['category'] as string) ?? 'uncategorized';
     nodesMap.set(id, {
       id,
@@ -47,16 +52,16 @@ function buildGraph(config: VaultConfig): GraphData {
       linksIn: 0,
     });
     titleToId.set(page.title, id);
+    titleToId.set(page.title.toLowerCase(), id);
     titleToId.set(id, id);
   }
 
-  // Second pass: resolve wikilinks (title or filename) to node IDs
-  for (const pagePath of pages) {
-    const page = readWikiPage(pagePath);
-    const sourceId = basename(pagePath, '.md');
-
+  // Resolve wikilinks using title, lowercase title, or slugified title
+  for (const { id: sourceId, page } of pageData) {
     for (const link of page.wikilinks) {
-      const targetId = titleToId.get(link) ?? titleToId.get(link.toLowerCase());
+      const targetId = titleToId.get(link)
+        ?? titleToId.get(link.toLowerCase())
+        ?? titleToId.get(link.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
       if (targetId && targetId !== sourceId) {
         links.push({ source: sourceId, target: targetId });
         incomingCount.set(targetId, (incomingCount.get(targetId) ?? 0) + 1);

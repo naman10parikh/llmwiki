@@ -1,5 +1,5 @@
 export function getDefaultConfig(template: string): string {
-  return `# llmwiki configuration
+  return `# wikimem configuration
 # Docs: https://github.com/naman10parikh/llmwiki
 
 # LLM Provider

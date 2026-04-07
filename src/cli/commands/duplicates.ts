@@ -44,6 +44,6 @@ export function registerDuplicatesCommand(program: Command): void {
         console.log('');
       }
 
-      console.log(chalk.dim(`Tip: Use ${chalk.white('llmwiki ingest <file> --force')} to override a rejection.\n`));
+      console.log(chalk.dim(`Tip: Use ${chalk.white('wikimem ingest <file> --force')} to override a rejection.\n`));
     });
 }
