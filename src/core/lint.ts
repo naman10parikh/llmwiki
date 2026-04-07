@@ -63,8 +63,9 @@ export async function lintWiki(
   }
 
   // Check 1: Orphan pages (no inbound links)
+  const structuralPages = new Set(['index', 'log', 'Wiki Index', 'Wiki Log']);
   for (const page of pageData) {
-    if (page.title === 'index' || page.title === 'log') continue;
+    if (structuralPages.has(page.title) || page.path.endsWith('/index.md') || page.path.endsWith('/log.md')) continue;
     if (!allLinkedTo.has(page.title)) {
       issues.push({
         category: 'orphan',
@@ -91,7 +92,7 @@ export async function lintWiki(
 
   // Check 3: Pages without summary in frontmatter
   for (const page of pageData) {
-    if (!page.frontmatter['summary'] && page.title !== 'index' && page.title !== 'log') {
+    if (!page.frontmatter['summary'] && !structuralPages.has(page.title) && !page.path.endsWith('/index.md') && !page.path.endsWith('/log.md')) {
       issues.push({
         category: 'no-summary',
         severity: 'warning',

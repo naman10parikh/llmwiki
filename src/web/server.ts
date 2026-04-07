@@ -203,7 +203,7 @@ export function createServer(vaultRoot: string, port: number): void {
   });
 
   app.listen(port, () => {
-    console.log(`\n  llmwiki web UI running at http://localhost:${port}`);
+    console.log(`\n  wikimem web UI running at http://localhost:${port}`);
     console.log(`  Vault: ${vaultRoot}\n`);
   });
 }

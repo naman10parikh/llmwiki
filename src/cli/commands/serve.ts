@@ -26,7 +26,7 @@ export function registerServeCommand(program: Command): void {
       }
 
       const port = parseInt(options.port ?? '3141', 10);
-      console.log(chalk.blue('Starting llmwiki web UI...'));
+      console.log(chalk.blue('Starting wikimem web UI...'));
       createServer(vaultRoot, port);
     });
 }

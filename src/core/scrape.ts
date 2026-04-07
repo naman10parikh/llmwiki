@@ -82,9 +82,11 @@ async function scrapeRss(source: SourceConfig, destDir: string): Promise<number>
     let count = 0;
 
     for (const item of items.slice(0, 10)) {
-      const title = item.match(/<title>(.*?)<\/title>/)?.[1] ?? 'Untitled';
-      const link = item.match(/<link>(.*?)<\/link>/)?.[1] ?? '';
-      const description = item.match(/<description>(.*?)<\/description>/)?.[1] ?? '';
+      const rawTitle = item.match(/<title>([\s\S]*?)<\/title>/)?.[1] ?? 'Untitled';
+      const title = stripCdata(rawTitle).trim();
+      const link = item.match(/<link>\s*([\s\S]*?)\s*<\/link>/)?.[1] ?? '';
+      const rawDesc = item.match(/<description>([\s\S]*?)<\/description>/)?.[1] ?? '';
+      const description = stripCdata(rawDesc);
 
       const content = `# ${title}\n\nSource: ${link}\n\n${stripHtml(description)}`;
       const fileName = `${slugify(title.substring(0, 60))}.md`;
@@ -137,6 +139,10 @@ async function scrapeUrl(source: SourceConfig, destDir: string): Promise<number>
   } catch {
     return 0;
   }
+}
+
+function stripCdata(text: string): string {
+  return text.replace(/<!\[CDATA\[/g, '').replace(/\]\]>/g, '').trim();
 }
 
 function stripHtml(html: string): string {
