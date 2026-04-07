@@ -8,6 +8,7 @@ import { registerWatchCommand } from './commands/watch.js';
 import { registerScrapeCommand } from './commands/scrape.js';
 import { registerImproveCommand } from './commands/improve.js';
 import { registerDuplicatesCommand } from './commands/duplicates.js';
+import { registerServeCommand } from './commands/serve.js';
 
 export function createProgram(): Command {
   const program = new Command();
@@ -26,6 +27,7 @@ export function createProgram(): Command {
   registerScrapeCommand(program);
   registerImproveCommand(program);
   registerDuplicatesCommand(program);
+  registerServeCommand(program);
 
   return program;
 }

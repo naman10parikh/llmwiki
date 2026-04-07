@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>llmwiki — Mission Control</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Instrument+Serif&display=swap" rel="stylesheet">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #141312;
+      --bg-card: #1c1b1a;
+      --bg-hover: #242322;
+      --border: #2a2928;
+      --text: #e8e4df;
+      --text-dim: #8a8580;
+      --text-muted: #5a5550;
+      --purple: #6b21a8;
+      --purple-light: #8B5CF6;
+      --purple-glow: rgba(139, 92, 246, 0.15);
+      --green: #22c55e;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'Poppins', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 32px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header h1 {
+      font-family: 'Instrument Serif', serif;
+      font-size: 28px;
+      font-weight: 400;
+      letter-spacing: -0.5px;
+    }
+
+    .header h1 span { color: var(--purple-light); }
+
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Nav */
+    .nav {
+      display: flex;
+      gap: 4px;
+      padding: 12px 32px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav button {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-family: 'Poppins', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .nav button:hover { background: var(--bg-hover); color: var(--text); }
+    .nav button.active { background: var(--purple-glow); color: var(--purple-light); }
+
+    /* Main Layout */
+    .main { padding: 24px 32px; }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-family: 'Instrument Serif', serif;
+      font-size: 20px;
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+
+    /* Dashboard Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+      transition: border-color 0.2s;
+    }
+
+    .stat-card:hover { border-color: var(--purple); }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--purple-light);
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Pages Table */
+    .pages-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .pages-table th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pages-table td {
+      padding: 10px 12px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pages-table tr:hover td { background: var(--bg-hover); }
+
+    .pages-table .title-cell { color: var(--purple-light); cursor: pointer; }
+    .pages-table .title-cell:hover { text-decoration: underline; }
+
+    .category-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      background: var(--purple-glow);
+      color: var(--purple-light);
+    }
+
+    /* Upload Zone */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 48px;
+      text-align: center;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+
+    .upload-zone.dragover {
+      border-color: var(--purple-light);
+      background: var(--purple-glow);
+    }
+
+    .upload-zone h3 {
+      font-family: 'Instrument Serif', serif;
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+
+    .upload-zone p { color: var(--text-dim); font-size: 13px; }
+
+    .upload-list {
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .upload-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: var(--bg-hover);
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .upload-item .status-ok { color: var(--green); }
+    .upload-item .status-err { color: var(--red); }
+
+    /* Graph Container */
+    #graph-container {
+      width: 100%;
+      height: 500px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      position: relative;
+    }
+
+    #graph-container svg { width: 100%; height: 100%; }
+
+    .graph-controls {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      gap: 6px;
+      z-index: 10;
+    }
+
+    .graph-controls button {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .graph-controls button:hover { border-color: var(--purple); color: var(--text); }
+
+    .node-tooltip {
+      position: absolute;
+      background: var(--bg);
+      border: 1px solid var(--purple);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      pointer-events: none;
+      display: none;
+      z-index: 20;
+      max-width: 200px;
+    }
+
+    .node-tooltip .tt-title { font-weight: 600; color: var(--purple-light); }
+    .node-tooltip .tt-meta { color: var(--text-dim); margin-top: 4px; }
+
+    /* Query Interface */
+    .query-form {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .query-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: var(--text);
+      font-family: 'Poppins', sans-serif;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .query-input:focus { border-color: var(--purple); }
+
+    .query-input::placeholder { color: var(--text-muted); }
+
+    .btn {
+      background: var(--purple);
+      border: none;
+      color: white;
+      font-family: 'Poppins', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn:hover { background: #7c3aed; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .query-result {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      font-size: 14px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      display: none;
+    }
+
+    .query-result.visible { display: block; }
+
+    .query-sources {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .query-sources span {
+      display: inline-block;
+      margin-right: 8px;
+      padding: 2px 8px;
+      background: var(--bg-hover);
+      border-radius: 4px;
+    }
+
+    /* Sections */
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* Raw files table */
+    .raw-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    .raw-table th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .raw-table td {
+      padding: 8px 12px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Page Detail Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.visible { display: flex; }
+
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 90%;
+      max-width: 700px;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 28px;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .modal-header h2 {
+      font-family: 'Instrument Serif', serif;
+      font-size: 24px;
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      font-size: 14px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      color: var(--text-dim);
+    }
+
+    .modal-meta {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Loading spinner */
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--purple-light);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header, .nav, .main { padding-left: 16px; padding-right: 16px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      #graph-container { height: 350px; }
+      .query-form { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>llm<span>wiki</span></h1>
+    <div class="header-status">
+      <div class="status-dot"></div>
+      <span id="header-page-count">Loading...</span>
+    </div>
+  </div>
+
+  <div class="nav">
+    <button class="active" data-section="dashboard">Dashboard</button>
+    <button data-section="pages">Pages</button>
+    <button data-section="graph">Knowledge Graph</button>
+    <button data-section="query">Query</button>
+    <button data-section="upload">Upload</button>
+  </div>
+
+  <div class="main">
+    <!-- Dashboard -->
+    <div class="section active" id="section-dashboard">
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="card">
+        <div class="card-title">Recent Pages</div>
+        <table class="pages-table">
+          <thead><tr><th>Title</th><th>Category</th><th>Words</th><th>Links</th></tr></thead>
+          <tbody id="recent-pages"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Raw Sources</div>
+        <table class="raw-table">
+          <thead><tr><th>File</th><th>Size</th><th>Modified</th></tr></thead>
+          <tbody id="raw-files"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Pages -->
+    <div class="section" id="section-pages">
+      <div class="card">
+        <div class="card-title">All Wiki Pages</div>
+        <table class="pages-table">
+          <thead><tr><th>Title</th><th>Category</th><th>Words</th><th>Links</th></tr></thead>
+          <tbody id="all-pages"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Graph -->
+    <div class="section" id="section-graph">
+      <div id="graph-container">
+        <div class="graph-controls">
+          <button id="graph-zoom-in" title="Zoom in">+</button>
+          <button id="graph-zoom-out" title="Zoom out">−</button>
+          <button id="graph-reset" title="Reset">⟲</button>
+        </div>
+        <div class="node-tooltip" id="tooltip"></div>
+        <svg id="graph-svg"></svg>
+      </div>
+    </div>
+
+    <!-- Query -->
+    <div class="section" id="section-query">
+      <div class="card">
+        <div class="card-title">Ask your knowledge base</div>
+        <div class="query-form">
+          <input type="text" class="query-input" id="query-input" placeholder="What do you want to know?" />
+          <button class="btn" id="query-btn">Ask</button>
+        </div>
+        <div class="query-result" id="query-result"></div>
+      </div>
+    </div>
+
+    <!-- Upload -->
+    <div class="section" id="section-upload">
+      <div class="upload-zone" id="upload-zone">
+        <h3>Drop files here</h3>
+        <p>Markdown, PDF, DOCX, XLSX, PPTX, text, or URLs</p>
+        <p style="margin-top:8px;font-size:12px;color:var(--text-muted);">Click to browse or drag &amp; drop</p>
+        <input type="file" id="file-input" multiple style="display:none" accept=".md,.txt,.pdf,.docx,.xlsx,.pptx,.csv,.json,.yaml,.yml" />
+      </div>
+      <div class="upload-list" id="upload-list"></div>
+    </div>
+  </div>
+
+  <!-- Page Detail Modal -->
+  <div class="modal-overlay" id="page-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title"></h2>
+        <button class="modal-close" id="modal-close">&times;</button>
+      </div>
+      <div class="modal-meta" id="modal-meta"></div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <script>
+    // ── State ──
+    let currentSection = 'dashboard';
+
+    // ── Navigation ──
+    document.querySelectorAll('.nav button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        const section = btn.dataset.section;
+        document.getElementById('section-' + section).classList.add('active');
+        currentSection = section;
+        if (section === 'graph') initGraph();
+      });
+    });
+
+    // ── API Helpers ──
+    async function api(path) {
+      const res = await fetch(path);
+      return res.json();
+    }
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+
+    function formatDate(iso) {
+      return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    // ── Dashboard ──
+    async function loadDashboard() {
+      const [stats, pages, raw] = await Promise.all([
+        api('/api/status'),
+        api('/api/pages'),
+        api('/api/raw'),
+      ]);
+
+      document.getElementById('header-page-count').textContent = stats.pageCount + ' pages · ' + stats.wordCount.toLocaleString() + ' words';
+
+      const statsGrid = document.getElementById('stats-grid');
+      const statItems = [
+        { value: stats.pageCount, label: 'Wiki Pages' },
+        { value: stats.wordCount.toLocaleString(), label: 'Total Words' },
+        { value: stats.sourceCount, label: 'Raw Sources' },
+        { value: stats.wikilinks, label: 'Wiki Links' },
+        { value: stats.orphanPages, label: 'Orphan Pages' },
+        { value: stats.lastUpdated, label: 'Last Updated' },
+      ];
+      statsGrid.innerHTML = statItems.map(s =>
+        `<div class="stat-card"><div class="stat-value">${s.value}</div><div class="stat-label">${s.label}</div></div>`
+      ).join('');
+
+      // Recent pages (last 10)
+      const recentPages = pages.slice(-10).reverse();
+      document.getElementById('recent-pages').innerHTML = recentPages.map(p =>
+        `<tr>
+          <td class="title-cell" data-title="${esc(p.title)}">${esc(p.title)}</td>
+          <td><span class="category-badge">${esc(p.category)}</span></td>
+          <td>${p.wordCount}</td>
+          <td>${p.wikilinks.length}</td>
+        </tr>`
+      ).join('');
+
+      // All pages
+      document.getElementById('all-pages').innerHTML = pages.map(p =>
+        `<tr>
+          <td class="title-cell" data-title="${esc(p.title)}">${esc(p.title)}</td>
+          <td><span class="category-badge">${esc(p.category)}</span></td>
+          <td>${p.wordCount}</td>
+          <td>${p.wikilinks.length}</td>
+        </tr>`
+      ).join('');
+
+      // Raw files
+      document.getElementById('raw-files').innerHTML = raw.length === 0
+        ? '<tr><td colspan="3" style="color:var(--text-muted);text-align:center;padding:20px;">No raw sources yet. Upload files to get started.</td></tr>'
+        : raw.map(f =>
+          `<tr><td>${esc(f.name)}</td><td>${formatBytes(f.size)}</td><td>${formatDate(f.modified)}</td></tr>`
+        ).join('');
+
+      // Click handlers for page titles
+      document.querySelectorAll('.title-cell').forEach(td => {
+        td.addEventListener('click', () => openPage(td.dataset.title));
+      });
+    }
+
+    function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    // ── Page Modal ──
+    async function openPage(title) {
+      const page = await api('/api/pages/' + encodeURIComponent(title));
+      document.getElementById('modal-title').textContent = page.title;
+      document.getElementById('modal-meta').innerHTML =
+        `<span>${page.wordCount} words</span>` +
+        `<span>${page.wikilinks.length} links</span>` +
+        (page.frontmatter.category ? `<span>${page.frontmatter.category}</span>` : '');
+      document.getElementById('modal-body').textContent = page.content;
+      document.getElementById('page-modal').classList.add('visible');
+    }
+
+    document.getElementById('modal-close').addEventListener('click', () => {
+      document.getElementById('page-modal').classList.remove('visible');
+    });
+    document.getElementById('page-modal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) e.currentTarget.classList.remove('visible');
+    });
+
+    // ── Knowledge Graph (d3-force) ──
+    let graphInitialized = false;
+
+    async function initGraph() {
+      if (graphInitialized) return;
+      graphInitialized = true;
+
+      const data = await api('/api/graph');
+      if (data.nodes.length === 0) {
+        document.getElementById('graph-container').innerHTML =
+          '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:14px;">No pages yet. Ingest some content first.</div>';
+        return;
+      }
+
+      const container = document.getElementById('graph-container');
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      const svg = d3.select('#graph-svg');
+      const tooltip = document.getElementById('tooltip');
+
+      // Category colors
+      const catColors = {
+        uncategorized: '#6b21a8',
+        concept: '#2563eb',
+        reference: '#059669',
+        project: '#d97706',
+        person: '#dc2626',
+        tool: '#7c3aed',
+        note: '#6366f1',
+      };
+
+      function nodeColor(cat) { return catColors[cat] || '#6b21a8'; }
+
+      const g = svg.append('g');
+
+      const zoom = d3.zoom()
+        .scaleExtent([0.2, 5])
+        .on('zoom', (e) => g.attr('transform', e.transform));
+
+      svg.call(zoom);
+
+      // Zoom controls
+      document.getElementById('graph-zoom-in').addEventListener('click', () => svg.transition().call(zoom.scaleBy, 1.3));
+      document.getElementById('graph-zoom-out').addEventListener('click', () => svg.transition().call(zoom.scaleBy, 0.7));
+      document.getElementById('graph-reset').addEventListener('click', () => svg.transition().call(zoom.transform, d3.zoomIdentity));
+
+      const simulation = d3.forceSimulation(data.nodes)
+        .force('link', d3.forceLink(data.links).id(d => d.id).distance(80))
+        .force('charge', d3.forceManyBody().strength(-200))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide().radius(20));
+
+      // Links
+      const link = g.append('g')
+        .selectAll('line')
+        .data(data.links)
+        .join('line')
+        .attr('stroke', '#2a2928')
+        .attr('stroke-width', 1)
+        .attr('stroke-opacity', 0.6);
+
+      // Nodes
+      const node = g.append('g')
+        .selectAll('circle')
+        .data(data.nodes)
+        .join('circle')
+        .attr('r', d => Math.max(6, Math.min(20, Math.sqrt(d.wordCount / 50))))
+        .attr('fill', d => nodeColor(d.category))
+        .attr('stroke', '#141312')
+        .attr('stroke-width', 1.5)
+        .attr('cursor', 'pointer')
+        .call(d3.drag()
+          .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+          .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+          .on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+        );
+
+      // Labels
+      const label = g.append('g')
+        .selectAll('text')
+        .data(data.nodes)
+        .join('text')
+        .text(d => d.title.length > 20 ? d.title.slice(0, 18) + '…' : d.title)
+        .attr('font-size', 10)
+        .attr('font-family', 'Poppins, sans-serif')
+        .attr('fill', '#8a8580')
+        .attr('text-anchor', 'middle')
+        .attr('dy', d => Math.max(6, Math.min(20, Math.sqrt(d.wordCount / 50))) + 14);
+
+      // Tooltip
+      node.on('mouseover', (e, d) => {
+        tooltip.style.display = 'block';
+        tooltip.innerHTML = `<div class="tt-title">${esc(d.title)}</div><div class="tt-meta">${d.wordCount} words · ${d.linksOut} out · ${d.linksIn} in<br>${d.category}</div>`;
+      }).on('mousemove', (e) => {
+        tooltip.style.left = (e.offsetX + 12) + 'px';
+        tooltip.style.top = (e.offsetY - 10) + 'px';
+      }).on('mouseout', () => {
+        tooltip.style.display = 'none';
+      }).on('click', (e, d) => {
+        openPage(d.id);
+      });
+
+      simulation.on('tick', () => {
+        link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+        node.attr('cx', d => d.x).attr('cy', d => d.y);
+        label.attr('x', d => d.x).attr('y', d => d.y);
+      });
+    }
+
+    // ── Query ──
+    document.getElementById('query-btn').addEventListener('click', submitQuery);
+    document.getElementById('query-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitQuery();
+    });
+
+    async function submitQuery() {
+      const input = document.getElementById('query-input');
+      const resultEl = document.getElementById('query-result');
+      const btn = document.getElementById('query-btn');
+      const question = input.value.trim();
+      if (!question) return;
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>';
+      resultEl.classList.add('visible');
+      resultEl.innerHTML = '<span class="spinner"></span> Searching knowledge base...';
+
+      try {
+        const res = await fetch('/api/query?q=' + encodeURIComponent(question));
+        const data = await res.json();
+        if (data.error) {
+          resultEl.textContent = 'Error: ' + data.error;
+        } else {
+          resultEl.innerHTML = esc(data.answer || 'No answer found.');
+          if (data.sourcesConsulted && data.sourcesConsulted.length > 0) {
+            resultEl.innerHTML += '<div class="query-sources">Sources: ' +
+              data.sourcesConsulted.map(s => '<span>' + esc(s) + '</span>').join('') +
+              '</div>';
+          }
+        }
+      } catch (err) {
+        resultEl.textContent = 'Query failed. Make sure you have an LLM provider configured.';
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Ask';
+    }
+
+    // ── Upload ──
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
+    const uploadList = document.getElementById('upload-list');
+
+    uploadZone.addEventListener('click', () => fileInput.click());
+
+    uploadZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', () => {
+      uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) uploadFiles(e.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length > 0) uploadFiles(fileInput.files);
+    });
+
+    async function uploadFiles(files) {
+      for (const file of files) {
+        const item = document.createElement('div');
+        item.className = 'upload-item';
+        item.innerHTML = `<span>${esc(file.name)}</span><span class="spinner"></span>`;
+        uploadList.prepend(item);
+
+        try {
+          const buf = await file.arrayBuffer();
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/octet-stream', 'X-Filename': file.name },
+            body: buf,
+          });
+          const data = await res.json();
+          item.innerHTML = `<span>${esc(file.name)} (${formatBytes(file.size)})</span><span class="status-ok">uploaded</span>`;
+        } catch (err) {
+          item.innerHTML = `<span>${esc(file.name)}</span><span class="status-err">failed</span>`;
+        }
+      }
+      // Refresh dashboard
+      loadDashboard();
+    }
+
+    // ── Init ──
+    loadDashboard();
+  </script>
+</body>
+</html>

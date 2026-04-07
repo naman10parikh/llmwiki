@@ -193,7 +193,7 @@ export function createServer(vaultRoot: string, port: number): void {
   });
 
   // Serve index.html for all other routes (SPA)
-  app.get('*', (_req, res) => {
+  app.get('/{*path}', (_req, res) => {
     const indexPath = join(publicDir, 'index.html');
     if (existsSync(indexPath)) {
       res.sendFile(indexPath);
