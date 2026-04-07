@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - run: pnpm test
+
+      - name: Verify CLI
+        run: node dist/index.js --help
+
+      - name: Test init
+        run: node dist/index.js init /tmp/ci-vault --template personal
+
+      - name: Verify vault structure
+        run: |
+          test -f /tmp/ci-vault/AGENTS.md
+          test -f /tmp/ci-vault/config.yaml
+          test -d /tmp/ci-vault/wiki
+          test -d /tmp/ci-vault/raw
+          test -d /tmp/ci-vault/.obsidian
