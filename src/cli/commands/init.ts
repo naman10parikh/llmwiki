@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { existsSync, mkdirSync, writeFileSync, cpSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import chalk from 'chalk';
 import { getDefaultAgentsMd } from '../../templates/agents-md.js';
 import { getDefaultConfig } from '../../templates/config-yaml.js';
@@ -109,12 +109,20 @@ node_modules/
         'utf-8',
       );
 
+      const absRoot = resolve(root);
       console.log(chalk.green('Vault initialized successfully!'));
       console.log();
-      console.log(chalk.dim('Next steps:'));
-      console.log(chalk.dim('  1. Drop source files into raw/'));
-      console.log(chalk.dim('  2. Run: wikimem ingest raw/<file>'));
-      console.log(chalk.dim('  3. Open in Obsidian to see the graph'));
-      console.log(chalk.dim('  4. Run: wikimem query "your question"'));
+      console.log(chalk.bold('Quick start:'));
+      console.log();
+      console.log(chalk.white(`  cd ${root}`));
+      console.log(chalk.white('  export ANTHROPIC_API_KEY=sk-ant-...  # or OPENAI_API_KEY'));
+      console.log(chalk.white('  npx wikimem ingest <file-or-url>'));
+      console.log(chalk.white('  npx wikimem query "your question"'));
+      console.log(chalk.white('  npx wikimem serve                   # web UI at localhost:3141'));
+      console.log();
+      console.log(chalk.dim('Open in Obsidian:'));
+      console.log(chalk.dim(`  Open Obsidian → "Open folder as vault" → select ${absRoot}`));
+      console.log();
+      console.log(chalk.dim('Or install globally: npm install -g wikimem'));
     });
 }
