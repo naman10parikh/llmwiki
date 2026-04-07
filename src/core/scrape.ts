@@ -142,7 +142,7 @@ async function scrapeUrl(source: SourceConfig, destDir: string): Promise<number>
 }
 
 function stripCdata(text: string): string {
-  return text.replace(/<!\[CDATA\[/g, '').replace(/\]\]>/g, '').trim();
+  return text.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim();
 }
 
 function stripHtml(html: string): string {

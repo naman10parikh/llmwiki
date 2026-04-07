@@ -54,9 +54,9 @@ function isNewer(latest: string, current: string): boolean {
   const parse = (v: string) => v.split('.').map(Number);
   const [lMaj, lMin, lPatch] = parse(latest);
   const [cMaj, cMin, cPatch] = parse(current);
-  if (lMaj !== cMaj) return lMaj > cMaj;
-  if (lMin !== cMin) return lMin > cMin;
-  return lPatch > cPatch;
+  if ((lMaj ?? 0) !== (cMaj ?? 0)) return (lMaj ?? 0) > (cMaj ?? 0);
+  if ((lMin ?? 0) !== (cMin ?? 0)) return (lMin ?? 0) > (cMin ?? 0);
+  return (lPatch ?? 0) > (cPatch ?? 0);
 }
 
 export async function checkForUpdates(): Promise<void> {

@@ -14,7 +14,7 @@ interface InitOptions {
 export function registerInitCommand(program: Command): void {
   program
     .command('init [directory]')
-    .description('Create a new llmwiki vault')
+    .description('Create a new wikimem vault')
     .option('-t, --template <template>', 'Domain template (personal, research, business, codebase)', 'personal')
     .option('-f, --force', 'Overwrite existing vault')
     .action(async (directory: string | undefined, options: InitOptions) => {
@@ -26,7 +26,7 @@ export function registerInitCommand(program: Command): void {
         process.exit(1);
       }
 
-      console.log(chalk.blue(`Initializing llmwiki vault in ${root} (template: ${template})...`));
+      console.log(chalk.blue(`Initializing wikimem vault in ${root} (template: ${template})...`));
 
       // Create directory structure
       const dirs = [
