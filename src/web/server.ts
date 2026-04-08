@@ -220,6 +220,49 @@ export function createServer(vaultRoot: string, port: number): void {
     }
   });
 
+  // API: query the wiki
+  app.post('/api/query', async (req, res) => {
+    try {
+      const { question, provider: providerName } = req.body as { question?: string; provider?: string };
+      if (!question) {
+        res.status(400).json({ error: 'Missing question field' });
+        return;
+      }
+      // Dynamic import to avoid circular deps
+      const { queryWiki } = await import('../core/query.js');
+      const { createProvider } = await import('../providers/index.js');
+      const { loadConfig } = await import('../core/config.js');
+      const userConfig = loadConfig(config.configPath);
+      const provider = createProvider(providerName ?? userConfig.provider ?? 'claude');
+      const result = await queryWiki(question, config, provider, { fileBack: false });
+      res.json(result);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Query failed: ${msg}` });
+    }
+  });
+
+  // API: ingest a URL
+  app.post('/api/ingest', async (req, res) => {
+    try {
+      const { source } = req.body as { source?: string };
+      if (!source) {
+        res.status(400).json({ error: 'Missing source field' });
+        return;
+      }
+      const { ingestSource } = await import('../core/ingest.js');
+      const { createProvider } = await import('../providers/index.js');
+      const { loadConfig } = await import('../core/config.js');
+      const userConfig = loadConfig(config.configPath);
+      const provider = createProvider(userConfig.provider ?? 'claude');
+      const result = await ingestSource(source, config, provider, { verbose: false });
+      res.json(result);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Ingest failed: ${msg}` });
+    }
+  });
+
   // Serve index.html for all other routes (SPA)
   app.get('/{*path}', (_req, res) => {
     const indexPath = join(publicDir, 'index.html');
