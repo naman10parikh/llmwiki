@@ -1,6 +1,6 @@
 {
   "name": "wikimem",
-  "version": "0.3.0",
+  "version": "0.5.1",
   "description": "Build self-improving knowledge bases with LLMs. Ingest anything, query everything, auto-evolve.",
   "type": "module",
   "bin": {
@@ -11,13 +11,14 @@
   "files": [
     "dist/",
     "src/web/public/",
+    "scripts/",
     "templates/",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc && chmod +x dist/index.js && cp -r src/web/public dist/web/public 2>/dev/null || true",
+    "build": "tsc && chmod +x dist/index.js && rm -rf dist/web/public && cp -r src/web/public dist/web/ 2>/dev/null || true",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -57,6 +58,7 @@
     "openai": "^4.80.0",
     "ora": "^8.1.0",
     "pdf-parse": "1.1.1",
+    "simple-git": "^3.35.2",
     "xlsx": "^0.18.5",
     "yaml": "^2.6.0"
   },

@@ -42,6 +42,10 @@ export async function ingestSource(
   provider: LLMProvider,
   options: IngestOptions,
 ): Promise<IngestResult> {
+  const { pipelineEvents } = await import('./pipeline-events.js');
+  pipelineEvents.startRun(source);
+  pipelineEvents.emitStep('detect', 'running', `Detecting type of ${basename(source)}`);
+
   const isUrl = source.startsWith('http://') || source.startsWith('https://');
   const now = new Date().toISOString().split('T')[0] ?? '';
 
@@ -51,6 +55,9 @@ export async function ingestSource(
   let rawPath: string;
 
   let needsCopyToRaw = false;
+
+  pipelineEvents.emitStep('detect', 'done', isUrl ? 'URL source' : `File: ${extname(source) || 'unknown'}`);
+  pipelineEvents.emitStep('extract', 'running', 'Extracting content...');
 
   if (isUrl) {
     const urlResult = await processUrl(source);
@@ -136,6 +143,9 @@ export async function ingestSource(
     }
   }
 
+  pipelineEvents.emitStep('extract', 'done', `Extracted: "${title}"`);
+  pipelineEvents.emitStep('dedup', 'running', 'Checking for duplicates...');
+
   // Step 2: Semantic dedup check (unless --force)
   if (!options.force) {
     const existingPages = listWikiPages(config.wikiDir);
@@ -167,6 +177,8 @@ export async function ingestSource(
         JSON.stringify(rejectionMeta, null, 2),
         'utf-8',
       );
+      pipelineEvents.emitStep('dedup', 'done', `Duplicate: ${isDuplicate.reason}`);
+      pipelineEvents.errorRun(`Rejected: ${isDuplicate.reason}`);
       return {
         title,
         pagesUpdated: 0,
@@ -178,6 +190,9 @@ export async function ingestSource(
     }
   }
 
+  pipelineEvents.emitStep('dedup', options.force ? 'skipped' : 'done', options.force ? 'Skipped (--force)' : 'No duplicates found');
+  pipelineEvents.emitStep('copy-raw', 'running', 'Copying to raw/...');
+
   // Step 2.5: Copy source to raw/ now that dedup passed
   if (needsCopyToRaw) {
     if (isUrl) {
@@ -186,6 +201,9 @@ export async function ingestSource(
       copyFileSync(source, rawPath);
     }
   }
+
+  pipelineEvents.emitStep('copy-raw', needsCopyToRaw ? 'done' : 'skipped', needsCopyToRaw ? `Saved to raw/${now}/` : 'Already in raw/');
+  pipelineEvents.emitStep('llm-compile', 'running', 'Asking LLM to analyze and generate wiki pages...');
 
   // Step 3: Ask LLM to process and integrate into wiki
   const schema = existsSync(config.schemaPath)
@@ -197,13 +215,25 @@ export async function ingestSource(
     : '';
 
   const prompt = buildIngestPrompt(content, title, schema, indexContent);
+  const systemPrompt = `You are a wiki maintainer. You process source documents and produce structured wiki pages in markdown with YAML frontmatter and [[wikilinks]]. Follow the schema in AGENTS.md exactly. Be concise, factual, and thorough in cross-referencing.`;
 
+  const llmStart = Date.now();
   const response = await provider.chat([
     { role: 'user', content: prompt },
   ], {
-    systemPrompt: `You are a wiki maintainer. You process source documents and produce structured wiki pages in markdown with YAML frontmatter and [[wikilinks]]. Follow the schema in AGENTS.md exactly. Be concise, factual, and thorough in cross-referencing.`,
+    systemPrompt,
     maxTokens: 8192,
   });
+  const llmDuration = Date.now() - llmStart;
+
+  pipelineEvents.setLLMTrace({
+    systemPrompt,
+    userPrompt: prompt.substring(0, 2000) + (prompt.length > 2000 ? '\n...(truncated)' : ''),
+    response: response.content.substring(0, 3000) + (response.content.length > 3000 ? '\n...(truncated)' : ''),
+    durationMs: llmDuration,
+  });
+
+  pipelineEvents.emitStep('write-pages', 'running', 'Writing wiki pages...');
 
   // Step 4: Parse LLM response into wiki pages
   const pages = parseLLMPages(response.content);
@@ -245,6 +275,9 @@ export async function ingestSource(
     linksAdded += (page.content.match(/\[\[[^\]]+\]\]/g) ?? []).length;
   }
 
+  pipelineEvents.emitStep('write-pages', 'done', `${pagesUpdated} pages written, ${linksAdded} links`);
+  pipelineEvents.emitStep('embed', options.embeddingProvider ? 'running' : 'skipped', options.embeddingProvider ? 'Generating embeddings...' : 'No embedding provider');
+
   // Step 5: Generate embeddings for new pages (if provider configured)
   if (options.embeddingProvider) {
     for (const page of pages) {
@@ -258,9 +291,45 @@ export async function ingestSource(
     }
   }
 
+  if (options.embeddingProvider) pipelineEvents.emitStep('embed', 'done', 'Embeddings generated');
+  pipelineEvents.emitStep('update-index', 'running', 'Updating index and log...');
+
   // Step 6: Update index.md and log.md
   await updateIndex(config, pages);
   appendLog(config.logPath, `ingest | ${title}`, `Processed ${source}. Created/updated ${pagesUpdated} pages.`);
+
+  pipelineEvents.emitStep('update-index', 'done', 'Index and log updated');
+  pipelineEvents.emitStep('git-commit', 'running', 'Auto-committing to git...');
+
+  // Step 7: Auto-commit to git if vault is a git repo
+  try {
+    const { autoCommit } = await import('./git.js');
+    const result = await autoCommit(
+      config.root,
+      'ingest',
+      `add ${pagesUpdated} pages from ${basename(source)}`,
+      `Source: ${source}\nPages: ${pagesUpdated}\nLinks: ${linksAdded}`,
+    );
+    pipelineEvents.emitStep('git-commit', result ? 'done' : 'skipped', result ? `Committed: ${result.hash.substring(0, 7)}` : 'Not a git repo');
+  } catch {
+    pipelineEvents.emitStep('git-commit', 'skipped', 'Git not available');
+  }
+
+  const pagesCreatedList = pages.filter(p => p.category === 'sources' || p.category === 'concepts' || p.category === 'syntheses').map(p => p.title);
+  const entitiesFound = pages.filter(p => p.category === 'entities').map(p => p.title);
+  const conceptsFound = pages.filter(p => p.category === 'concepts').map(p => p.title);
+
+  pipelineEvents.setSummary({
+    whatHappened: `Ingested "${title}" and generated ${pagesUpdated} wiki pages with ${linksAdded} cross-references.`,
+    pagesCreated: pagesCreatedList,
+    pagesUpdated: [],
+    entitiesFound,
+    conceptsFound,
+    linksCreated: linksAdded,
+    decisionsExplained: `The AI analyzed the source document, identified ${entitiesFound.length} entities and ${conceptsFound.length} concepts, then created structured wiki pages with cross-references to existing knowledge.`,
+  });
+
+  pipelineEvents.completeRun({ pagesCreated: pagesUpdated, linksAdded, title });
 
   return { title, pagesUpdated, linksAdded, rawPath };
 }

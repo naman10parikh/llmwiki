@@ -76,6 +76,20 @@ export async function improveWiki(
     `${actions.length} improvement(s) ${options.dryRun ? 'proposed' : 'applied'}. Dimensions: ${JSON.stringify(dimensions)}`,
   );
 
+  if (!options.dryRun && actions.length > 0) {
+    try {
+      const { autoCommit } = await import('./git.js');
+      await autoCommit(
+        config.root,
+        'improve',
+        `${actions.length} improvements applied (score ${score}/100)`,
+        `Dimensions: ${JSON.stringify(dimensions)}`,
+      );
+    } catch {
+      // Git commit failure is non-fatal
+    }
+  }
+
   return { score, dimensions, actions };
 }
 
