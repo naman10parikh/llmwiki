@@ -723,6 +723,8 @@
     .md pre:hover .code-copy { opacity: 1; }
     .code-copy:hover { color: var(--text); border-color: var(--border); }
 
+    .export-menu-item { padding:9px 16px; font-size:13px; color:var(--text); cursor:pointer; transition:background 0.08s; }
+    .export-menu-item:hover { background:var(--bg-hover); }
     /* ── Graph view ── */
     #graph-view { display: none; width: 100%; height: 100%; position: relative; flex-direction:column; }
     #graph-view.active { display: flex; }
@@ -1375,6 +1377,7 @@
               <input id="graph-search" type="text" placeholder="Search graph…" autocomplete="off" />
             </div>
             <div class="graph-controls">
+              <button class="graph-btn" id="graph-export-btn" title="Export graph" onclick="exportGraph()">⬇</button>
               <button class="graph-btn" id="graph-zoom-in" title="Zoom in">+</button>
               <button class="graph-btn" id="graph-zoom-out" title="Zoom out">−</button>
               <button class="graph-btn" id="graph-reset" title="Reset">⟲</button>
@@ -1653,10 +1656,20 @@
       </div>`;
       html += `<div id="raw-tree" class="tree-children">${renderTreeNodes(state.treeData.raw, 0, 'raw')}</div>`;
 
+      html += `<div class="sidebar-section-header" onclick="toggleTreeSection('connectors-tree');loadSidebarConnectors()">
+        <span>Connected Sources</span><span class="count" id="connectors-count">⟳</span>
+      </div>`;
+      html += `<div id="connectors-tree" class="tree-children collapsed"><div id="sidebar-connectors" style="padding:4px 8px;"></div></div>`;
+
       html += `<div class="sidebar-section-header" onclick="toggleTreeSection('history-tree');loadSidebarHistory()">
         <span>History</span><span class="count" id="history-count">⟳</span>
       </div>`;
       html += `<div id="history-tree" class="tree-children collapsed"><div id="sidebar-history" style="padding:4px 8px;"></div></div>`;
+
+      html += `<div class="sidebar-section-header" onclick="toggleTreeSection('connectors-tree');loadSidebarConnectors()">
+        <span>Connected Sources</span><span class="count" id="connectors-count">⟳</span>
+      </div>`;
+      html += `<div id="connectors-tree" class="tree-children collapsed"><div id="sidebar-connectors" style="padding:4px 8px;"></div></div>`;
 
       container.innerHTML = html;
     }
@@ -2347,6 +2360,59 @@
       });
     }
 
+    // ── Graph Export (EXPORT-001) ──
+    async function exportGraph() {
+      try {
+        const data = await api('/api/graph');
+        const menu = document.getElementById('graph-export-menu') || (() => {
+          const el = document.createElement('div');
+          el.id = 'graph-export-menu';
+          el.style.cssText = 'position:fixed;top:50px;right:16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 0;z-index:9000;min-width:160px;box-shadow:0 4px 16px rgba(0,0,0,0.4)';
+          document.body.appendChild(el);
+          return el;
+        })();
+        if(menu.style.display !== 'none' && menu.style.display !== '') { menu.style.display = 'none'; return; }
+        menu.innerHTML = `
+          <div onclick="doExportGraph('json')" class="export-menu-item">📄 Export JSON</div>
+          <div onclick="doExportGraph('csv')" class="export-menu-item">📊 Export CSV (edges)</div>
+          <div onclick="doExportGraph('graphml')" class="export-menu-item">🔗 Export GraphML</div>
+        `;
+        menu.style.display = 'block';
+        const hide = (e) => { if(!menu.contains(e.target)) { menu.style.display='none'; document.removeEventListener('click',hide); } };
+        setTimeout(() => document.addEventListener('click', hide), 50);
+      } catch(e) { alert('Export failed: ' + e); }
+    }
+
+    async function doExportGraph(format) {
+      document.getElementById('graph-export-menu').style.display = 'none';
+      const data = await api('/api/graph');
+      let content, filename, mimeType;
+      if(format === 'json') {
+        content = JSON.stringify(data, null, 2);
+        filename = 'wiki-graph.json'; mimeType = 'application/json';
+      } else if(format === 'csv') {
+        const rows = [['source', 'target']];
+        for(const l of data.links) rows.push([l.source, l.target]);
+        content = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+        filename = 'wiki-graph-edges.csv'; mimeType = 'text/csv';
+      } else if(format === 'graphml') {
+        const nodeXml = data.nodes.map(n =>
+          `  <node id="${n.id}"><data key="title">${n.title}</data><data key="category">${n.category}</data><data key="words">${n.wordCount}</data></node>`
+        ).join('\n');
+        const edgeXml = data.links.map((l,i) =>
+          `  <edge id="e${i}" source="${typeof l.source==='object'?l.source.id:l.source}" target="${typeof l.target==='object'?l.target.id:l.target}"/>`
+        ).join('\n');
+        content = `<?xml version="1.0"?>\n<graphml xmlns="http://graphml.graphdrawing.org/graphml">\n<graph edgedefault="directed">\n${nodeXml}\n${edgeXml}\n</graph>\n</graphml>`;
+        filename = 'wiki-graph.graphml'; mimeType = 'application/xml';
+      }
+      const blob = new Blob([content], {type: mimeType});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+      showToast(`✓ Exported ${filename}`);
+    }
+
     // ── Settings ──
     async function loadSettings() {
       try { state.configData = await api('/api/config'); } catch { state.configData = {}; }
@@ -3034,6 +3100,39 @@
           </div>`;
         }).join('');
       } catch {}
+    }
+
+    // ── Sidebar connectors ──
+    let connectorsLoaded = false;
+    async function loadSidebarConnectors() {
+      if(connectorsLoaded) return;
+      connectorsLoaded = true;
+      const el = document.getElementById('sidebar-connectors');
+      const countEl = document.getElementById('connectors-count');
+      try {
+        const data = await api('/api/connectors');
+        const { connectors = [] } = data;
+        countEl.textContent = connectors.length;
+        if(!connectors.length) {
+          el.innerHTML = `<div style="font-size:11px;color:var(--text-muted);padding:4px 0 8px">No sources connected.
+            <span onclick="showView('settings');renderSettingsSection('sources')" style="color:var(--accent);cursor:pointer">Add one →</span></div>`;
+          return;
+        }
+        const statusColors = {active:'#28a745', syncing:'var(--accent)', error:'#dc3545', idle:'var(--text-muted)'};
+        el.innerHTML = connectors.map(c => {
+          const icon = {folder:'📁','git-repo':'📦',github:'🐙'}[c.type]||'📡';
+          const dot = `<span style="color:${statusColors[c.status]||'var(--text-muted)'};font-size:10px">●</span>`;
+          const lastSync = c.lastSyncAt ? formatTimeAgo(c.lastSyncAt) : 'never';
+          return `<div class="tree-item" style="padding-left:8px;gap:6px;flex-direction:column;align-items:flex-start;height:auto;padding-top:6px;padding-bottom:6px">
+            <div style="display:flex;align-items:center;gap:6px;width:100%">
+              <span style="font-size:14px">${icon}</span>
+              <span class="tree-label" style="font-size:12px;font-weight:500">${esc(c.name)}</span>
+              ${dot}
+            </div>
+            <div style="font-size:10px;color:var(--text-muted);padding-left:20px">synced ${lastSync} · ${c.totalFiles||0} files</div>
+          </div>`;
+        }).join('');
+      } catch { el.innerHTML = '<div style="font-size:11px;color:var(--text-muted)">Failed to load</div>'; countEl.textContent = '!'; }
     }
 
     // ── Resize ──

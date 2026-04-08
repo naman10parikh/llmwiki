@@ -980,6 +980,42 @@ export function createServer(vaultRoot: string, port: number): void {
     mgr.startAllWatchers();
   })().catch(() => {});
 
+  // AUTO-005: Watch raw/ directory for new files, auto-trigger ingest
+  (async () => {
+    try {
+      const chokidar = await import('chokidar');
+      const { ingestSource } = await import('../core/ingest.js');
+      const { createProvider } = await import('../providers/index.js');
+      const { loadConfig } = await import('../core/config.js');
+      const rawDir = config.rawDir;
+      if (!existsSync(rawDir)) return;
+
+      const watcher = chokidar.watch(rawDir, {
+        ignored: ['**/.git/**', '**/*.tmp'],
+        persistent: true,
+        ignoreInitial: true,
+        awaitWriteFinish: { stabilityThreshold: 1500 },
+      });
+
+      watcher.on('add', async (filePath: string) => {
+        const INGESTIBLE = new Set(['.md', '.txt', '.pdf', '.json', '.yaml', '.yml', '.csv', '.html', '.docx', '.mp3', '.wav', '.m4a', '.mp4', '.mov']);
+        const ext = filePath.split('.').pop()?.toLowerCase() || '';
+        if (!INGESTIBLE.has('.' + ext)) return;
+        console.log(`[watcher] New file detected: ${filePath}`);
+        try {
+          const userConfig = loadConfig(config.configPath);
+          const provider = createProvider(userConfig.provider ?? 'claude');
+          await ingestSource(filePath, config, provider, { verbose: false });
+          console.log(`[watcher] Ingested: ${filePath}`);
+        } catch (err) {
+          console.error(`[watcher] Failed to ingest ${filePath}:`, err);
+        }
+      });
+
+      console.log(`  Auto-watching raw/ for new files: ${rawDir}`);
+    } catch {}
+  })().catch(() => {});
+
   // Serve static files AFTER all API routes
   if (existsSync(publicDir)) {
     app.use(express.static(publicDir));
