@@ -324,3 +324,82 @@ export async function getTreeAtCommit(
     return [];
   }
 }
+
+export interface GraphNodeSnapshot {
+  id: string;
+  title: string;
+  category: string;
+  linksIn: number;
+}
+
+export interface GraphSnapshot {
+  nodes: GraphNodeSnapshot[];
+  links: Array<{ source: string; target: string }>;
+}
+
+export async function getGraphAtCommit(
+  vaultRoot: string,
+  commitHash: string,
+): Promise<GraphSnapshot> {
+  if (!(await isGitRepo(vaultRoot))) return { nodes: [], links: [] };
+
+  const git = getGit(vaultRoot);
+  try {
+    const tree = await git.raw(['ls-tree', '-r', '--name-only', commitHash, '--', 'wiki']);
+    const wikiFiles = tree.split('\n').filter(f => f.endsWith('.md'));
+
+    const nodes: GraphNodeSnapshot[] = [];
+    const links: Array<{ source: string; target: string }> = [];
+    const titleToId = new Map<string, string>();
+    const pageData: Array<{ id: string; title: string; category: string; wikilinks: string[] }> = [];
+
+    for (const filePath of wikiFiles) {
+      try {
+        const content = await git.show([`${commitHash}:${filePath}`]);
+        const parts = filePath.split('/');
+        const filename = parts[parts.length - 1] ?? '';
+        const id = filename.replace('.md', '');
+        const category = parts.length > 2 ? (parts[1] ?? 'page') : 'page';
+
+        let title = id;
+        const titleMatch = content.match(/^title:\s*["']?(.+?)["']?\s*$/m);
+        if (titleMatch?.[1]) title = titleMatch[1];
+
+        const wikilinks: string[] = [];
+        const linkRegex = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+        let match;
+        while ((match = linkRegex.exec(content)) !== null) {
+          if (match[1]) wikilinks.push(match[1]);
+        }
+
+        pageData.push({ id, title, category, wikilinks });
+        titleToId.set(title, id);
+        titleToId.set(title.toLowerCase(), id);
+        titleToId.set(id, id);
+      } catch {
+        // file may not exist at this commit
+      }
+    }
+
+    const inDegree = new Map<string, number>();
+    for (const page of pageData) {
+      nodes.push({ id: page.id, title: page.title, category: page.category, linksIn: 0 });
+      for (const link of page.wikilinks) {
+        const targetId = titleToId.get(link) ?? titleToId.get(link.toLowerCase())
+          ?? titleToId.get(link.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+        if (targetId && targetId !== page.id) {
+          links.push({ source: page.id, target: targetId });
+          inDegree.set(targetId, (inDegree.get(targetId) ?? 0) + 1);
+        }
+      }
+    }
+
+    for (const node of nodes) {
+      node.linksIn = inDegree.get(node.id) ?? 0;
+    }
+
+    return { nodes, links };
+  } catch {
+    return { nodes: [], links: [] };
+  }
+}

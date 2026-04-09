@@ -33,11 +33,16 @@ async function processWithFirecrawl(url: string, apiKey: string): Promise<Proces
   }
 
   const data = (await response.json()) as {
-    data: { markdown: string; metadata: { title: string } };
+    success?: boolean;
+    data?: { markdown?: string; metadata?: { title?: string } };
   };
 
+  if (!data.data?.markdown) {
+    throw new Error(`Firecrawl returned no content for ${url}`);
+  }
+
   return {
-    title: data.data.metadata.title ?? new URL(url).hostname,
+    title: data.data.metadata?.title ?? new URL(url).hostname,
     content: data.data.markdown,
     url,
   };

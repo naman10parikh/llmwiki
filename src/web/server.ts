@@ -2,7 +2,7 @@ import express from 'express';
 import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve, extname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getVaultConfig, getVaultStats, listWikiPages, readWikiPage } from '../core/vault.js';
+import { getVaultConfig, getVaultStats, listWikiPages, readWikiPage, writeWikiPage } from '../core/vault.js';
 import type { VaultConfig } from '../core/vault.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -184,6 +184,143 @@ export function createServer(vaultRoot: string, port: number): void {
       res.json(page);
     } catch (err) {
       res.status(500).json({ error: 'Failed to read page' });
+    }
+  });
+
+  // API: read raw page content (for editing)
+  app.get('/api/wiki/page/raw', (req, res) => {
+    try {
+      const pagePath = req.query['path'] as string;
+      if (!pagePath) {
+        res.status(400).json({ error: 'Missing path query parameter' });
+        return;
+      }
+      const resolved = resolve(pagePath);
+      if (!resolved.startsWith(resolve(config.wikiDir))) {
+        res.status(403).json({ error: 'Access denied: path outside wiki directory' });
+        return;
+      }
+      if (!existsSync(resolved)) {
+        res.status(404).json({ error: 'File not found' });
+        return;
+      }
+      const raw = readFileSync(resolved, 'utf-8');
+      res.json({ path: resolved, raw });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Failed to read raw page: ${msg}` });
+    }
+  });
+
+  // API: save wiki page (write to disk + auto-commit)
+  app.put('/api/wiki/page', async (req, res) => {
+    try {
+      const { path: pagePath, content, frontmatter } = req.body as {
+        path?: string;
+        content?: string;
+        frontmatter?: Record<string, unknown>;
+      };
+      if (!pagePath || content === undefined) {
+        res.status(400).json({ error: 'Missing path or content' });
+        return;
+      }
+      const resolved = resolve(pagePath);
+      if (!resolved.startsWith(resolve(config.wikiDir))) {
+        res.status(403).json({ error: 'Access denied: path outside wiki directory' });
+        return;
+      }
+
+      // Parse the raw content — if it includes frontmatter, use gray-matter
+      const matter = await import('gray-matter');
+      const parsed = matter.default(content);
+      const finalFrontmatter = frontmatter ?? parsed.data;
+      const finalContent = frontmatter ? content : parsed.content;
+
+      writeWikiPage(resolved, finalContent, finalFrontmatter);
+
+      // Auto-commit if git-initialized
+      let commitResult = null;
+      try {
+        const { autoCommit, isGitRepo } = await import('../core/git.js');
+        if (await isGitRepo(config.root)) {
+          const title = (finalFrontmatter['title'] as string) ?? basename(resolved, '.md');
+          commitResult = await autoCommit(config.root, 'manual', `edit "${title}" via web UI`);
+        }
+      } catch { /* non-fatal */ }
+
+      res.json({ status: 'saved', path: resolved, commit: commitResult });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Failed to save page: ${msg}` });
+    }
+  });
+
+  // API: read raw page content (full markdown with frontmatter)
+  app.get('/api/pages/:title/raw', (req, res) => {
+    try {
+      const title = req.params['title'];
+      if (!title) { res.status(400).json({ error: 'Missing title' }); return; }
+      const pages = listWikiPages(config.wikiDir);
+      const titleLower = title.toLowerCase();
+      const slugified = titleLower.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const match = pages.find((p) => {
+        const fileSlug = basename(p, '.md');
+        if (fileSlug === title || fileSlug === slugified) return true;
+        try {
+          const page = readWikiPage(p);
+          return page.title.toLowerCase() === titleLower;
+        } catch { return false; }
+      });
+      if (!match) { res.status(404).json({ error: 'Page not found' }); return; }
+      const raw = readFileSync(match, 'utf-8');
+      res.json({ raw, path: match, slug: basename(match, '.md') });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to read raw page' });
+    }
+  });
+
+  // API: update page content (full markdown with frontmatter)
+  app.put('/api/pages/:title', async (req, res) => {
+    try {
+      const title = req.params['title'];
+      if (!title) { res.status(400).json({ error: 'Missing title' }); return; }
+      const { content } = req.body as { content?: string };
+      if (content === undefined || content === null) {
+        res.status(400).json({ error: 'Missing content field' });
+        return;
+      }
+
+      const pages = listWikiPages(config.wikiDir);
+      const titleLower = title.toLowerCase();
+      const slugified = titleLower.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const match = pages.find((p) => {
+        const fileSlug = basename(p, '.md');
+        if (fileSlug === title || fileSlug === slugified) return true;
+        try {
+          const page = readWikiPage(p);
+          return page.title.toLowerCase() === titleLower;
+        } catch { return false; }
+      });
+      if (!match) { res.status(404).json({ error: 'Page not found' }); return; }
+
+      writeFileSync(match, content, 'utf-8');
+
+      // Extract title from new content for commit message
+      const matter = await import('gray-matter');
+      const parsed = matter.default(content);
+      const pageTitle = (parsed.data['title'] as string) || title;
+
+      // Auto-commit via git
+      try {
+        const { autoCommit } = await import('../core/git.js');
+        await autoCommit(config.root, 'manual', `edit page "${pageTitle}"`);
+      } catch { /* git commit is best-effort */ }
+
+      const page = readWikiPage(match);
+      res.json({ status: 'saved', page });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Failed to save page: ${msg}` });
     }
   });
 
@@ -642,6 +779,71 @@ export function createServer(vaultRoot: string, port: number): void {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       res.status(500).json({ error: `Get tree failed: ${msg}` });
+    }
+  });
+
+  // API: batch fetch file trees for multiple commits (time-lapse pre-fetch)
+  app.post('/api/git/trees/batch', async (req, res) => {
+    try {
+      const { hashes } = req.body as { hashes?: string[] };
+      if (!hashes || !Array.isArray(hashes) || hashes.length === 0) {
+        res.status(400).json({ error: 'Missing or empty hashes array' });
+        return;
+      }
+      const capped = hashes.slice(0, 500);
+      const { getTreeAtCommit, isGitRepo } = await import('../core/git.js');
+      if (!(await isGitRepo(config.root))) {
+        res.json({});
+        return;
+      }
+      const result: Record<string, string[]> = {};
+      const concurrency = 10;
+      for (let i = 0; i < capped.length; i += concurrency) {
+        const batch = capped.slice(i, i + concurrency);
+        await Promise.all(
+          batch.map(async (hash) => {
+            try { result[hash] = await getTreeAtCommit(config.root, hash); }
+            catch { result[hash] = []; }
+          }),
+        );
+      }
+      res.json(result);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Batch tree fetch failed: ${msg}` });
+    }
+  });
+
+  // API: graph data at a specific commit (for time-lapse graph animation)
+  app.get('/api/git/graph/:hash', async (req, res) => {
+    try {
+      const hash = req.params['hash'];
+      if (!hash) { res.status(400).json({ error: 'Missing hash' }); return; }
+      const { getGraphAtCommit, isGitRepo } = await import('../core/git.js');
+      if (!(await isGitRepo(config.root))) { res.json({ nodes: [], links: [] }); return; }
+      const graph = await getGraphAtCommit(config.root, hash);
+      res.json(graph);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Get graph at commit failed: ${msg}` });
+    }
+  });
+
+  // API: batch graph snapshots for time-lapse (pre-fetch all commit graphs)
+  app.post('/api/git/graph-batch', async (req, res) => {
+    try {
+      const { hashes } = req.body as { hashes?: string[] };
+      if (!hashes?.length) { res.status(400).json({ error: 'Missing hashes array' }); return; }
+      const { getGraphAtCommit, isGitRepo } = await import('../core/git.js');
+      if (!(await isGitRepo(config.root))) { res.json({}); return; }
+      const results: Record<string, unknown> = {};
+      for (const hash of hashes.slice(0, 100)) {
+        results[hash] = await getGraphAtCommit(config.root, hash);
+      }
+      res.json(results);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Batch graph failed: ${msg}` });
     }
   });
 

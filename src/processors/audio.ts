@@ -104,8 +104,8 @@ async function transcribeWithDeepgram(filePath: string, title: string, apiKey: s
     metadata: { duration: number };
   };
 
-  const transcript = data.results.channels[0]?.alternatives[0]?.transcript ?? '';
-  const durationSec = data.metadata.duration;
+  const transcript = data.results?.channels?.[0]?.alternatives?.[0]?.transcript ?? '';
+  const durationSec = data.metadata?.duration;
   const duration = durationSec ? formatDuration(durationSec) : undefined;
 
   return {
