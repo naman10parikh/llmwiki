@@ -329,6 +329,77 @@ export function createServer(vaultRoot: string, port: number): void {
     }
   });
 
+  // API: delete a wiki page
+  app.delete('/api/pages/:title', async (req, res) => {
+    try {
+      const title = req.params['title'];
+      if (!title) { res.status(400).json({ error: 'Missing title' }); return; }
+
+      const pages = listWikiPages(config.wikiDir);
+      const titleLower = title.toLowerCase();
+      const slugified = titleLower.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const match = pages.find((p) => {
+        const fileSlug = basename(p, '.md');
+        if (fileSlug === title || fileSlug === slugified) return true;
+        try { return readWikiPage(p).title.toLowerCase() === titleLower; } catch { return false; }
+      });
+      if (!match) { res.status(404).json({ error: 'Page not found' }); return; }
+
+      const { unlinkSync } = await import('node:fs');
+      unlinkSync(match);
+
+      try {
+        const { autoCommit } = await import('../core/git.js');
+        await autoCommit(config.root, 'manual', `delete page "${title}"`);
+      } catch {}
+
+      res.json({ status: 'deleted' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Failed to delete: ${msg}` });
+    }
+  });
+
+  // API: rename a wiki page
+  app.post('/api/pages/:title/rename', async (req, res) => {
+    try {
+      const oldTitle = req.params['title'];
+      const { newTitle } = req.body as { newTitle?: string };
+      if (!oldTitle || !newTitle) { res.status(400).json({ error: 'Missing title' }); return; }
+
+      const pages = listWikiPages(config.wikiDir);
+      const titleLower = oldTitle.toLowerCase();
+      const slugified = titleLower.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const match = pages.find((p) => {
+        const fileSlug = basename(p, '.md');
+        if (fileSlug === oldTitle || fileSlug === slugified) return true;
+        try { return readWikiPage(p).title.toLowerCase() === titleLower; } catch { return false; }
+      });
+      if (!match) { res.status(404).json({ error: 'Page not found' }); return; }
+
+      const content = readFileSync(match, 'utf-8');
+      const newContent = content.replace(/^title:\s*["']?.*?["']?\s*$/m, `title: "${newTitle}"`);
+      const newSlug = newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const newPath = join(match.substring(0, match.lastIndexOf('/')), newSlug + '.md');
+
+      writeFileSync(newPath, newContent, 'utf-8');
+      if (newPath !== match) {
+        const { unlinkSync } = await import('node:fs');
+        unlinkSync(match);
+      }
+
+      try {
+        const { autoCommit } = await import('../core/git.js');
+        await autoCommit(config.root, 'manual', `rename "${oldTitle}" → "${newTitle}"`);
+      } catch {}
+
+      res.json({ status: 'renamed', newTitle, newSlug });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Failed to rename: ${msg}` });
+    }
+  });
+
   // API: knowledge graph data
   app.get('/api/graph', (_req, res) => {
     try {
