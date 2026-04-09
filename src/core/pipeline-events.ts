@@ -1,4 +1,6 @@
 import { EventEmitter } from 'node:events';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 
 export type PipelineStep =
   | 'detect'
@@ -56,9 +58,52 @@ export interface PipelineSummary {
   decisionsExplained: string;
 }
 
+const MAX_PERSISTED_RUNS = 50;
+
 class PipelineEventBus extends EventEmitter {
   private currentRun: PipelineRun | null = null;
   private runs: PipelineRun[] = [];
+  private persistPath: string | null = null;
+
+  /**
+   * Enable file-based persistence so runs survive server restarts.
+   * Call once at startup with the vault root path.
+   */
+  initPersistence(vaultRoot: string): void {
+    this.persistPath = join(vaultRoot, '.wikimem', 'pipeline-runs.json');
+    this.loadFromDisk();
+  }
+
+  private loadFromDisk(): void {
+    if (!this.persistPath || !existsSync(this.persistPath)) return;
+    try {
+      const raw = readFileSync(this.persistPath, 'utf-8');
+      const data = JSON.parse(raw) as PipelineRun[];
+      if (Array.isArray(data)) {
+        this.runs = data.slice(-MAX_PERSISTED_RUNS);
+      }
+    } catch {
+      // Corrupted file — start fresh, the next save will overwrite
+    }
+  }
+
+  private saveToDisk(): void {
+    if (!this.persistPath) return;
+    try {
+      const dir = dirname(this.persistPath);
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+      // Strip LLM trace prompts/responses from persisted data to keep file small
+      const slim = this.runs.map(r => ({
+        ...r,
+        llmTrace: r.llmTrace
+          ? { model: r.llmTrace.model, tokensUsed: r.llmTrace.tokensUsed, durationMs: r.llmTrace.durationMs }
+          : undefined,
+      }));
+      writeFileSync(this.persistPath, JSON.stringify(slim, null, 2), 'utf-8');
+    } catch {
+      // Non-fatal — runs are still in memory for the current session
+    }
+  }
 
   startRun(source: string): string {
     const id = Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 6);
@@ -69,7 +114,7 @@ class PipelineEventBus extends EventEmitter {
       events: [],
     };
     this.runs.push(this.currentRun);
-    if (this.runs.length > 20) this.runs.shift();
+    if (this.runs.length > MAX_PERSISTED_RUNS) this.runs.shift();
     this.emit('step', { step: 'run-start', status: 'running', source, id, timestamp: new Date().toISOString() });
     return id;
   }
@@ -106,11 +151,13 @@ class PipelineEventBus extends EventEmitter {
       this.emitStep('complete', 'done', result ? `Created ${result.pagesCreated} pages` : undefined);
     }
     this.currentRun = null;
+    this.saveToDisk();
   }
 
   errorRun(error: string): void {
     this.emitStep('error', 'error', error);
     this.currentRun = null;
+    this.saveToDisk();
   }
 
   getRecentRuns(): PipelineRun[] {

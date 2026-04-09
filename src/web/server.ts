@@ -109,6 +109,11 @@ export function createServer(vaultRoot: string, port: number): void {
   const app = express();
   const config = getVaultConfig(vaultRoot);
 
+  // Load persisted pipeline runs so they survive server restarts
+  import('../core/pipeline-events.js').then(({ pipelineEvents }) => {
+    pipelineEvents.initPersistence(vaultRoot);
+  }).catch(() => {});
+
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
@@ -1009,6 +1014,154 @@ export function createServer(vaultRoot: string, port: number): void {
     }
   });
 
+  // ─── Automation 3: Webhook Ingest ─────────────────────────────────────────
+
+  // POST /api/webhook/ingest — accept external content, run ingest pipeline
+  app.post('/api/webhook/ingest', async (req, res) => {
+    try {
+      const { content, title, source, tags } = req.body as {
+        content?: string;
+        title?: string;
+        source?: string;
+        tags?: string[];
+      };
+      if (!content || content.trim().length === 0) {
+        res.status(400).json({ error: 'Missing or empty content field' });
+        return;
+      }
+
+      const now = new Date().toISOString().split('T')[0] ?? '';
+      const pageTitle = title ?? `Webhook Ingest ${new Date().toISOString()}`;
+      const markdown = `# ${pageTitle}\n\n${source ? `Source: ${source}\n` : ''}Ingested via webhook: ${new Date().toISOString()}\n\n${content}`;
+
+      // Write to raw/ so ingest pipeline can find it
+      const { mkdirSync: mkdir, writeFileSync: write } = await import('node:fs');
+      const { join: joinPath } = await import('node:path');
+      const { slugify } = await import('../core/vault.js');
+      const dateDir = joinPath(config.rawDir, now);
+      mkdir(dateDir, { recursive: true });
+      const filePath = joinPath(dateDir, `${slugify(pageTitle.substring(0, 60))}-webhook.md`);
+      write(filePath, markdown, 'utf-8');
+
+      const { ingestSource } = await import('../core/ingest.js');
+      const { createProvider } = await import('../providers/index.js');
+      const { loadConfig } = await import('../core/config.js');
+      const userConfig = loadConfig(config.configPath);
+      const provider = createProvider(userConfig.provider ?? 'claude');
+
+      const result = await ingestSource(filePath, config, provider, {
+        verbose: false,
+        tags: tags ?? [],
+        addedBy: 'webhook',
+      });
+
+      // Record in audit trail
+      const { appendAuditEntry } = await import('../core/audit-trail.js');
+      appendAuditEntry(vaultRoot, {
+        action: 'ingest',
+        actor: 'webhook',
+        source: source ?? filePath,
+        summary: `Webhook ingest: "${pageTitle}" — ${result.pagesUpdated} pages created.`,
+        pagesAffected: [pageTitle],
+      });
+
+      res.json({ success: !result.rejected, pagesCreated: result.pagesUpdated });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Webhook ingest failed: ${msg}` });
+    }
+  });
+
+  // ─── Audit Trail API ──────────────────────────────────────────────────────
+
+  // GET /api/audit-trail?limit=50&actor=all&action=all
+  app.get('/api/audit-trail', async (req, res) => {
+    try {
+      const limit = parseInt(req.query['limit'] as string) || 50;
+      const actor = (req.query['actor'] as string) || 'all';
+      const action = (req.query['action'] as string) || 'all';
+      const { readAuditTrail } = await import('../core/audit-trail.js');
+      const entries = readAuditTrail(vaultRoot, limit, actor, action);
+      res.json({ entries, total: entries.length });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // ─── Observer APIs ────────────────────────────────────────────────────────
+
+  // POST /api/observer/run — trigger observer manually
+  app.post('/api/observer/run', async (_req, res) => {
+    try {
+      const { runObserver } = await import('../core/observer.js');
+      const report = await runObserver(config);
+      res.json({
+        success: true,
+        date: report.date,
+        totalPages: report.totalPages,
+        averageScore: report.averageScore,
+        orphanCount: report.orphans.length,
+        gapCount: report.gaps.length,
+        contradictionCount: report.contradictions.length,
+        reportPath: `.wikimem/observer-reports/${report.date}.json`,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Observer run failed: ${msg}` });
+    }
+  });
+
+  // GET /api/observer/reports — list all reports
+  app.get('/api/observer/reports', async (_req, res) => {
+    try {
+      const { listObserverReports } = await import('../core/observer.js');
+      const reports = listObserverReports(vaultRoot);
+      res.json({ reports });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // GET /api/observer/reports/:date — get specific report
+  app.get('/api/observer/reports/:date', async (req, res) => {
+    try {
+      const date = req.params['date'];
+      if (!date) { res.status(400).json({ error: 'Missing date' }); return; }
+      const { readObserverReport } = await import('../core/observer.js');
+      const report = readObserverReport(vaultRoot, date);
+      if (!report) { res.status(404).json({ error: `No report found for ${date}` }); return; }
+      res.json(report);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // ─── Automations: Scrape ──────────────────────────────────────────────────
+
+  // POST /api/automations/scrape — trigger scrape for a source (or all)
+  app.post('/api/automations/scrape', async (req, res) => {
+    try {
+      const { source: sourceName, dryRun, maxItems } = req.body as {
+        source?: string;
+        dryRun?: boolean;
+        maxItems?: number;
+      };
+      const { runSmartScraper } = await import('../core/scraper.js');
+      const { loadConfig } = await import('../core/config.js');
+      const userConfig = loadConfig(config.configPath);
+      const result = await runSmartScraper(
+        config,
+        userConfig,
+        { dryRun: dryRun ?? false, maxItems: maxItems ?? 10 },
+        sourceName,
+      );
+      res.json(result);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Scrape failed: ${msg}` });
+    }
+  });
+
   // ─── Connector APIs ───────────────────────────────────────────────────────
 
   // GET /api/connectors — list all configured connectors
@@ -1181,6 +1334,11 @@ export function createServer(vaultRoot: string, port: number): void {
     });
     mgr.startAllWatchers();
   })().catch(() => {});
+
+  // Start Observer nightly cron (3am)
+  import('../core/observer.js').then(({ startObserverCron }) => {
+    startObserverCron(config);
+  }).catch(() => {});
 
   // AUTO-005: Watch raw/ directory for new files, auto-trigger ingest
   (async () => {

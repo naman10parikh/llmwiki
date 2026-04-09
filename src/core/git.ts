@@ -89,7 +89,7 @@ export async function initGitRepo(config: VaultConfig): Promise<{ initialized: b
 
 export async function autoCommit(
   vaultRoot: string,
-  automation: 'ingest' | 'scrape' | 'improve' | 'manual' | 'restore',
+  automation: 'ingest' | 'scrape' | 'improve' | 'manual' | 'restore' | 'observe',
   summary: string,
   details?: string,
 ): Promise<GitCommitResult | null> {
@@ -317,9 +317,17 @@ export async function getTreeAtCommit(
 
   const git = getGit(vaultRoot);
   try {
-    const filterPath = path || '.';
+    // Resolve relative path from git root to vault
+    const gitRootRaw = await git.raw(['rev-parse', '--show-toplevel']);
+    const gitRoot = gitRootRaw.trim();
+    const { resolve, relative } = await import('node:path');
+    const relPath = relative(resolve(gitRoot), resolve(vaultRoot));
+    const filterPath = path ? (relPath ? `${relPath}/${path}` : path) : (relPath || '.');
     const result = await git.raw(['ls-tree', '-r', '--name-only', commitHash, '--', filterPath]);
-    return result.split('\n').filter(Boolean);
+    // Strip the vault prefix from returned paths so they're relative to vault
+    return result.split('\n').filter(Boolean).map(f =>
+      relPath && f.startsWith(relPath + '/') ? f.slice(relPath.length + 1) : f
+    );
   } catch {
     return [];
   }
@@ -345,7 +353,14 @@ export async function getGraphAtCommit(
 
   const git = getGit(vaultRoot);
   try {
-    const tree = await git.raw(['ls-tree', '-r', '--name-only', commitHash, '--', 'wiki']);
+    // Resolve relative path from git root to vault (in case vault is a subdirectory)
+    const gitRootRaw = await git.raw(['rev-parse', '--show-toplevel']);
+    const gitRoot = gitRootRaw.trim();
+    const { resolve, relative } = await import('node:path');
+    const relPath = relative(resolve(gitRoot), resolve(vaultRoot));
+    const wikiPath = relPath ? `${relPath}/wiki` : 'wiki';
+
+    const tree = await git.raw(['ls-tree', '-r', '--name-only', commitHash, '--', wikiPath]);
     const wikiFiles = tree.split('\n').filter(f => f.endsWith('.md'));
 
     const nodes: GraphNodeSnapshot[] = [];
@@ -359,7 +374,11 @@ export async function getGraphAtCommit(
         const parts = filePath.split('/');
         const filename = parts[parts.length - 1] ?? '';
         const id = filename.replace('.md', '');
-        const category = parts.length > 2 ? (parts[1] ?? 'page') : 'page';
+        // Find category: the directory after "wiki/" in the path
+        const wikiIdx = parts.indexOf('wiki');
+        const category = wikiIdx >= 0 && parts.length > wikiIdx + 2
+          ? (parts[wikiIdx + 1] ?? 'page')
+          : 'page';
 
         let title = id;
         const titleMatch = content.match(/^title:\s*["']?(.+?)["']?\s*$/m);

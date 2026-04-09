@@ -34,6 +34,7 @@ export interface IngestOptions {
   category?: string;
   metadata?: Record<string, string>;
   embeddingProvider?: EmbeddingProvider;
+  addedBy?: 'human' | 'agent' | 'webhook' | 'observer';
 }
 
 export async function ingestSource(
@@ -260,6 +261,7 @@ export async function ingestSource(
       tags: mergedTags,
       sources: [rawPath],
       summary: page.summary,
+      added_by: options.addedBy ?? 'human',
     };
 
     // Merge any custom metadata from --interactive or future extensions

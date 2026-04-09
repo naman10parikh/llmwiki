@@ -7,6 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/turndown@7.1.2/dist/turndown.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -377,14 +378,18 @@
       overflow-y: hidden;
       flex-shrink: 0;
       -webkit-app-region: drag;
+      scroll-behavior: smooth;
     }
-    #tab-bar::-webkit-scrollbar { height: 0; }
+    #tab-bar::-webkit-scrollbar { height: 3px; }
+    #tab-bar::-webkit-scrollbar-track { background: transparent; }
+    #tab-bar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    #tab-bar::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
     .tab {
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 0 14px;
+      padding: 0 12px;
       height: 30px;
       font-size: 12px;
       color: var(--text-dim);
@@ -393,8 +398,9 @@
       cursor: pointer;
       white-space: nowrap;
       transition: background 0.1s, color 0.1s;
-      min-width: 0;
-      max-width: 200px;
+      min-width: 80px;
+      max-width: 180px;
+      flex-shrink: 1;
       user-select: none;
       -webkit-app-region: no-drag;
       position: relative;
@@ -626,7 +632,10 @@
     #page-view { display:none; height:100%; overflow-y:auto; }
     #page-view.active { display:flex; flex-direction:column; }
     .page-layout { display:flex; flex-direction:column; max-width:860px; margin:0 auto; width:100%; padding:32px 40px 60px; }
-    #page-body { line-height: 1.82; color: var(--text-secondary); font-size:15px; }
+    #page-body { line-height: 1.82; color: var(--text-secondary); font-size:15px; cursor:text; position:relative; }
+    #page-body::after { content:'Click to edit'; position:absolute; top:8px; right:8px; font-size:11px; color:var(--text-muted); opacity:0; transition:opacity 0.2s; pointer-events:none; padding:2px 8px; background:var(--bg-card); border-radius:4px; border:1px solid var(--border-subtle); }
+    #page-body:hover::after { opacity:0.7; }
+    #page-body.editing-hint-hidden::after { display:none; }
 
     /* ── Title row with edit button ── */
     #page-title-row { display: flex; align-items: flex-start; gap: 12px; }
@@ -639,37 +648,58 @@
       padding: 6px;
       margin-top: 4px;
       border-radius: 6px;
-      color: var(--text-dim);
-      transition: color 0.15s, background 0.15s;
+      color: var(--text-muted);
+      opacity: 0;
+      transition: color 0.15s, background 0.15s, opacity 0.2s;
     }
-    #page-edit-btn:hover { color: var(--accent); background: var(--accent-dim); }
-    #page-edit-btn.active { color: var(--accent); background: var(--accent-dim); }
+    #page-title-row:hover #page-edit-btn { opacity: 0.6; }
+    #page-edit-btn:hover { color: var(--accent); background: var(--accent-dim); opacity: 1 !important; }
+    #page-edit-btn.active { color: var(--accent); background: var(--accent-dim); opacity: 1 !important; }
     #page-edit-btn svg { display: block; }
 
-    /* ── Markdown editor ── */
-    #page-editor { display: none; flex-direction: column; gap: 0; flex: 1; min-height: 300px; }
-    #page-editor.active { display: flex; }
-    #editor-toolbar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 0;
-      border-bottom: 1px solid var(--border-subtle);
-      margin-bottom: 8px;
+    /* ── WYSIWYG Inline Editor (Obsidian-style) ── */
+    #page-editor { display: none; } /* kept for compatibility but not used */
+    #page-body[contenteditable="true"] {
+      outline: none;
+      cursor: text;
+      caret-color: var(--accent);
+      min-height: 200px;
     }
-    #editor-save-btn {
+    #page-body[contenteditable="true"] p,
+    #page-body[contenteditable="true"] li,
+    #page-body[contenteditable="true"] h1,
+    #page-body[contenteditable="true"] h2,
+    #page-body[contenteditable="true"] h3 {
+      cursor: text;
+    }
+    /* Floating save bar — appears at bottom of page while editing */
+    #wysiwyg-bar {
+      position: sticky;
+      bottom: 0;
+      left: 0; right: 0;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border-subtle);
+      padding: 8px 40px;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+    #wysiwyg-bar.visible { display: flex; }
+    #wysiwyg-save-btn {
       background: var(--accent);
-      color: var(--bg-deep);
+      color: #000;
       border: none;
       border-radius: 6px;
       padding: 5px 16px;
       font-size: 12px;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
       transition: opacity 0.15s;
     }
-    #editor-save-btn:hover { opacity: 0.85; }
-    #editor-cancel-btn {
+    #wysiwyg-save-btn:hover { opacity: 0.85; }
+    #wysiwyg-cancel-btn {
       background: none;
       color: var(--text-dim);
       border: 1px solid var(--border);
@@ -677,65 +707,19 @@
       padding: 5px 14px;
       font-size: 12px;
       cursor: pointer;
-      transition: color 0.15s, border-color 0.15s;
     }
-    #editor-cancel-btn:hover { color: var(--text); border-color: var(--text-dim); }
-    #editor-draft-indicator {
-      font-size: 11px;
-      color: var(--amber);
-      margin-left: 8px;
-      display: none;
+    #wysiwyg-cancel-btn:hover { color: var(--text); border-color: var(--text-dim); }
+    #wysiwyg-dirty {
+      font-size: 11px; color: var(--amber);
+      display: none; align-items: center; gap: 4px;
     }
-    #editor-draft-indicator.visible { display: inline-flex; align-items: center; gap: 4px; }
-    .editor-dirty-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--amber);
-      display: inline-block;
-    }
-    #editor-wrap {
-      flex: 1;
-      display: flex;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--bg-card);
-      overflow: hidden;
-      min-height: 400px;
-    }
-    #editor-line-numbers {
-      padding: 12px 0;
-      min-width: 40px;
-      text-align: right;
-      font-family: var(--font-mono);
-      font-size: 13px;
-      line-height: 1.6;
-      color: var(--text-muted);
-      user-select: none;
-      border-right: 1px solid var(--border-subtle);
-      overflow: hidden;
-    }
-    #editor-line-numbers span {
-      display: block;
-      padding: 0 8px 0 4px;
-    }
-    #editor-textarea {
-      flex: 1;
-      resize: none;
-      border: none;
-      outline: none;
-      background: transparent;
-      color: var(--text);
-      font-family: var(--font-mono);
-      font-size: 13px;
-      line-height: 1.6;
-      padding: 12px 16px;
-      tab-size: 2;
-      white-space: pre;
-      overflow-wrap: normal;
-      overflow-x: auto;
-    }
-    #editor-textarea::placeholder { color: var(--text-muted); }
+    #wysiwyg-dirty.visible { display: inline-flex; }
+    .wysiwyg-dot { width:6px; height:6px; border-radius:50%; background:var(--amber); }
+    #wysiwyg-bar .kbd-hint { font-size:11px; color:var(--text-muted); margin-left:auto; display:flex; gap:12px; }
+    #wysiwyg-bar kbd { background:var(--bg-card); border:1px solid var(--border); border-radius:3px; padding:1px 6px; font-size:10px; }
+    /* legacy textarea — keep hidden, used only for fallback */
+    #editor-draft-indicator { display: none !important; }
+    #editor-wrap, #editor-toolbar, #editor-line-numbers, #editor-textarea { display: none !important; }
     .tab-dirty-dot {
       width: 5px;
       height: 5px;
@@ -993,6 +977,8 @@
     }
     .settings-input:focus { border-color: var(--accent); }
     .settings-input::placeholder { color: var(--text-muted); }
+    .settings-textarea { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:8px 10px; font-size:13px; font-family:var(--font); outline:none; resize:vertical; transition:border-color .15s; }
+    .settings-textarea:focus { border-color:var(--accent); }
     .settings-select {
       width: 100%;
       background: var(--bg);
@@ -1280,6 +1266,35 @@
     .pipe-empty { text-align:center; padding:60px 20px; color:var(--text-muted); }
     .pipe-empty .pipe-empty-icon { font-size:48px; margin-bottom:16px; opacity:0.6; }
     .pipe-empty p { font-size:13px; max-width:340px; margin:0 auto; line-height:1.6; }
+    /* Pipeline drop zone */
+    .pipe-dropzone { border:2px dashed var(--border); border-radius:12px; padding:24px; margin-bottom:16px; transition:all .2s ease; cursor:pointer; }
+    .pipe-dropzone:hover { border-color:var(--accent); background:rgba(79,158,255,0.03); }
+    .pipe-dropzone.dragover { border-color:var(--accent); background:rgba(79,158,255,0.06); border-style:solid; }
+    .pipe-dropzone.has-activity { display:none; }
+    .pipe-dropzone-inner { display:flex; flex-direction:column; align-items:center; text-align:center; }
+    /* Animated factory connectors */
+    .factory-conn .conn-line { stroke-dasharray:16 6; animation:factoryFlow 1s linear infinite; }
+    .factory-conn.active .conn-line { stroke:var(--accent); }
+    .factory-conn.done .conn-line { stroke:var(--green); stroke-dasharray:none; }
+    @keyframes factoryFlow { from { stroke-dashoffset:22; } to { stroke-dashoffset:0; } }
+    /* Stagger animation for steps appearing */
+    .factory-stage { animation:stageAppear .3s ease both; }
+    .factory-stage:nth-child(1) { animation-delay:0s; }
+    .factory-stage:nth-child(3) { animation-delay:.05s; }
+    .factory-stage:nth-child(5) { animation-delay:.1s; }
+    .factory-stage:nth-child(7) { animation-delay:.15s; }
+    .factory-stage:nth-child(9) { animation-delay:.2s; }
+    .factory-stage:nth-child(11) { animation-delay:.25s; }
+    .factory-stage:nth-child(13) { animation-delay:.3s; }
+    .factory-stage:nth-child(15) { animation-delay:.35s; }
+    .factory-stage:nth-child(17) { animation-delay:.4s; }
+    @keyframes stageAppear { from { opacity:0; transform:translateY(8px) scale(.95); } to { opacity:1; transform:translateY(0) scale(1); } }
+    .factory-stage.pending { opacity:1; }
+    .factory-stage.pending .fs-icon { opacity:.35; }
+    .factory-stage.pending .fs-label { opacity:.5; }
+    /* Progress ring for running state */
+    .factory-stage.running .fs-icon::before { content:''; position:absolute; inset:-6px; border:2px solid transparent; border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
     /* Connectors */
     .conn-empty { text-align:center; padding:40px 20px; color:var(--text-muted); }
     .conn-card { background:var(--bg-surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; margin-bottom:10px; transition:border-color 0.15s; }
@@ -1337,6 +1352,48 @@
     .pipe-llm-trace .trace-section pre { font-size:11px; font-family:var(--font-mono); background:var(--bg); padding:6px; border-radius:4px; overflow-x:auto; white-space:pre-wrap; word-break:break-all; max-height:120px; overflow-y:auto; margin:0; color:var(--text-secondary); }
     .pipe-run-steps-mini { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; }
 
+    /* ── Automations Cards ── */
+    .auto-card { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; margin-bottom:16px; overflow:hidden; }
+    .auto-card-header { display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:1px solid var(--border); }
+    .auto-card-title { font-size:13px; font-weight:600; color:var(--text-bright); margin-bottom:2px; }
+    .auto-card-desc { font-size:11px; color:var(--text-muted); }
+    .auto-card-body { padding:16px 18px; }
+    .auto-card-footer { display:flex; align-items:center; justify-content:space-between; margin-top:12px; padding-top:12px; border-top:1px solid var(--border-subtle); }
+    .auto-last-run { font-size:11px; color:var(--text-muted); }
+    .auto-run-btn { font-size:11px; padding:4px 12px; }
+    .auto-hint { font-size:11px; color:var(--text-muted); margin-top:4px; }
+    .auto-textarea { resize:vertical; min-height:72px; font-family:var(--font-mono); font-size:12px; }
+    .auto-webhook-url { font-family:var(--font-mono); font-size:11px; color:var(--accent); background:var(--bg-surface); border:1px solid var(--border); border-radius:5px; padding:4px 10px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; }
+    .auto-source-row { display:flex; align-items:center; gap:6px; background:var(--bg-surface); border:1px solid var(--border); border-radius:5px; padding:5px 10px; font-size:12px; color:var(--text-secondary); }
+    .auto-source-row span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--font-mono); }
+    .auto-source-row button { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:14px; line-height:1; padding:0 2px; }
+    .auto-source-row button:hover { color:var(--red); }
+    .auto-toggle { position:relative; display:inline-flex; cursor:pointer; }
+    .auto-toggle input { opacity:0; width:0; height:0; position:absolute; }
+    .auto-toggle-track { display:block; width:34px; height:18px; background:var(--bg-surface); border:1px solid var(--border); border-radius:10px; transition:background .2s, border-color .2s; position:relative; }
+    .auto-toggle-track::after { content:''; position:absolute; top:2px; left:2px; width:12px; height:12px; background:var(--text-muted); border-radius:50%; transition:transform .2s, background .2s; }
+    .auto-toggle input:checked + .auto-toggle-track { background:var(--accent-dim); border-color:var(--accent); }
+    .auto-toggle input:checked + .auto-toggle-track::after { transform:translateX(16px); background:var(--accent); }
+    .auto-webhook-count { font-weight:600; color:var(--accent); }
+
+    /* ── Audit Trail Actor Tabs ── */
+    .audit-actor-tabs { display:flex; gap:4px; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--border-subtle); flex-wrap:wrap; }
+    .audit-tab { background:var(--bg-card); border:1px solid var(--border); color:var(--text-secondary); padding:4px 12px; border-radius:6px; font-size:12px; cursor:pointer; transition:all .15s; }
+    .audit-tab:hover { border-color:var(--accent); color:var(--text); }
+    .audit-tab.active { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
+    .actor-badge { font-size:10px; font-weight:600; padding:2px 7px; border-radius:4px; flex-shrink:0; }
+    .actor-human  { background:rgba(86,156,214,0.12); color:var(--blue); border:1px solid rgba(86,156,214,0.25); }
+    .actor-agent  { background:var(--green-dim); color:var(--green); border:1px solid rgba(78,201,176,0.25); }
+    .actor-webhook { background:var(--purple-dim); color:var(--purple); border:1px solid rgba(156,120,216,0.25); }
+    .actor-observer { background:var(--orange-dim); color:var(--orange); border:1px solid rgba(206,145,120,0.25); }
+
+    /* ── Pipeline Run Trigger Badge ── */
+    .pipe-trigger-badge { font-size:10px; font-weight:600; padding:2px 7px; border-radius:4px; }
+    .pipe-trigger-human  { background:rgba(86,156,214,0.12); color:var(--blue); border:1px solid rgba(86,156,214,0.25); }
+    .pipe-trigger-agent  { background:var(--green-dim); color:var(--green); border:1px solid rgba(78,201,176,0.25); }
+    .pipe-trigger-webhook { background:var(--purple-dim); color:var(--purple); border:1px solid rgba(156,120,216,0.25); }
+    .pipe-trigger-observer { background:var(--orange-dim); color:var(--orange); border:1px solid rgba(206,145,120,0.25); }
+
     #history-view { display:none; padding:24px 40px 40px; overflow-y:auto; }
     #history-view.active { display:block; }
     .history-header { display:flex; align-items:center; gap:16px; margin-bottom:16px; }
@@ -1374,8 +1431,9 @@
     .tl-mode-btn { display:flex; align-items:center; gap:4px; padding:5px 12px; border:none; background:transparent; color:var(--text-muted); font-size:12px; cursor:pointer; border-radius:5px; }
     .tl-mode-btn.active { background:var(--bg-card); color:var(--text); box-shadow:var(--shadow-sm); }
     .tl-mode-btn:hover:not(.active) { color:var(--text-secondary); }
-    .tl-content { flex:1; overflow:auto; padding:0 24px; min-height:0; }
-    .tl-tree { font-size:13px; padding-bottom:16px; }
+    .tl-content { flex:1; overflow:auto; padding:0 24px; min-height:0; display:flex; flex-direction:column; }
+    .tl-tree { font-size:13px; padding-bottom:16px; flex:1; }
+    .tl-graph { flex:1; min-height:400px; position:relative; overflow:hidden; }
     .tl-folder { margin-bottom:4px; }
     .tl-folder-header { display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:6px; cursor:pointer; color:var(--text-secondary); font-weight:500; font-size:12px; letter-spacing:0.3px; }
     .tl-folder-header:hover { background:var(--bg-hover); }
@@ -1407,8 +1465,9 @@
     .tl-legend { display:flex; gap:12px; padding:4px 8px 8px; font-size:11px; color:var(--text-muted); }
     .tl-legend-item { display:flex; align-items:center; gap:4px; }
     .tl-legend-dot { width:6px; height:6px; border-radius:50%; }
-    .tl-graph { width:100%; height:100%; }
-    .tl-graph svg { width:100%; height:100%; }
+    .tl-graph { width:100%; position:relative; overflow:hidden; }
+    .tl-graph svg { width:100%; height:100%; position:absolute; top:0; left:0; }
+    .tl-tip { position:absolute; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md); padding:6px 10px; font-size:11px; pointer-events:none; display:none; z-index:20; box-shadow:var(--shadow-md); max-width:260px; }
     .tl-commit-info { padding:8px 24px; font-size:12px; color:var(--text-secondary); border-top:1px solid var(--border); flex-shrink:0; display:flex; align-items:center; gap:12px; }
     .tl-commit-info .tl-hash { font-family:var(--font-mono); color:var(--accent); font-size:11px; }
     .tl-controls { display:flex; align-items:center; gap:12px; padding:12px 24px; background:var(--bg-surface); border-top:1px solid var(--border); flex-shrink:0; }
@@ -1418,8 +1477,13 @@
     .tl-play-btn.playing { background:var(--accent); color:var(--bg-deep); border-color:var(--accent); }
     .tl-speed { background:var(--bg-card); border:1px solid var(--border); color:var(--text); padding:4px 6px; border-radius:var(--radius); font-size:11px; cursor:pointer; }
     .tl-slider-wrap { flex:1; display:flex; flex-direction:column; gap:2px; }
-    .tl-slider { width:100%; height:4px; -webkit-appearance:none; appearance:none; background:var(--border); border-radius:2px; outline:none; cursor:pointer; }
-    .tl-slider::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--accent); cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,0.3); }
+    .tl-slider { width:100%; height:6px; -webkit-appearance:none; appearance:none; background:linear-gradient(to right, var(--accent) 0%, var(--accent) var(--slider-pct, 0%), var(--border) var(--slider-pct, 0%), var(--border) 100%); border-radius:3px; outline:none; cursor:pointer; transition:background 0.1s ease; }
+    .tl-slider::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--text-bright); cursor:grab; box-shadow:0 1px 6px rgba(0,0,0,0.4), 0 0 0 2px var(--accent); transition:transform 0.1s ease, box-shadow 0.15s ease; }
+    .tl-slider::-webkit-slider-thumb:hover { transform:scale(1.2); box-shadow:0 1px 8px rgba(0,0,0,0.5), 0 0 0 3px var(--accent); }
+    .tl-slider::-webkit-slider-thumb:active { cursor:grabbing; transform:scale(1.1); }
+    .tl-slider::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:var(--text-bright); cursor:grab; box-shadow:0 1px 6px rgba(0,0,0,0.4), 0 0 0 2px var(--accent); border:none; }
+    .tl-slider::-moz-range-track { height:6px; background:var(--border); border-radius:3px; }
+    .tl-slider::-moz-range-progress { background:var(--accent); border-radius:3px; }
     .tl-slider-labels { display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted); }
 
     /* Raw file preview enhancements */
@@ -1432,8 +1496,8 @@
     .raw-linked-pages h4 { margin:0 0 8px; font-size:13px; color:var(--text-muted); font-weight:500; }
     .raw-linked-pages a { display:inline-block; padding:3px 8px; margin:2px 4px 2px 0; background:rgba(79,158,255,0.1); color:var(--accent); border-radius:4px; font-size:12px; text-decoration:none; cursor:pointer; }
     .raw-linked-pages a:hover { background:rgba(79,158,255,0.2); }
-    .raw-download-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; background:var(--accent); color:var(--bg-deep); border:none; border-radius:var(--radius-md); cursor:pointer; font-size:13px; margin-top:12px; }
-    .raw-download-btn:hover { opacity:0.9; }
+    .raw-download-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; background:var(--bg-card); color:var(--text-bright); border:1px solid var(--border); border-radius:var(--radius-md); cursor:pointer; font-size:13px; margin-top:12px; transition:background .15s, border-color .15s; }
+    .raw-download-btn:hover { background:var(--bg-hover); border-color:var(--accent); color:var(--accent); }
     .pdf-container { width:100%; height:calc(100vh - 250px); border:1px solid var(--border); border-radius:6px; overflow:hidden; }
     .pdf-container iframe { width:100%; height:100%; border:none; }
     .video-container { max-width:100%; border-radius:8px; overflow:hidden; }
@@ -1573,21 +1637,23 @@
               <div id="page-infobox"></div>
               <div id="page-toc"></div>
               <div id="page-body" class="md"></div>
-              <div id="page-editor">
-                <div id="editor-toolbar">
-                  <button id="editor-save-btn" onclick="saveEdit()">Save</button>
-                  <button id="editor-cancel-btn" onclick="cancelEdit()">Cancel</button>
-                  <span id="editor-draft-indicator"><span class="editor-dirty-dot"></span> Draft</span>
-                </div>
-                <div id="editor-wrap">
-                  <div id="editor-line-numbers"></div>
-                  <textarea id="editor-textarea" placeholder="Write your markdown here..." spellcheck="false"></textarea>
-                </div>
-                <div id="editor-shortcut-hint">
+              <div id="wysiwyg-bar">
+                <button id="wysiwyg-save-btn" onclick="saveWysiwyg()">Save</button>
+                <button id="wysiwyg-cancel-btn" onclick="cancelWysiwyg()">Cancel</button>
+                <span id="wysiwyg-dirty"><span class="wysiwyg-dot"></span> Unsaved</span>
+                <div class="kbd-hint">
                   <span><kbd>Ctrl+S</kbd> Save</span>
                   <span><kbd>Esc</kbd> Cancel</span>
-                  <span><kbd>Tab</kbd> Indent</span>
                 </div>
+              </div>
+              <!-- Legacy editor (kept for new-note flow only) -->
+              <div id="page-editor" style="display:none">
+                <div id="editor-toolbar" style="display:none"></div>
+                <div id="editor-wrap" style="display:none">
+                  <div id="editor-line-numbers" style="display:none"></div>
+                  <textarea id="editor-textarea" placeholder="Write your markdown here..." spellcheck="false" style="display:none"></textarea>
+                </div>
+                <div id="editor-shortcut-hint" style="display:none"></div>
               </div>
               <div id="page-backlinks"></div>
             </div>
@@ -1626,16 +1692,48 @@
 
           <!-- Pipeline Factory Line View -->
           <div id="pipeline-view">
-            <div class="pipe-header">
-              <h2>Ingestion Pipeline</h2>
-              <p>Watch your documents flow through the knowledge factory</p>
+            <!-- Header with upload -->
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:20px;flex-wrap:wrap">
+              <div>
+                <h2 style="margin:0;font-size:18px;font-weight:600">Ingestion Pipeline</h2>
+                <p style="margin:4px 0 0;color:var(--text-muted);font-size:12px">Watch your documents flow through the knowledge factory</p>
+              </div>
+              <div style="display:flex;gap:8px;flex-shrink:0">
+                <button class="settings-btn" onclick="document.getElementById('pipe-file-input').click()" style="display:flex;align-items:center;gap:6px">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  Upload File
+                </button>
+                <input type="file" id="pipe-file-input" style="display:none" onchange="handlePipeUpload(this)" multiple accept=".md,.txt,.pdf,.csv,.json,.yaml,.html,.docx,.xlsx,.mp3,.mp4,.wav" />
+              </div>
             </div>
+
+            <!-- Drop zone (inline, part of pipeline) -->
+            <div id="pipe-dropzone" class="pipe-dropzone" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault();this.classList.remove('dragover');handlePipeDrop(event)">
+              <div class="pipe-dropzone-inner">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:8px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <div style="font-size:13px;color:var(--text-secondary)">Drop files here to ingest</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Supports: Markdown, PDF, CSV, JSON, DOCX, Audio, Video</div>
+              </div>
+            </div>
+
+            <!-- File preview (shows when a file is being ingested) -->
             <div id="pipe-file-preview"></div>
+
+            <!-- Factory line visualization -->
             <div id="pipe-factory-line"></div>
+
+            <!-- Step detail expansion -->
             <div id="pipe-stage-detail"></div>
+
+            <!-- Celebration on completion -->
             <div id="pipe-celebration"></div>
-            <div class="pipe-history" style="margin-top:28px">
-              <h3>Recent Runs</h3>
+
+            <!-- Recent Runs -->
+            <div style="margin-top:24px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                <h3 style="margin:0;font-size:13px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px">Recent Runs</h3>
+                <span id="pipe-runs-count" style="font-size:11px;color:var(--text-muted)"></span>
+              </div>
               <div id="pipe-runs-list"></div>
             </div>
           </div>
@@ -1649,6 +1747,13 @@
               <button class="btn-sm" id="history-init-git" style="display:none">Initialize Git</button>
               <button class="btn-sm" id="history-tag-btn">Tag Milestone</button>
               <button class="btn-sm" id="history-branch-btn">New Branch</button>
+            </div>
+            <div class="audit-actor-tabs" id="audit-actor-tabs">
+              <button class="audit-tab active" data-actor="all" onclick="setAuditTab('all')">All</button>
+              <button class="audit-tab" data-actor="human" onclick="setAuditTab('human')">🧑 Human</button>
+              <button class="audit-tab" data-actor="agent" onclick="setAuditTab('agent')">🤖 Agent</button>
+              <button class="audit-tab" data-actor="webhook" onclick="setAuditTab('webhook')">🔗 Webhook</button>
+              <button class="audit-tab" data-actor="observer" onclick="setAuditTab('observer')">🔭 Observer</button>
             </div>
             <div class="history-filters">
               <label class="filter-toggle" title="Show only wiki-related commits">
@@ -1812,8 +1917,16 @@
 
     function renderWikilinks(html) {
       return html.replace(/\[\[([^\]]+)\]\]/g, (_, name) =>
-        `<a href="#" class="wikilink" onclick="event.preventDefault();openPage('${esc(name)}')">${esc(name)}</a>`
+        `<a href="#" class="wikilink" data-wikilink="${esc(name)}" onclick="event.preventDefault();if(!state.editing)openPage('${esc(name)}')">${esc(name)}</a>`
       );
+    }
+
+    function wireWikilinks(container) {
+      container.querySelectorAll('a.wikilink').forEach(a => {
+        const target = a.dataset.wikilink || a.textContent;
+        a.dataset.wikilink = target;
+        a.setAttribute('onclick', `event.preventDefault();if(!state.editing)openPage('${target.replace(/'/g, "\\'")}')`);
+      });
     }
 
     function addCopyButtons(container) {
@@ -2320,77 +2433,126 @@
       return html;
     }
 
-    // ── Markdown Editor ──
-    function toggleEditMode() {
-      if (state.editing) { exitEditMode(); return; }
-      enterEditMode();
+    // ── WYSIWYG Live Editor (Obsidian-style — edit in place, no raw markdown) ──
+    // Uses contenteditable on #page-body + Turndown.js to convert HTML→Markdown on save
+
+    const _td = typeof TurndownService !== 'undefined' ? new TurndownService({
+      headingStyle: 'atx',
+      codeBlockStyle: 'fenced',
+      bulletListMarker: '-',
+      emDelimiter: '*',
+    }) : null;
+
+    // Configure Turndown: preserve wikilinks [[Title]]
+    if (_td) {
+      _td.addRule('wikilink', {
+        filter: (node) => node.nodeName === 'A' && node.dataset && node.dataset.wikilink,
+        replacement: (content, node) => `[[${node.dataset.wikilink}]]`,
+      });
+      _td.addRule('inlineCode', {
+        filter: ['code'],
+        replacement: (content) => '`' + content + '`',
+      });
     }
 
-    async function enterEditMode(rawContent) {
+    // Click on page body → activate WYSIWYG edit
+    document.getElementById('page-body').addEventListener('click', (e) => {
+      if (state.editing || state.editTabType !== 'wiki') return;
+      if (e.target.closest('a[href]')) return; // let normal links work
+      activateWysiwyg();
+    });
+
+    async function activateWysiwyg() {
       const title = state.activeTabId;
-      if (!title || state.editTabType !== 'wiki') return;
+      if (!title || state.editTabType !== 'wiki' || state.editing) return;
+
+      // Fetch the raw markdown source
+      let rawMd = '';
+      let pageSlug = title;
+      try {
+        const data = await fetch('/api/pages/' + encodeURIComponent(title) + '/raw').then(r => r.json());
+        rawMd = data.raw || '';
+        pageSlug = data.slug || title;
+      } catch {}
 
       state.editing = true;
-      document.getElementById('page-edit-btn').classList.add('active');
-      document.getElementById('page-body').style.display = 'none';
-      document.getElementById('page-toc').style.display = 'none';
-      document.getElementById('page-editor').classList.add('active');
-      document.getElementById('editor-draft-indicator').classList.remove('visible');
+      state.editOriginal = rawMd;
+      state.editPageSlug = pageSlug;
+      state.wysiwygDirty = false;
 
-      const textarea = document.getElementById('editor-textarea');
+      const body = document.getElementById('page-body');
+      body.contentEditable = 'true';
+      body.classList.add('editing-hint-hidden');
+      body.focus();
 
-      if (rawContent !== undefined) {
-        textarea.value = rawContent;
-        state.editOriginal = rawContent;
-      } else {
-        textarea.value = '';
-        textarea.placeholder = 'Loading…';
-        try {
-          const data = await fetch('/api/pages/' + encodeURIComponent(title) + '/raw').then(r => r.json());
-          textarea.value = data.raw || '';
-          state.editOriginal = data.raw || '';
-          state.editPageSlug = data.slug || title;
-        } catch (err) {
-          textarea.value = '# Failed to load page\n\nCould not fetch raw content.';
-          state.editOriginal = '';
-        }
-        textarea.placeholder = 'Write your markdown here...';
-      }
+      // Show the floating save bar
+      document.getElementById('wysiwyg-bar').classList.add('visible');
+      document.getElementById('wysiwyg-dirty').classList.remove('visible');
 
-      updateLineNumbers();
-      textarea.focus();
+      // Remove edit button (we don't need it in WYSIWYG)
+      const editBtn = document.getElementById('page-edit-btn');
+      if (editBtn) editBtn.style.display = 'none';
+
+      // Track changes
+      const _inputHandler = () => {
+        if (!state.editing) return;
+        state.wysiwygDirty = true;
+        document.getElementById('wysiwyg-dirty').classList.add('visible');
+        const tab = state.tabs.find(t => t.id === state.activeTabId);
+        if (tab) { tab.dirty = true; renderTabs(); }
+      };
+      body._wysiwygInputHandler = _inputHandler;
+      body.addEventListener('input', _inputHandler);
     }
 
-    function exitEditMode(force) {
-      if (!state.editing) return;
-      const textarea = document.getElementById('editor-textarea');
-      const hasChanges = textarea.value !== state.editOriginal;
-
-      if (!force && hasChanges) {
-        if (!confirm('You have unsaved changes. Discard them?')) return;
+    function deactivateWysiwyg() {
+      const body = document.getElementById('page-body');
+      body.contentEditable = 'false';
+      body.classList.remove('editing-hint-hidden');
+      if (body._wysiwygInputHandler) {
+        body.removeEventListener('input', body._wysiwygInputHandler);
+        body._wysiwygInputHandler = null;
       }
-
+      document.getElementById('wysiwyg-bar').classList.remove('visible');
+      document.getElementById('wysiwyg-dirty').classList.remove('visible');
+      const editBtn = document.getElementById('page-edit-btn');
+      if (editBtn) editBtn.style.display = '';
       state.editing = false;
-      document.getElementById('page-edit-btn').classList.remove('active');
-      document.getElementById('page-body').style.display = '';
-      document.getElementById('page-toc').style.display = '';
-      document.getElementById('page-editor').classList.remove('active');
-      document.getElementById('editor-draft-indicator').classList.remove('visible');
+      state.wysiwygDirty = false;
+      const tab = state.tabs.find(t => t.id === state.activeTabId);
+      if (tab) { tab.dirty = false; renderTabs(); }
     }
 
-    function cancelEdit() { exitEditMode(); }
+    function cancelWysiwyg() {
+      if (state.wysiwygDirty) {
+        if (!confirm('Discard unsaved changes?')) return;
+      }
+      // Restore original rendered content
+      const body = document.getElementById('page-body');
+      deactivateWysiwyg();
+      if (state.editOriginal) {
+        body.innerHTML = renderMarkdown(state.editOriginal);
+        wireWikilinks(body);
+      }
+    }
 
-    async function saveEdit() {
+    async function saveWysiwyg() {
       const title = state.activeTabId;
       if (!title) return;
 
-      const textarea = document.getElementById('editor-textarea');
-      const saveBtn = document.getElementById('editor-save-btn');
-      const statusEl = document.getElementById('editor-draft-indicator');
-      const content = textarea.value;
-
+      const body = document.getElementById('page-body');
+      const saveBtn = document.getElementById('wysiwyg-save-btn');
       saveBtn.disabled = true;
       saveBtn.textContent = 'Saving…';
+
+      // Convert HTML → Markdown using Turndown
+      let content = '';
+      if (_td) {
+        content = _td.turndown(body.innerHTML);
+      } else {
+        // Fallback: use raw markdown if Turndown failed to load
+        content = state.editOriginal || '';
+      }
 
       try {
         const slug = state.editPageSlug || title;
@@ -2402,162 +2564,50 @@
         const data = await res.json();
         if (data.error) throw new Error(data.error);
 
-        state.editOriginal = content;
-        statusEl.innerHTML = '<span style="color:var(--green)">Saved</span>';
-        statusEl.classList.add('visible');
-        setTimeout(() => { statusEl.classList.remove('visible'); statusEl.innerHTML = '<span class="editor-dirty-dot"></span> Draft'; }, 2000);
+        deactivateWysiwyg();
+        showToast('✓ Saved');
 
-        exitEditMode(true);
-
-        // Refresh everything: re-render page, sidebar, graph
         await openPage(title, true);
         loadTree();
         loadHome();
-        state.graphInit = false; // force graph rebuild on next visit
+        state.graphInit = false;
 
       } catch (err) {
-        statusEl.innerHTML = `<span style="color:var(--red)">Error: ${esc(err.message || 'Save failed')}</span>`;
-        statusEl.classList.add('visible');
+        showToast('✗ Save failed: ' + (err.message || 'unknown error'));
       } finally {
         saveBtn.disabled = false;
         saveBtn.textContent = 'Save';
       }
     }
 
-    function updateLineNumbers() {
-      const textarea = document.getElementById('editor-textarea');
-      const numbersEl = document.getElementById('editor-line-numbers');
-      if (!textarea || !numbersEl) return;
-      const lines = textarea.value.split('\n').length;
-      numbersEl.innerHTML = Array.from({ length: lines }, (_, i) =>
-        `<span>${i + 1}</span>`
-      ).join('');
-    }
+    // For new note creation — still uses a temp markdown string
+    async function enterEditMode(rawContent) {
+      // New-note flow: render markdown and immediately enter wysiwyg
+      const title = state.activeTabId;
+      if (!title || state.editTabType !== 'wiki') return;
 
-    // Editor textarea events
-    (function initEditor() {
-      const textarea = document.getElementById('editor-textarea');
-      if (!textarea) return;
-
-      textarea.addEventListener('input', () => {
-        updateLineNumbers();
-        const hasChanges = textarea.value !== state.editOriginal;
-        const indicator = document.getElementById('editor-draft-indicator');
-        if (hasChanges) indicator.classList.add('visible');
-        else indicator.classList.remove('visible');
-
-        // Mark tab as dirty
-        const tab = state.tabs.find(t => t.id === state.activeTabId);
-        if (tab) { tab.dirty = hasChanges; renderTabs(); }
-      });
-
-      textarea.addEventListener('scroll', () => {
-        const numbersEl = document.getElementById('editor-line-numbers');
-        if (numbersEl) numbersEl.scrollTop = textarea.scrollTop;
-      });
-
-      // Keyboard shortcuts inside textarea
-      textarea.addEventListener('keydown', (e) => {
-        const isMod = e.ctrlKey || e.metaKey;
-
-        // Ctrl+S → save
-        if (isMod && e.key === 's') {
-          e.preventDefault();
-          saveEdit();
-          return;
-        }
-        // Escape → cancel
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          exitEditMode();
-          return;
-        }
-        // Ctrl+B → bold
-        if (isMod && e.key === 'b') {
-          e.preventDefault();
-          wrapSelection(textarea, '**', '**');
-          return;
-        }
-        // Ctrl+I → italic
-        if (isMod && e.key === 'i') {
-          e.preventDefault();
-          wrapSelection(textarea, '*', '*');
-          return;
-        }
-        // Ctrl+K → link
-        if (isMod && e.key === 'k') {
-          e.preventDefault();
-          insertLink(textarea);
-          return;
-        }
-        // Tab → indent
-        if (e.key === 'Tab') {
-          e.preventDefault();
-          const start = textarea.selectionStart;
-          const end = textarea.selectionEnd;
-          if (e.shiftKey) {
-            // Outdent: remove leading 2 spaces from selected lines
-            const before = textarea.value.substring(0, start);
-            const selected = textarea.value.substring(start, end);
-            const after = textarea.value.substring(end);
-            const lineStart = before.lastIndexOf('\n') + 1;
-            const prefix = textarea.value.substring(lineStart, start);
-            const lines = (prefix + selected).split('\n').map(l => l.startsWith('  ') ? l.slice(2) : l);
-            const joined = lines.join('\n');
-            textarea.value = textarea.value.substring(0, lineStart) + joined + after;
-            textarea.selectionStart = lineStart;
-            textarea.selectionEnd = lineStart + joined.length;
-          } else {
-            textarea.value = textarea.value.substring(0, start) + '  ' + textarea.value.substring(end);
-            textarea.selectionStart = textarea.selectionEnd = start + 2;
-          }
-          textarea.dispatchEvent(new Event('input'));
-          return;
-        }
-      });
-    })();
-
-    function wrapSelection(textarea, before, after) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const selected = textarea.value.substring(start, end);
-      const text = textarea.value;
-
-      // If already wrapped, unwrap
-      if (start >= before.length && text.substring(start - before.length, start) === before &&
-          text.substring(end, end + after.length) === after) {
-        textarea.value = text.substring(0, start - before.length) + selected + text.substring(end + after.length);
-        textarea.selectionStart = start - before.length;
-        textarea.selectionEnd = end - before.length;
-      } else {
-        const replacement = before + (selected || 'text') + after;
-        textarea.value = text.substring(0, start) + replacement + text.substring(end);
-        if (selected) {
-          textarea.selectionStart = start + before.length;
-          textarea.selectionEnd = end + before.length;
-        } else {
-          textarea.selectionStart = start + before.length;
-          textarea.selectionEnd = start + before.length + 4;
-        }
+      if (rawContent !== undefined) {
+        const body = document.getElementById('page-body');
+        body.innerHTML = renderMarkdown(rawContent);
+        wireWikilinks(body);
+        state.editOriginal = rawContent;
+        state.editPageSlug = title;
       }
-      textarea.dispatchEvent(new Event('input'));
-      textarea.focus();
+      activateWysiwyg();
     }
 
-    function insertLink(textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const selected = textarea.value.substring(start, end);
-      const url = prompt('Link URL:', 'https://');
-      if (!url) return;
-      const label = selected || 'link text';
-      const md = `[${label}](${url})`;
-      textarea.value = textarea.value.substring(0, start) + md + textarea.value.substring(end);
-      textarea.selectionStart = start + 1;
-      textarea.selectionEnd = start + 1 + label.length;
-      textarea.dispatchEvent(new Event('input'));
-      textarea.focus();
+    function toggleEditMode() {
+      if (state.editing) { cancelWysiwyg(); return; }
+      activateWysiwyg();
     }
+
+    // Legacy stubs (keep for any remaining references)
+    function exitEditMode(force) { if (force) deactivateWysiwyg(); else cancelWysiwyg(); }
+    function cancelEdit() { cancelWysiwyg(); }
+    async function saveEdit() { await saveWysiwyg(); }
+    function updateLineNumbers() {}
+    function wrapSelection() {}
+    function insertLink() {}
 
     // Global keyboard shortcuts
     document.addEventListener('keydown', (e) => {
@@ -2569,15 +2619,55 @@
         toggleEditMode();
       }
 
-      // Ctrl+S → save if editing
+      // Ctrl+S → save if editing (WYSIWYG)
       if (isMod && e.key === 's' && state.editing) {
         e.preventDefault();
-        saveEdit();
+        saveWysiwyg();
       }
+
+      // Escape → cancel edit
+      if (e.key === 'Escape' && state.editing && !e.target.closest('input, textarea, [contenteditable]')) {
+        e.preventDefault();
+        cancelWysiwyg();
+      }
+    });
+
+    // Escape inside contenteditable
+    document.getElementById('page-body').addEventListener('keydown', (e) => {
+      if (!state.editing) return;
+      const isMod = e.ctrlKey || e.metaKey;
+      if (isMod && e.key === 's') { e.preventDefault(); saveWysiwyg(); }
+      if (e.key === 'Escape') { e.preventDefault(); cancelWysiwyg(); }
     });
 
     // ── Git History / Audit Trail ──
     let historyDebounce = null;
+    let auditActorFilter = 'all';
+
+    function inferActor(entry) {
+      const msg = (entry.message || '').toLowerCase();
+      const author = (entry.author || '').toLowerCase();
+      if(msg.startsWith('observer:') || msg.includes('[observer]') || author.includes('observer')) return 'observer';
+      if(msg.startsWith('webhook:') || msg.includes('[webhook]') || author.includes('webhook')) return 'webhook';
+      if(msg.startsWith('agent:') || msg.startsWith('auto:') || msg.includes('[agent]') || author.includes('bot') || author.includes('agent')) return 'agent';
+      return 'human';
+    }
+
+    const ACTOR_BADGE_HTML = {
+      human:    '<span class="actor-badge actor-human">🧑 Human</span>',
+      agent:    '<span class="actor-badge actor-agent">🤖 Agent</span>',
+      webhook:  '<span class="actor-badge actor-webhook">🔗 Webhook</span>',
+      observer: '<span class="actor-badge actor-observer">🔭 Observer</span>',
+    };
+
+    function setAuditTab(actor) {
+      auditActorFilter = actor;
+      document.querySelectorAll('.audit-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.actor === actor);
+      });
+      loadGitHistory();
+    }
+
     async function loadGitHistory() {
       const timeline = document.getElementById('history-timeline');
       const branchInfo = document.getElementById('history-branch-info');
@@ -2611,22 +2701,36 @@
           return;
         }
 
+        // Filter by actor tab
+        const filtered = auditActorFilter === 'all'
+          ? log
+          : log.filter(e => inferActor(e) === auditActorFilter);
+
+        if(!filtered.length) {
+          timeline.innerHTML = `<p style="color:var(--text-muted);padding:20px">No ${auditActorFilter} entries found.</p>`;
+          return;
+        }
+
         let html = '';
-        for(const entry of log) {
+        for(const entry of filtered) {
           const date = new Date(entry.date);
           const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
           const filesCount = entry.filesChanged?.length || 0;
           const commitId = 'commit-' + entry.hashShort;
-          const badge = entry.isWiki
+          const actor = inferActor(entry);
+          const actorBadge = ACTOR_BADGE_HTML[actor] || ACTOR_BADGE_HTML.human;
+          const typeBadge = entry.isWiki
             ? '<span class="commit-badge wiki">wiki</span>'
             : '<span class="commit-badge code">code</span>';
           const displayMsg = entry.isWiki ? entry.message.replace(/^wiki:\s*/, '') : entry.message;
+          const dotColors = { human:'var(--blue)', agent:'var(--green)', webhook:'var(--purple)', observer:'var(--orange)' };
           html += `<div class="commit-item" onclick="toggleCommitFiles('${commitId}')">
-            <div class="commit-dot" style="${entry.isWiki ? '' : 'background:var(--orange)'}"></div>
+            <div class="commit-dot" style="background:${dotColors[actor] || 'var(--accent)'}"></div>
             <div style="flex:1;min-width:0">
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 <span class="commit-hash">${entry.hashShort}</span>
-                ${badge}
+                ${actorBadge}
+                ${typeBadge}
                 <span class="commit-msg">${esc(displayMsg)}</span>
               </div>
               <div class="commit-meta">${entry.author} · ${dateStr}${filesCount ? ` · ${filesCount} files` : ''}</div>
@@ -3078,25 +3182,128 @@
       } else if(section === 'automations') {
         el.innerHTML = `
           <div class="settings-section-title">Automations</div>
-          <div class="settings-section-desc">Control the three core automations.</div>
-          <div class="settings-group">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text)">
-              <input type="checkbox" checked style="accent-color:var(--accent)"> Ingest & Process
-            </label>
-            <div style="font-size:11px;color:var(--text-dim);margin:4px 0 0 24px">Automatically process uploaded files</div>
+          <div class="settings-section-desc">The three core automations that keep your wiki alive and growing.</div>
+
+          <!-- Card 1: Smart Sourcing -->
+          <div class="auto-card">
+            <div class="auto-card-header">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:20px">🕷️</span>
+                <div>
+                  <div class="auto-card-title">Smart Sourcing</div>
+                  <div class="auto-card-desc">Scrape and ingest from configured web sources on a schedule</div>
+                </div>
+              </div>
+              <label class="auto-toggle" title="Enable Smart Sourcing">
+                <input type="checkbox" id="auto-sourcing-enabled" onchange="saveAutoSetting('sourcing','enabled',this.checked)">
+                <span class="auto-toggle-track"></span>
+              </label>
+            </div>
+            <div class="auto-card-body">
+              <div class="settings-group" style="margin-bottom:14px">
+                <label class="settings-label">Schedule</label>
+                <select class="settings-select" id="auto-sourcing-schedule" onchange="saveAutoSetting('sourcing','schedule',this.value)">
+                  <option value="1">Every 1 hour</option>
+                  <option value="6">Every 6 hours</option>
+                  <option value="12" selected>Every 12 hours</option>
+                  <option value="24">Every 24 hours</option>
+                </select>
+              </div>
+              <div class="settings-group" style="margin-bottom:14px">
+                <label class="settings-label">Topic Guardrails</label>
+                <textarea class="settings-input auto-textarea" id="auto-sourcing-topics" placeholder="ai agents&#10;llm tools&#10;knowledge management" onchange="saveAutoSetting('sourcing','topics',this.value)"></textarea>
+                <div class="auto-hint">One keyword per line. Scraped content must match at least one topic to be ingested.</div>
+              </div>
+              <div class="settings-group" style="margin-bottom:0">
+                <label class="settings-label">Sources</label>
+                <div id="auto-sources-list" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px">
+                  <div style="color:var(--text-muted);font-size:12px;padding:4px 0">No sources configured</div>
+                </div>
+                <button class="settings-btn" onclick="addAutoSource()" style="font-size:11px;padding:4px 10px">+ Add Source</button>
+              </div>
+              <div class="auto-card-footer">
+                <span class="auto-last-run" id="auto-sourcing-last">Last run: never</span>
+                <button class="settings-btn settings-btn-primary auto-run-btn" onclick="runAutomation('sourcing')">Run Now</button>
+              </div>
+            </div>
           </div>
-          <div class="settings-group">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text)">
-              <input type="checkbox" style="accent-color:var(--accent)"> Scheduled Scraping
-            </label>
-            <div style="font-size:11px;color:var(--text-dim);margin:4px 0 0 24px">Fetch from configured sources on a schedule</div>
+
+          <!-- Card 2: Observer -->
+          <div class="auto-card">
+            <div class="auto-card-header">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:20px">🔭</span>
+                <div>
+                  <div class="auto-card-title">Observer</div>
+                  <div class="auto-card-desc">Analyzes wiki for gaps, contradictions, and growth opportunities</div>
+                </div>
+              </div>
+              <label class="auto-toggle" title="Enable Observer">
+                <input type="checkbox" id="auto-observer-enabled" onchange="saveAutoSetting('observer','enabled',this.checked)">
+                <span class="auto-toggle-track"></span>
+              </label>
+            </div>
+            <div class="auto-card-body">
+              <div class="settings-group" style="margin-bottom:14px">
+                <label class="settings-label">Schedule</label>
+                <select class="settings-select" id="auto-observer-schedule" onchange="saveAutoSetting('observer','schedule',this.value)">
+                  <option value="nightly" selected>Nightly at 3am</option>
+                  <option value="weekly">Weekly on Sunday</option>
+                  <option value="manual">Manual only</option>
+                </select>
+              </div>
+              <div class="settings-group" style="margin-bottom:0">
+                <label class="settings-label">Last Report</label>
+                <div id="auto-observer-last-report" style="font-size:12px;color:var(--text-muted);padding:4px 0">No reports yet</div>
+              </div>
+              <div class="auto-card-footer">
+                <span class="auto-last-run" id="auto-observer-last">Last run: never</span>
+                <button class="settings-btn settings-btn-primary auto-run-btn" onclick="runAutomation('observer')">Run Now</button>
+              </div>
+            </div>
           </div>
-          <div class="settings-group">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text)">
-              <input type="checkbox" style="accent-color:var(--accent)"> Self-Improvement (LLM Council)
-            </label>
-            <div style="font-size:11px;color:var(--text-dim);margin:4px 0 0 24px">Periodically review and enhance wiki quality</div>
-          </div>`;
+
+          <!-- Card 3: Webhook Receiver -->
+          <div class="auto-card">
+            <div class="auto-card-header">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:20px">🔗</span>
+                <div>
+                  <div class="auto-card-title">Webhook Receiver</div>
+                  <div class="auto-card-desc">Accept documents and text via HTTP from external tools and agents</div>
+                </div>
+              </div>
+              <label class="auto-toggle" title="Enable Webhook Receiver">
+                <input type="checkbox" id="auto-webhook-enabled" onchange="toggleWebhookUrl(this.checked)">
+                <span class="auto-toggle-track"></span>
+              </label>
+            </div>
+            <div class="auto-card-body">
+              <div id="auto-webhook-url-row" style="display:none;margin-bottom:14px">
+                <label class="settings-label">Webhook URL</label>
+                <div style="display:flex;gap:6px;align-items:center;margin-top:4px">
+                  <code class="auto-webhook-url" id="auto-webhook-url">http://localhost:3456/api/webhook/ingest</code>
+                  <button class="settings-btn" onclick="copyWebhookUrl()" title="Copy webhook URL">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <div class="settings-group" style="margin-bottom:0">
+                <label class="settings-label">Auth Token <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+                <input class="settings-input" id="auto-webhook-token" type="password" placeholder="Bearer token for verification" onchange="saveAutoSetting('webhook','token',this.value)" />
+                <div class="auto-hint">If set, requests must include <code style="font-size:10px;background:var(--bg-surface);padding:1px 4px;border-radius:3px">Authorization: Bearer &lt;token&gt;</code></div>
+              </div>
+              <div class="auto-card-footer">
+                <span class="auto-last-run">
+                  Recent webhooks received: <span class="auto-webhook-count" id="auto-webhook-count">0</span>
+                </span>
+              </div>
+            </div>
+          </div>
+          <span class="settings-status" id="automations-status"></span>
+        `;
+        loadAutoSettings();
       } else if(section === 'hotkeys') {
         const shortcuts = [
           ['⌘K','Search pages'],['⌘G','Toggle graph'],['⌘,','Open settings'],
@@ -3137,6 +3344,116 @@
         s.className='settings-status ok'; s.textContent='✓ Saved';
         setTimeout(()=>s.textContent='',2000);
       } catch { s.className='settings-status err'; s.textContent='✗ Failed'; }
+    }
+
+    // ── Automations Settings ──────────────────────────────────────────────
+    let autoSources = [];
+
+    async function loadAutoSettings() {
+      try {
+        const data = await api('/api/automations/settings').catch(() => ({}));
+        const sourcing = data.sourcing || {};
+        const observer = data.observer || {};
+        const webhook  = data.webhook  || {};
+
+        const el = (id) => document.getElementById(id);
+
+        if(el('auto-sourcing-enabled'))  el('auto-sourcing-enabled').checked  = !!sourcing.enabled;
+        if(el('auto-observer-enabled'))  el('auto-observer-enabled').checked  = !!observer.enabled;
+        if(el('auto-webhook-enabled'))   el('auto-webhook-enabled').checked   = !!webhook.enabled;
+
+        if(el('auto-sourcing-schedule') && sourcing.schedule) el('auto-sourcing-schedule').value = sourcing.schedule;
+        if(el('auto-observer-schedule') && observer.schedule) el('auto-observer-schedule').value = observer.schedule;
+
+        if(el('auto-sourcing-topics') && sourcing.topics)   el('auto-sourcing-topics').value = sourcing.topics;
+        if(el('auto-webhook-token')   && webhook.token)     el('auto-webhook-token').value   = webhook.token;
+
+        if(el('auto-sourcing-last') && sourcing.lastRun)
+          el('auto-sourcing-last').textContent = 'Last run: ' + formatTimeAgo(sourcing.lastRun);
+        if(el('auto-observer-last') && observer.lastRun)
+          el('auto-observer-last').textContent = 'Last run: ' + formatTimeAgo(observer.lastRun);
+
+        if(el('auto-observer-last-report') && observer.lastReportPath) {
+          el('auto-observer-last-report').innerHTML = `<a href="#" onclick="event.preventDefault();openPage('${esc(observer.lastReportPath)}')" style="color:var(--accent)">View last report →</a>`;
+        }
+
+        if(el('auto-webhook-count') && webhook.count != null)
+          el('auto-webhook-count').textContent = webhook.count;
+
+        // Show/hide webhook URL
+        toggleWebhookUrl(!!webhook.enabled);
+
+        // Render sources list
+        autoSources = sourcing.sources || [];
+        renderAutoSources();
+      } catch(e) { /* settings endpoint may not exist yet */ }
+    }
+
+    function renderAutoSources() {
+      const list = document.getElementById('auto-sources-list');
+      if(!list) return;
+      if(!autoSources.length) {
+        list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:4px 0">No sources configured</div>';
+        return;
+      }
+      list.innerHTML = autoSources.map((src, i) => `
+        <div class="auto-source-row">
+          <span>${esc(src)}</span>
+          <button onclick="removeAutoSource(${i})" title="Remove source">×</button>
+        </div>`).join('');
+    }
+
+    function addAutoSource() {
+      const url = prompt('Enter URL to scrape (e.g. https://example.com/feed):');
+      if(!url || !url.trim()) return;
+      autoSources.push(url.trim());
+      renderAutoSources();
+      saveAutoSetting('sourcing', 'sources', autoSources);
+    }
+
+    function removeAutoSource(idx) {
+      autoSources.splice(idx, 1);
+      renderAutoSources();
+      saveAutoSetting('sourcing', 'sources', autoSources);
+    }
+
+    function toggleWebhookUrl(enabled) {
+      const row = document.getElementById('auto-webhook-url-row');
+      if(row) row.style.display = enabled ? 'block' : 'none';
+      saveAutoSetting('webhook', 'enabled', enabled);
+    }
+
+    function copyWebhookUrl() {
+      const url = document.getElementById('auto-webhook-url')?.textContent || 'http://localhost:3456/api/webhook/ingest';
+      navigator.clipboard.writeText(url).then(() => showToast('✓ Webhook URL copied'));
+    }
+
+    async function saveAutoSetting(automation, key, value) {
+      try {
+        await fetch('/api/automations/settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ automation, key, value })
+        });
+        const s = document.getElementById('automations-status');
+        if(s) { s.className='settings-status ok'; s.textContent='✓ Saved'; setTimeout(()=>s.textContent='', 2000); }
+      } catch(e) { /* backend not wired yet */ }
+    }
+
+    async function runAutomation(type) {
+      const endpointMap = { sourcing: '/api/automations/sourcing/run', observer: '/api/observer/run' };
+      const endpoint = endpointMap[type];
+      if(!endpoint) return;
+      const lastEl = document.getElementById(`auto-${type}-last`);
+      if(lastEl) { lastEl.textContent = '⟳ Running…'; }
+      try {
+        await api(endpoint, { method: 'POST' });
+        if(lastEl) { lastEl.textContent = 'Last run: just now'; }
+        const s = document.getElementById('automations-status');
+        if(s) { s.className='settings-status ok'; s.textContent='✓ Started'; setTimeout(()=>s.textContent='', 3000); }
+      } catch(e) {
+        if(lastEl) { lastEl.textContent = '✗ Failed to start'; }
+      }
     }
 
     // ── Connectors / Sources ──────────────────────────────────────────────
@@ -3194,7 +3511,7 @@
       if(!modal) return;
       const isRepo = type === 'git-repo' || type === 'github';
       const label = {folder:'Local Folder', 'git-repo':'Local Git Repo', github:'GitHub Repository'}[type];
-      modal.style.display = 'block';
+      modal.style.display = 'flex';
       modal.innerHTML = `
         <div class="conn-modal-inner">
           <div class="conn-modal-header">
@@ -3379,7 +3696,8 @@
 
     // ── Home ──
     async function loadHome() {
-      const [stats, pages, graphData] = await Promise.all([api('/api/status'), api('/api/pages'), api('/api/graph')]);
+      const [stats, pages] = await Promise.all([api('/api/status'), api('/api/pages')]);
+      const graphData = { nodes: [], links: [] }; // graph loads lazily when graph tab is opened
       state.allPages = pages;
 
       const statusText = `${stats.pageCount} pages · ${stats.wordCount.toLocaleString()} words`;
@@ -3756,15 +4074,15 @@
     }
 
     const PIPELINE_STEPS = [
-      { id: 'detect',      icon: '1', label: 'Detect' },
-      { id: 'extract',     icon: '2', label: 'Extract' },
-      { id: 'dedup',       icon: '3', label: 'Dedup' },
-      { id: 'copy-raw',    icon: '4', label: 'Save Raw' },
-      { id: 'llm-compile', icon: '5', label: 'LLM Compile' },
-      { id: 'write-pages', icon: '6', label: 'Write Pages' },
-      { id: 'embed',       icon: '7', label: 'Embed' },
-      { id: 'update-index',icon: '8', label: 'Index' },
-      { id: 'git-commit',  icon: '9', label: 'Git Commit' },
+      { id: 'detect',      icon: '🔍', label: 'Detect' },
+      { id: 'extract',     icon: '📝', label: 'Extract' },
+      { id: 'dedup',       icon: '🔄', label: 'Dedup' },
+      { id: 'copy-raw',    icon: '💾', label: 'Save Raw' },
+      { id: 'llm-compile', icon: '🤖', label: 'LLM Compile' },
+      { id: 'write-pages', icon: '📄', label: 'Write Pages' },
+      { id: 'embed',       icon: '🧮', label: 'Embed' },
+      { id: 'update-index',icon: '📇', label: 'Index' },
+      { id: 'git-commit',  icon: '📦', label: 'Git Commit' },
     ];
 
     let pipelineEventSource = null;
@@ -3811,22 +4129,42 @@
     }
 
     function renderPipelineSteps() {
-      const container = document.getElementById('pipeline-current');
+      const container = document.getElementById('pipe-factory-line');
       if (!container) return;
+      const dropzone = document.getElementById('pipe-dropzone');
       const hasActivity = Object.keys(currentPipelineSteps).length > 0;
+
+      // Toggle dropzone visibility
+      if (dropzone) dropzone.classList.toggle('has-activity', hasActivity);
+
       if (!hasActivity) {
-        container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><p style="font-size:32px;margin-bottom:12px">⚙️</p><p>No active pipeline. Upload a file or ingest a URL to see the pipeline in action.</p></div>';
+        container.innerHTML = '';
         return;
       }
-      let html = '<div class="pipeline-steps">';
-      for (const step of PIPELINE_STEPS) {
+
+      // Find the furthest completed step for connector animation
+      let lastDoneIdx = -1;
+      for (let i = PIPELINE_STEPS.length - 1; i >= 0; i--) {
+        const ev = currentPipelineSteps[PIPELINE_STEPS[i].id];
+        if (ev && (ev.status === 'done' || ev.status === 'running')) { lastDoneIdx = i; break; }
+      }
+
+      let html = '<div class="factory-line">';
+      for (let i = 0; i < PIPELINE_STEPS.length; i++) {
+        const step = PIPELINE_STEPS[i];
         const event = currentPipelineSteps[step.id];
         const status = event ? event.status : 'pending';
         const detail = event ? (event.detail || '') : '';
-        html += `<div class="pipeline-step ${status}">
-          <div class="pipeline-step-icon">${step.icon}</div>
-          <div class="pipeline-step-label">${step.label}</div>
-          <div class="pipeline-step-detail" title="${detail}">${detail}</div>
+
+        if (i > 0) {
+          const connClass = i <= lastDoneIdx ? (status === 'running' ? 'active' : 'done') : '';
+          html += `<div class="factory-conn ${connClass}"><svg viewBox="0 0 28 10"><line class="conn-line" x1="0" y1="5" x2="28" y2="5" stroke="var(--border)" stroke-width="1.5" fill="none"/></svg></div>`;
+        }
+
+        html += `<div class="factory-stage ${status}" onclick="showStageDetail('${step.id}')">
+          <div class="fs-icon">${step.icon}</div>
+          <div class="fs-label">${step.label}</div>
+          ${detail ? `<div class="fs-detail" title="${esc(detail)}">${esc(detail)}</div>` : ''}
         </div>`;
       }
       html += '</div>';
@@ -3846,42 +4184,64 @@
     async function loadPipelineRuns() {
       try {
         const data = await api('/api/pipeline/runs');
-        const list = document.getElementById('pipeline-runs-list');
+        const list = document.getElementById('pipe-runs-list');
         if (!list) return;
         if (!data.runs || data.runs.length === 0) {
-          list.innerHTML = '<p style="color:var(--text-muted);font-size:13px">No pipeline runs yet.</p>';
+          list.innerHTML = `<div style="text-align:center;padding:32px 20px;color:var(--text-muted)">
+            <div style="font-size:32px;margin-bottom:10px;opacity:0.5">📭</div>
+            <div style="font-size:13px">No pipeline runs yet</div>
+            <div style="font-size:11px;margin-top:4px;color:var(--text-dim)">Upload a file or ingest a URL to get started</div>
+          </div>`;
           return;
         }
-        list.innerHTML = data.runs.map(run => {
+        list.innerHTML = data.runs.map((run, idx) => {
           const srcName = String(run.source).split('/').pop() || run.source;
           const icon = srcIcon(srcName);
           const inProgress = !run.result;
-          const resultInfo = run.result
-            ? `<span class="run-result-ok">✓ ${run.result.pagesCreated} pages, ${run.result.linksAdded} links</span>`
-            : '<span class="run-result-pending">⋯ In progress</span>';
           const timeAgo = formatTimeAgo(run.startedAt);
 
-          // Diff summary badges
-          let diffBadges = '';
-          if(run.result?.pagesCreated > 0) diffBadges += `<span class="diff-badge diff-add">+${run.result.pagesCreated} pages</span>`;
-          if(run.result?.linksAdded > 0) diffBadges += `<span class="diff-badge diff-link">+${run.result.linksAdded} links</span>`;
+          const triggerType = run.triggeredBy || 'human';
+          const triggerLabels = { human:'🧑 Human', agent:'🤖 Agent', webhook:'🔗 Webhook', observer:'🔭 Observer' };
+          const triggerColors = { human:'var(--accent)', agent:'var(--green)', webhook:'var(--purple)', observer:'var(--amber)' };
 
-          const detailBtn = (run.hasSummary || run.hasLLMTrace) && !inProgress
-            ? `<button class="btn-sm" onclick="showRunDetail('${run.id}')">What the AI Did ↓</button>`
-            : '';
-          return `<div class="pipeline-run-item">
-            <div class="run-item-top">
-              <span class="run-icon">${icon}</span>
-              <div class="run-item-info">
-                <strong class="run-item-name">${esc(srcName)}</strong>
-                <span class="pipeline-run-meta">${timeAgo}</span>
+          let statusHtml = '';
+          if (inProgress) {
+            statusHtml = `<span class="pipe-status-badge running">⟳ Processing</span>`;
+          } else if (run.result) {
+            statusHtml = `<span class="pipe-status-badge success">✓ Complete</span>`;
+          }
+
+          let metricsHtml = '';
+          if (run.result) {
+            metricsHtml = `<div style="display:flex;gap:16px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border-subtle)">
+              <div style="text-align:center">
+                <div style="font-size:16px;font-weight:600;color:var(--green)">${run.result.pagesCreated}</div>
+                <div style="font-size:10px;color:var(--text-muted)">pages</div>
               </div>
-              <div class="run-item-result">${resultInfo}</div>
+              <div style="text-align:center">
+                <div style="font-size:16px;font-weight:600;color:var(--accent)">${run.result.linksAdded}</div>
+                <div style="font-size:10px;color:var(--text-muted)">links</div>
+              </div>
+              <div style="flex:1"></div>
+              ${(run.hasSummary || run.hasLLMTrace) ? `<button class="btn-sm" onclick="showRunDetail('${run.id}')" style="align-self:center">What the AI Did</button>` : ''}
+            </div>`;
+          }
+
+          return `<div class="pipe-run-item" style="animation:pipeSlideIn .3s ease ${idx * .05}s both">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="font-size:24px;flex-shrink:0;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:var(--bg-surface);border-radius:8px">${icon}</div>
+              <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <strong style="font-size:13px;color:var(--text-bright);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(srcName)}</strong>
+                  ${statusHtml}
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:3px;font-size:11px;color:var(--text-muted)">
+                  <span>${timeAgo}</span>
+                  <span style="color:${triggerColors[triggerType] || 'var(--text-muted)'};font-weight:500">${triggerLabels[triggerType] || '🧑 Human'}</span>
+                </div>
+              </div>
             </div>
-            ${diffBadges ? `<div class="run-diff-row">${diffBadges}</div>` : ''}
-            <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-              ${detailBtn}
-            </div>
+            ${metricsHtml}
             <div id="run-detail-${run.id}" class="run-detail" style="display:none"></div>
           </div>`;
         }).join('');
@@ -3891,6 +4251,55 @@
     async function loadPipelineView() {
       renderPipelineSteps();
       await loadPipelineRuns();
+      const countEl = document.getElementById('pipe-runs-count');
+      if (countEl) {
+        try { const d = await api('/api/pipeline/runs'); countEl.textContent = `${d.runs?.length || 0} total`; } catch {}
+      }
+    }
+
+    async function handlePipeUpload(input) {
+      if (!input.files?.length) return;
+      for (const file of input.files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          await fetch('/api/upload', { method: 'POST', body: formData });
+        } catch (err) {
+          showToast('Upload failed: ' + (err.message || 'unknown error'));
+        }
+      }
+      input.value = '';
+    }
+
+    async function handlePipeDrop(event) {
+      const files = event.dataTransfer?.files;
+      if (!files?.length) return;
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          await fetch('/api/upload', { method: 'POST', body: formData });
+        } catch (err) {
+          showToast('Upload failed: ' + (err.message || 'unknown error'));
+        }
+      }
+    }
+
+    function showStageDetail(stepId) {
+      const step = PIPELINE_STEPS.find(s => s.id === stepId);
+      const event = currentPipelineSteps[stepId];
+      if (!step) return;
+      const container = document.getElementById('pipe-stage-detail');
+      if (!container) return;
+      const statusLabel = event?.status === 'done' ? '✓ Complete' : event?.status === 'running' ? '⟳ Running...' : event?.status === 'error' ? '✗ Error' : '○ Pending';
+      const statusColor = event?.status === 'done' ? 'var(--green)' : event?.status === 'running' ? 'var(--accent)' : event?.status === 'error' ? 'var(--red)' : 'var(--text-muted)';
+      container.innerHTML = `<div class="stage-detail">
+        <div class="sd-header">
+          <div class="sd-title"><span>${step.icon}</span> ${step.label} <span style="font-size:11px;font-weight:400;color:${statusColor}">${statusLabel}</span></div>
+          <button class="sd-close" onclick="document.getElementById('pipe-stage-detail').innerHTML=''">×</button>
+        </div>
+        ${event?.detail ? `<div class="sd-desc">${esc(event.detail)}</div>` : ''}
+      </div>`;
     }
 
     async function showRunDetail(runId) {
@@ -3983,22 +4392,44 @@
     }
 
     async function loadTimelapse() {
-      const log = await api('/api/git/log?limit=500&wikiOnly=true');
-      tlState.commits = log.reverse();
-      tlState.prefetched = false;
-      if(!tlState.commits.length) {
-        document.getElementById('tl-content').innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No wiki commits yet. Ingest content to see the wiki evolve over time.</div>';
+      // Show loading state immediately
+      const content = document.getElementById('tl-content');
+      content.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)"><div class="spinner" style="margin:0 auto 12px"></div><div>Loading timeline…</div></div>';
+
+      // Initialize slider at 0 while loading
+      const slider = document.getElementById('tl-slider');
+      slider.max = '0'; slider.value = '0';
+      slider.style.setProperty('--slider-pct', '0%');
+
+      let log = [];
+      try {
+        log = await api('/api/git/log?limit=500&wikiOnly=true');
+      } catch(err) {
+        content.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted)">Failed to load timeline: ${esc(String(err))}</div>`;
         return;
       }
-      const slider = document.getElementById('tl-slider');
+      tlState.commits = log.reverse();
+      tlState.prefetched = false;
+
+      if(!tlState.commits.length) {
+        content.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted);font-size:14px">No wiki commits yet.<br><br>Ingest content to see the knowledge graph grow over time.</div>';
+        return;
+      }
+
       slider.max = String(tlState.commits.length - 1);
       slider.value = String(tlState.commits.length - 1);
       tlState.currentIdx = tlState.commits.length - 1;
+
+      // Set slider fill to 100% (at latest commit)
+      slider.style.setProperty('--slider-pct', '100%');
 
       const first = tlState.commits[0];
       const last = tlState.commits[tlState.commits.length - 1];
       document.getElementById('tl-label-start').textContent = new Date(first.date).toLocaleDateString();
       document.getElementById('tl-label-end').textContent = new Date(last.date).toLocaleDateString();
+
+      // Clear loading state so tree/graph can render into content
+      content.innerHTML = '<div id="tl-tree-view" class="tl-tree"></div><div id="tl-graph-view" class="tl-graph" style="display:none"><svg id="tl-graph-svg"></svg></div>';
 
       renderTimelapseAt(tlState.currentIdx);
       prefetchAllTrees();
@@ -4040,7 +4471,10 @@
       const commit = tlState.commits[idx];
       if(!commit) return;
 
-      document.getElementById('tl-slider').value = String(idx);
+      const slider = document.getElementById('tl-slider');
+      slider.value = String(idx);
+      const max = parseInt(slider.max) || 1;
+      slider.style.setProperty('--slider-pct', `${(idx / max) * 100}%`);
 
       const date = new Date(commit.date);
       const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
@@ -4237,12 +4671,164 @@
       } catch(err) { alert('Restore failed: ' + err.message); }
     }
 
-    async function renderTimelapseGraph(commit) {
+    async function renderTimelapseGraph(commit, idx) {
       const container = document.getElementById('tl-graph-view');
-      container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted)">
-        <p style="font-size:14px;color:var(--text-secondary);margin-bottom:8px">Graph time-lapse</p>
-        <p>Coming soon. Viewing tree at commit <strong>${commit.hashShort}</strong></p>
-      </div>`;
+      // Ensure SVG has explicit dimensions so D3 forces work correctly
+      const rect = container.getBoundingClientRect();
+      const width = rect.width > 20 ? rect.width : (container.parentElement?.clientWidth || 800);
+      const height = Math.max(400, rect.height > 20 ? rect.height : 500);
+      container.style.height = height + 'px';
+
+      let data = tlState.graphCache[commit.hash];
+      if(!data) {
+        try { data = await api(`/api/git/graph/${commit.hash}`); tlState.graphCache[commit.hash] = data; }
+        catch(err) { console.warn('Graph fetch failed:', err); data = { nodes: [], links: [] }; }
+      }
+
+      let svgEl = container.querySelector('svg');
+      if(!svgEl) { container.innerHTML = '<svg id="tl-graph-svg"></svg>'; svgEl = container.querySelector('svg'); }
+      svgEl.setAttribute('width', width);
+      svgEl.setAttribute('height', height);
+
+      const svg = d3.select(svgEl);
+      const cs = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+      const COLORS = ['#4f9eff','#4ec9b0','#d7ba7d','#c586c0','#9cdcfe','#dcdcaa','#ce9178','#608b4e','#b5cea8'];
+      const cColor = c => COLORS[(c||0) % COLORS.length];
+      const isHub = d => (d.linksIn||0) >= 3;
+      const nR = d => Math.max(4, Math.min(18, 4 + Math.sqrt(d.linksIn||0) * 3));
+
+      if(!data.nodes || !data.nodes.length) {
+        if(tlState._tlGraphSim) { tlState._tlGraphSim.stop(); tlState._tlGraphSim = null; }
+        svg.selectAll('*').remove();
+        svg.append('text').attr('x',width/2).attr('y',height/2)
+          .attr('text-anchor','middle').attr('fill',cs('--text-muted'))
+          .attr('font-size',13).attr('font-family','Inter,sans-serif')
+          .text(`No wiki pages at commit ${commit.hashShort}`);
+        return;
+      }
+
+      for(const n of data.nodes) {
+        const p = tlState._graphNodePos[n.id];
+        if(p) { n.x = p.x; n.y = p.y; }
+      }
+
+      const linkKey = d => `${d.source?.id??d.source}\u2192${d.target?.id??d.target}`;
+
+      let g = svg.select('g.tl-root');
+      if(!g.node()) {
+        svg.selectAll('*').remove();
+        g = svg.append('g').attr('class','tl-root');
+        g.append('g').attr('class','tl-links');
+        g.append('g').attr('class','tl-rings');
+        g.append('g').attr('class','tl-nodes');
+        g.append('g').attr('class','tl-labels');
+        svg.call(d3.zoom().scaleExtent([0.15,5]).on('zoom', e => g.attr('transform', e.transform)));
+      }
+
+      let tip = container.querySelector('.tl-tip');
+      if(!tip) { tip = document.createElement('div'); tip.className = 'tl-tip'; container.appendChild(tip); }
+
+      if(tlState._tlGraphSim) tlState._tlGraphSim.stop();
+
+      const sim = d3.forceSimulation(data.nodes)
+        .force('link', d3.forceLink(data.links).id(d=>d.id).distance(80))
+        .force('charge', d3.forceManyBody().strength(-220))
+        .force('center', d3.forceCenter(width/2, height/2))
+        .force('collision', d3.forceCollide().radius(d => isHub(d)?26:18));
+      tlState._tlGraphSim = sim;
+
+      // ── Links with stroke-dashoffset draw animation ──
+      const lk = g.select('g.tl-links').selectAll('line').data(data.links, linkKey);
+      lk.exit().transition().duration(300).attr('stroke-opacity',0).remove();
+      const lkE = lk.enter().append('line')
+        .attr('stroke',cs('--border-subtle')).attr('stroke-width',0.8)
+        .attr('stroke-dasharray','500').attr('stroke-dashoffset','500').attr('stroke-opacity',0.4);
+      lkE.transition().duration(500).delay(150).attr('stroke-dashoffset',0)
+        .on('end', function(){ d3.select(this).attr('stroke-dasharray',null); });
+      const links = lkE.merge(lk);
+      lk.transition().duration(300).attr('stroke-opacity',0.4);
+
+      // ── Hub rings (gold, linksIn >= 3) ──
+      const rg = g.select('g.tl-rings').selectAll('circle').data(data.nodes.filter(isHub), d=>d.id);
+      rg.exit().transition().duration(300).attr('opacity',0).remove();
+      const rgE = rg.enter().append('circle')
+        .attr('r',d=>nR(d)+5).attr('fill','none').attr('stroke','#d4a843').attr('stroke-width',1.5).attr('opacity',0);
+      rgE.transition().duration(300).delay(100).attr('opacity',0.5);
+      const rings = rgE.merge(rg);
+      rg.transition().duration(300).attr('r',d=>nR(d)+5);
+
+      // ── Nodes with fade-in + scale ──
+      const nd = g.select('g.tl-nodes').selectAll('circle').data(data.nodes, d=>d.id);
+      nd.exit().transition().duration(300).attr('opacity',0).attr('r',0).remove();
+      const ndE = nd.enter().append('circle')
+        .attr('r',0).attr('opacity',0)
+        .attr('fill',d=>cColor(d.community))
+        .attr('stroke',d=>isHub(d)?'#d4a843':cs('--bg'))
+        .attr('stroke-width',d=>isHub(d)?2:1.5)
+        .attr('cursor','pointer');
+      ndE.transition().duration(300).attr('r',d=>nR(d)).attr('opacity',1);
+      nd.transition().duration(300)
+        .attr('r',d=>nR(d)).attr('fill',d=>cColor(d.community))
+        .attr('stroke',d=>isHub(d)?'#d4a843':cs('--bg'));
+      const nodes = ndE.merge(nd);
+      nodes.call(d3.drag()
+        .on('start',(e,d)=>{if(!e.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y;})
+        .on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y;})
+        .on('end',(e,d)=>{if(!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null;})
+      );
+
+      // ── Labels (visible for hubs, shown on hover for others) ──
+      const lb = g.select('g.tl-labels').selectAll('text').data(data.nodes, d=>d.id);
+      lb.exit().transition().duration(200).attr('opacity',0).remove();
+      const lbE = lb.enter().append('text')
+        .text(d=>d.title.length>22?d.title.slice(0,20)+'\u2026':d.title)
+        .attr('font-size',d=>isHub(d)?11:9.5)
+        .attr('font-weight',d=>isHub(d)?'600':'normal')
+        .attr('font-family','Inter,sans-serif')
+        .attr('fill',d=>isHub(d)?cs('--text-bright'):cs('--text-dim'))
+        .attr('text-anchor','middle').attr('dy',d=>nR(d)+13)
+        .attr('pointer-events','none').attr('opacity',0);
+      lbE.transition().duration(300).delay(200).attr('opacity',d=>isHub(d)?1:0);
+      const labels = lbE.merge(lb);
+      labels.text(d=>d.title.length>22?d.title.slice(0,20)+'\u2026':d.title);
+
+      // ── Hover: tooltip + label reveal ──
+      nodes.on('mouseover',(e,d) => {
+        tip.style.display='block';
+        const hb = isHub(d)?'<span style="display:inline-block;font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(212,168,67,0.15);color:#d4a843;font-weight:500;margin-left:6px">Hub</span>':'';
+        tip.innerHTML=`<div class="tt-title">${esc(d.title)}${hb}</div><div class="tt-meta">${d.linksIn||0} inbound links \u00b7 community ${d.community??0}</div>`;
+        labels.filter(l=>l.id===d.id).attr('opacity',1);
+      }).on('mousemove',e => {
+        const r = container.getBoundingClientRect();
+        tip.style.left=(e.clientX-r.left+12)+'px'; tip.style.top=(e.clientY-r.top-10)+'px';
+      }).on('mouseout',(e,d) => {
+        tip.style.display='none';
+        labels.filter(l=>l.id===d.id).attr('opacity',isHub(d)?1:0);
+      });
+
+      // ── Simulation tick ──
+      sim.on('tick', () => {
+        links.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+          .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+        nodes.attr('cx',d=>d.x).attr('cy',d=>d.y);
+        rings.attr('cx',d=>d.x).attr('cy',d=>d.y);
+        labels.attr('x',d=>d.x).attr('y',d=>d.y);
+      });
+
+      sim.on('end', () => {
+        for(const n of data.nodes) tlState._graphNodePos[n.id] = { x:n.x, y:n.y };
+      });
+
+      // ── Batch-prefetch neighboring commits' graphs ──
+      if(typeof idx === 'number') {
+        const lo = Math.max(0,idx-5), hi = Math.min(tlState.commits.length-1,idx+5);
+        const need = [];
+        for(let i=lo;i<=hi;i++) { const h=tlState.commits[i].hash; if(!tlState.graphCache[h]) need.push(h); }
+        if(need.length) {
+          fetch('/api/git/graph-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hashes:need})})
+            .then(r=>r.json()).then(d=>{if(d&&typeof d==='object'&&!d.error) for(const[h,v]of Object.entries(d)) tlState.graphCache[h]=v;}).catch(()=>{});
+        }
+      }
     }
 
     function tlPlay() {
@@ -4332,148 +4918,13 @@
     let _tlRafId = null;
     document.getElementById('tl-slider').addEventListener('input', e => {
       const val = parseInt(e.target.value);
+      const max = parseInt(e.target.max) || 1;
+      e.target.style.setProperty('--slider-pct', `${(val / max) * 100}%`);
       clearTimeout(_tlSliderDebounce);
       _tlSliderDebounce = setTimeout(() => {
         if(_tlRafId) cancelAnimationFrame(_tlRafId);
         _tlRafId = requestAnimationFrame(() => renderTimelapseAt(val));
-      }, 50);
-    });
-    document.getElementById('tl-play').addEventListener('click', tlPlay);
-    document.getElementById('tl-prev').addEventListener('click', () => { if(tlState.currentIdx > 0) renderTimelapseAt(tlState.currentIdx - 1); });
-    document.getElementById('tl-next').addEventListener('click', () => { if(tlState.currentIdx < tlState.commits.length - 1) renderTimelapseAt(tlState.currentIdx + 1); });
-    document.getElementById('tl-speed').addEventListener('change', () => { if(tlState.playing) { tlPause(); tlPlay(); } });
-    document.getElementById('tl-mode-tree').addEventListener('click', () => {
-      tlState.mode = 'tree';
-      document.getElementById('tl-mode-tree').classList.add('active');
-      document.getElementById('tl-mode-graph').classList.remove('active');
-      document.getElementById('tl-tree-view').style.display = '';
-      document.getElementById('tl-graph-view').style.display = 'none';
-      renderTimelapseAt(tlState.currentIdx);
-    });
-    document.getElementById('tl-mode-graph').addEventListener('click', () => {
-      tlState.mode = 'graph';
-      document.getElementById('tl-mode-graph').classList.add('active');
-      document.getElementById('tl-mode-tree').classList.remove('active');
-      document.getElementById('tl-tree-view').style.display = 'none';
-      document.getElementById('tl-graph-view').style.display = '';
-      renderTimelapseAt(tlState.currentIdx);
-    });
-    document.getElementById('tl-restore').addEventListener('click', () => {
-      const commit = tlState.commits[tlState.currentIdx];
-      if(commit) restoreToCommit(commit.hash, commit.hashShort);
-    });
-
-    // ── Init ──
-    async function init() {
-      connectPipelineSSE();
-      await Promise.all([loadHome(), loadTree()]);
-      loadGitBadge();
-      showView('home');
-    }
-    init();
-  </script>
-</body>
-</html>
-.restart();
-
-      // Status bar
-      let bar = container.querySelector('.tlg-status');
-      if (!bar) { bar=document.createElement('div'); bar.className='tlg-status'; bar.style.cssText='position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:3px 10px;font-size:11px;color:var(--text-muted);pointer-events:none;'; container.style.position='relative'; container.appendChild(bar); }
-      bar.textContent=`${merged.length} pages · ${newData.links.length} links · ${commit.hashShort}`;
-    }
-
-    function tlPlay() {
-      if(tlState.playing) { tlPause(); return; }
-      tlState.playing = true;
-      document.getElementById('tl-play').textContent = '⏸';
-      document.getElementById('tl-play').classList.add('playing');
-      const speed = parseInt(document.getElementById('tl-speed').value) || 2000;
-      tlState.interval = setInterval(() => {
-        if(tlState.currentIdx >= tlState.commits.length - 1) { tlPause(); return; }
-        renderTimelapseAt(tlState.currentIdx + 1);
-      }, speed);
-    }
-
-    function tlPause() {
-      tlState.playing = false;
-      clearInterval(tlState.interval);
-      document.getElementById('tl-play').textContent = '▶';
-      document.getElementById('tl-play').classList.remove('playing');
-    }
-
-    document.getElementById('rail-files').addEventListener('click', railFilesClick);
-    document.getElementById('rail-search').addEventListener('click', railSearchClick);
-    document.getElementById('rail-graph').addEventListener('click', railGraphClick);
-    document.getElementById('rail-pipeline').addEventListener('click', railPipelineClick);
-    document.getElementById('rail-history').addEventListener('click', railHistoryClick);
-    document.getElementById('rail-timelapse').addEventListener('click', railTimelapseClick);
-    document.getElementById('sb-settings-btn').addEventListener('click', railSettingsClick);
-    document.getElementById('history-init-git').addEventListener('click', initGitRepo);
-    document.getElementById('history-wiki-only').addEventListener('change', () => loadGitHistory());
-    document.getElementById('history-search').addEventListener('input', () => {
-      clearTimeout(historyDebounce);
-      historyDebounce = setTimeout(() => loadGitHistory(), 300);
-    });
-    document.getElementById('history-tag-btn').addEventListener('click', async () => {
-      const name = prompt('Tag name (e.g. v1.0, milestone-research):');
-      if(!name) return;
-      const msg = prompt('Tag message (optional):');
-      const result = await fetch('/api/git/tag', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,message:msg||undefined})}).then(r=>r.json());
-      alert(result.message);
-    });
-    document.getElementById('history-branch-btn').addEventListener('click', async () => {
-      const name = prompt('Branch name (e.g. wiki/my-edits):');
-      if(!name) return;
-      const result = await fetch('/api/git/branch', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})}).then(r=>r.json());
-      alert(result.message);
-      if(result.created) loadGitHistory();
-    });
-
-    // Settings nav
-    document.querySelectorAll('.settings-nav-item').forEach(el => {
-      el.addEventListener('click', () => renderSettingsSection(el.dataset.section));
-    });
-
-    // Sidebar action buttons
-    document.getElementById('sa-new-note').addEventListener('click', async () => {
-      const name = prompt('New page title:');
-      if (!name || !name.trim()) return;
-      const title = name.trim();
-      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      const today = new Date().toISOString().split('T')[0];
-      const template = `---\ntitle: "${title}"\ntype: concept\ncreated: "${today}"\nupdated: "${today}"\ntags: []\nsources: []\nrelated: []\nsummary: ""\n---\n\n# ${title}\n\nWrite your content here...\n`;
-
-      try {
-        const res = await fetch('/api/pages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, slug, content: template }),
-        });
-        const data = await res.json();
-        if (data.error) { alert(data.error); return; }
-
-        await loadTree();
-        await loadHome();
-        await openPage(title);
-        // Open directly in edit mode so user can start writing
-        enterEditMode(template);
-      } catch (err) {
-        alert('Failed to create page');
-      }
-    });
-    document.getElementById('sa-collapse').addEventListener('click', collapseAllFolders);
-    document.getElementById('sa-refresh').addEventListener('click', () => { loadTree(); loadHome(); });
-    document.getElementById('git-status-badge').addEventListener('click', toggleGitDropdown);
-
-    let _tlSliderDebounce = null;
-    let _tlRafId = null;
-    document.getElementById('tl-slider').addEventListener('input', e => {
-      const val = parseInt(e.target.value);
-      clearTimeout(_tlSliderDebounce);
-      _tlSliderDebounce = setTimeout(() => {
-        if(_tlRafId) cancelAnimationFrame(_tlRafId);
-        _tlRafId = requestAnimationFrame(() => renderTimelapseAt(val));
-      }, 50);
+      }, 30);
     });
     document.getElementById('tl-play').addEventListener('click', tlPlay);
     document.getElementById('tl-prev').addEventListener('click', () => { if(tlState.currentIdx > 0) renderTimelapseAt(tlState.currentIdx - 1); });

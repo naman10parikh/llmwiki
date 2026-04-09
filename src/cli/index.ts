@@ -24,6 +24,7 @@ import { registerImproveCommand } from './commands/improve.js';
 import { registerDuplicatesCommand } from './commands/duplicates.js';
 import { registerServeCommand } from './commands/serve.js';
 import { registerHistoryCommand } from './commands/history.js';
+import { registerMcpCommand } from './commands/mcp.js';
 
 export function createProgram(): Command {
   const program = new Command();
@@ -44,6 +45,7 @@ export function createProgram(): Command {
   registerDuplicatesCommand(program);
   registerServeCommand(program);
   registerHistoryCommand(program);
+  registerMcpCommand(program);
 
   return program;
 }

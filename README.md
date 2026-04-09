@@ -374,6 +374,29 @@ my-wiki/
     └── syntheses/        # Cross-cutting analyses, query results
 ```
 
+## Privacy
+
+**`raw/` contains your source documents — personal files, PDFs, resumes, meeting recordings.** These should never be committed to a public (or even private) git repo unless you explicitly intend to share them.
+
+wikimem generates a `.gitignore` on `wikimem init` that excludes `raw/` by default. If you initialized a vault with an older version, add these entries manually:
+
+```gitignore
+# Raw source documents — personal files, do not commit
+raw/
+
+# Config may contain API keys
+config.yaml
+```
+
+| Path | Safe to commit? | Why |
+|------|-----------------|-----|
+| `wiki/` | ✅ Yes | LLM-generated summaries, no raw personal data |
+| `AGENTS.md` | ✅ Yes | Schema file, no personal data |
+| `raw/` | ❌ No | Original source files — PDFs, audio, docs |
+| `config.yaml` | ❌ No | May contain API keys |
+
+`wikimem serve` will warn you and patch your `.gitignore` if `raw/` is not excluded.
+
 ## Tests
 
 ```bash

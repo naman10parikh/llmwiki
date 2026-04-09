@@ -25,13 +25,19 @@ export async function processAudio(filePath: string): Promise<AudioResult> {
     throw new Error(`Unsupported audio format: ${ext}. Supported: ${[...SUPPORTED_EXTENSIONS].join(', ')}`);
   }
 
-  // Try Deepgram API first
+  // Try OpenAI Whisper API first (recommended)
+  const openaiKey = process.env['OPENAI_API_KEY'];
+  if (openaiKey) {
+    return await transcribeWithOpenAIWhisper(filePath, title, openaiKey);
+  }
+
+  // Try Deepgram API
   const deepgramKey = process.env['DEEPGRAM_API_KEY'];
   if (deepgramKey) {
     return await transcribeWithDeepgram(filePath, title, deepgramKey);
   }
 
-  // Try local Whisper CLI
+  // Try local Whisper CLI (pip install openai-whisper)
   if (isWhisperAvailable()) {
     return await transcribeWithWhisper(filePath, title);
   }
@@ -41,6 +47,51 @@ export async function processAudio(filePath: string): Promise<AudioResult> {
     title,
     transcript: '',
     markdown: buildMarkdown(title, filePath, '[Audio file — install Whisper or set DEEPGRAM_API_KEY for transcription]'),
+    sourcePath: filePath,
+  };
+}
+
+async function transcribeWithOpenAIWhisper(filePath: string, title: string, apiKey: string): Promise<AudioResult> {
+  const { createReadStream } = await import('node:fs');
+  const FormData = (await import('node:buffer')).Blob ? null : null;
+
+  const audioData = readFileSync(filePath);
+  const ext = extname(filePath).toLowerCase();
+
+  const boundary = '----WikiMemBoundary' + Date.now();
+  const filename = basename(filePath);
+  const contentType = getContentType(ext);
+
+  const prefix = Buffer.from(
+    `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${contentType}\r\n\r\n`
+  );
+  const suffix = Buffer.from(
+    `\r\n--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\nwhisper-1\r\n--${boundary}\r\nContent-Disposition: form-data; name="response_format"\r\n\r\ntext\r\n--${boundary}--\r\n`
+  );
+  const body = Buffer.concat([prefix, audioData, suffix]);
+
+  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': `multipart/form-data; boundary=${boundary}`,
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => '');
+    throw new Error(`OpenAI Whisper API error: ${response.status} ${errText.substring(0, 200)}`);
+  }
+
+  const transcript = (await response.text()).trim();
+  const duration = getDuration(filePath);
+
+  return {
+    title,
+    transcript,
+    markdown: buildMarkdown(title, filePath, transcript, duration),
+    duration,
     sourcePath: filePath,
   };
 }
