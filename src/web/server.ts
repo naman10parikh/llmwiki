@@ -1152,6 +1152,9 @@ export function createServer(vaultRoot: string, port: number): void {
 
   // ─── Automation 3: Webhook Ingest ─────────────────────────────────────────
 
+  // Track files currently being ingested by webhook to avoid double-ingest with watcher
+  const webhookIngestingFiles = new Set<string>();
+
   // POST /api/webhook/ingest — accept external content, run ingest pipeline
   app.post('/api/webhook/ingest', async (req, res) => {
     try {
@@ -1179,20 +1182,37 @@ export function createServer(vaultRoot: string, port: number): void {
       const filePath = joinPath(dateDir, `${slugify(pageTitle.substring(0, 60))}-webhook.md`);
       write(filePath, markdown, 'utf-8');
 
+      // Tell the watcher to skip this file (webhook handles ingest)
+      webhookIngestingFiles.add(filePath);
+
       const { ingestSource } = await import('../core/ingest.js');
       const { createProvider } = await import('../providers/index.js');
       const { loadConfig } = await import('../core/config.js');
+      const { appendAuditEntry } = await import('../core/audit-trail.js');
       const userConfig = loadConfig(config.configPath);
       const provider = createProvider(userConfig.provider ?? 'claude');
 
-      const result = await ingestSource(filePath, config, provider, {
-        verbose: false,
-        tags: tags ?? [],
-        addedBy: 'webhook',
-      });
+      let result;
+      try {
+        result = await ingestSource(filePath, config, provider, {
+          verbose: false,
+          tags: tags ?? [],
+          addedBy: 'webhook',
+        });
+      } catch (ingestErr) {
+        const ingestMsg = ingestErr instanceof Error ? ingestErr.message : String(ingestErr);
+        appendAuditEntry(vaultRoot, {
+          action: 'ingest',
+          actor: 'webhook',
+          source: source ?? filePath,
+          summary: `Webhook ingest FAILED: "${pageTitle}" — ${ingestMsg.substring(0, 200)}`,
+          pagesAffected: [pageTitle],
+        });
+        webhookIngestingFiles.delete(filePath);
+        res.status(500).json({ error: `Webhook ingest failed: ${ingestMsg}` });
+        return;
+      }
 
-      // Record in audit trail
-      const { appendAuditEntry } = await import('../core/audit-trail.js');
       appendAuditEntry(vaultRoot, {
         action: 'ingest',
         actor: 'webhook',
@@ -1200,6 +1220,7 @@ export function createServer(vaultRoot: string, port: number): void {
         summary: `Webhook ingest: "${pageTitle}" — ${result.pagesUpdated} pages created.`,
         pagesAffected: [pageTitle],
       });
+      webhookIngestingFiles.delete(filePath);
 
       res.json({ success: !result.rejected, pagesCreated: result.pagesUpdated });
     } catch (err) {
@@ -1221,6 +1242,73 @@ export function createServer(vaultRoot: string, port: number): void {
       res.json({ entries, total: entries.length });
     } catch (err) {
       res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // ─── Automation Settings API ─────────────────────────────────────────────
+
+  function getAutomationSettingsPath(): string {
+    return join(vaultRoot, '.wikimem', 'automations.json');
+  }
+
+  function loadAutomationSettings(): Record<string, Record<string, unknown>> {
+    const settingsPath = getAutomationSettingsPath();
+    if (!existsSync(settingsPath)) return {};
+    try {
+      return JSON.parse(readFileSync(settingsPath, 'utf-8'));
+    } catch { return {}; }
+  }
+
+  function saveAutomationSettings(settings: Record<string, Record<string, unknown>>): void {
+    const settingsPath = getAutomationSettingsPath();
+    const dir = join(vaultRoot, '.wikimem');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+  }
+
+  // GET /api/automations/settings — read all automation toggle state
+  app.get('/api/automations/settings', (_req, res) => {
+    try {
+      const settings = loadAutomationSettings();
+      res.json(settings);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // PATCH /api/automations/settings — update a single automation setting
+  app.patch('/api/automations/settings', (req, res) => {
+    try {
+      const { automation, key, value } = req.body as {
+        automation?: string;
+        key?: string;
+        value?: unknown;
+      };
+      if (!automation || !key) {
+        res.status(400).json({ error: 'Missing automation or key' });
+        return;
+      }
+      const settings = loadAutomationSettings();
+      if (!settings[automation]) settings[automation] = {};
+      settings[automation]![key] = value;
+      saveAutomationSettings(settings);
+      res.json({ status: 'saved', automation, key, value });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // POST /api/automations/sourcing/run — trigger smart sourcing (alias for /api/automations/scrape)
+  app.post('/api/automations/sourcing/run', async (req, res) => {
+    try {
+      const { runSmartScraper } = await import('../core/scraper.js');
+      const { loadConfig } = await import('../core/config.js');
+      const userConfig = loadConfig(config.configPath);
+      const result = await runSmartScraper(config, userConfig, { dryRun: false, maxItems: 10 });
+      res.json(result);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Sourcing run failed: ${msg}` });
     }
   });
 
@@ -1497,6 +1585,10 @@ export function createServer(vaultRoot: string, port: number): void {
         const INGESTIBLE = new Set(['.md', '.txt', '.pdf', '.json', '.yaml', '.yml', '.csv', '.html', '.docx', '.mp3', '.wav', '.m4a', '.mp4', '.mov']);
         const ext = filePath.split('.').pop()?.toLowerCase() || '';
         if (!INGESTIBLE.has('.' + ext)) return;
+        if (webhookIngestingFiles.has(filePath)) {
+          console.log(`[watcher] Skipping ${filePath} (already being ingested by webhook)`);
+          return;
+        }
         console.log(`[watcher] New file detected: ${filePath}`);
         try {
           const userConfig = loadConfig(config.configPath);

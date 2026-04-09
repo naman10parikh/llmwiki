@@ -45,6 +45,23 @@ export async function ingestSource(
 ): Promise<IngestResult> {
   const { pipelineEvents } = await import('./pipeline-events.js');
   pipelineEvents.startRun(source);
+
+  try {
+    return await _ingestSourceInner(source, config, provider, options, pipelineEvents);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    pipelineEvents.errorRun(msg);
+    throw err;
+  }
+}
+
+async function _ingestSourceInner(
+  source: string,
+  config: VaultConfig,
+  provider: LLMProvider,
+  options: IngestOptions,
+  pipelineEvents: Awaited<typeof import('./pipeline-events.js')>['pipelineEvents'],
+): Promise<IngestResult> {
   pipelineEvents.emitStep('detect', 'running', `Detecting type of ${basename(source)}`);
 
   const isUrl = source.startsWith('http://') || source.startsWith('https://');

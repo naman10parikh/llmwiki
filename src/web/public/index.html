@@ -698,6 +698,101 @@
     #page-view.active { display:flex; flex-direction:column; }
     .page-layout { display:flex; flex-direction:column; max-width:860px; margin:0 auto; width:100%; padding:32px 40px 60px; }
     #page-body { line-height: 1.82; color: var(--text-secondary); font-size:15px; cursor:text; position:relative; }
+    /* Section numbering (h2/h3) — encyclopedic outline */
+    #page-body.md { counter-reset: wiki-h2 0; }
+    #page-body.md h2 { counter-increment: wiki-h2; counter-reset: wiki-h3 0; }
+    #page-body.md h3 { counter-increment: wiki-h3; }
+    #page-body.md h2::before {
+      content: counter(wiki-h2) ". ";
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-right: 0.35em;
+      font-size: 0.92em;
+    }
+    #page-body.md h3::before {
+      content: counter(wiki-h2) "." counter(wiki-h3) " ";
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-right: 0.35em;
+      font-size: 0.88em;
+    }
+    /* Encyclopedia chrome (outside editable #page-body — WYSIWYG-safe) */
+    #page-encyclopedia-chrome { margin-top: 28px; font-size: 15px; line-height: 1.72; color: var(--text-secondary); }
+    #page-encyclopedia-chrome:empty { display: none; }
+    .wiki-citation-hatnote {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 14px;
+      padding: 8px 12px;
+      background: var(--bg-inset);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      border-left: 3px solid var(--border);
+    }
+    .wiki-citation-hatnote .wiki-citation-label { font-weight: 500; color: var(--text-secondary); }
+    .wiki-citation-hatnote .citation-ref { margin-left: 2px; }
+    .citation-ref {
+      color: var(--wiki-link);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.85em;
+      vertical-align: baseline;
+    }
+    .citation-ref sup { line-height: 0; }
+    .citation-ref:hover { color: var(--wiki-link-hover); text-decoration: underline; text-underline-offset: 2px; }
+    .page-encyclopedia-section { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border-subtle); }
+    .page-encyclopedia-heading {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 400;
+      color: var(--text-bright);
+      margin-bottom: 10px;
+    }
+    .wiki-source-list { margin: 0; padding-left: 1.35em; color: var(--text-secondary); font-size: 14px; }
+    .wiki-source-list li { margin: 6px 0; padding-left: 4px; }
+    .wiki-source-link { color: var(--wiki-link); text-decoration: none; word-break: break-all; }
+    .wiki-source-link:hover { text-decoration: underline; text-underline-offset: 2px; color: var(--wiki-link-hover); }
+    .wiki-see-also-list { margin: 0; padding-left: 1.25em; list-style: disc; color: var(--text-secondary); font-size: 14px; }
+    .wiki-see-also-list li { margin: 5px 0; }
+    .page-article-footer {
+      margin-top: 32px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-subtle);
+    }
+    .page-article-footer-inner {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 20px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .page-last-updated { font-variant-numeric: tabular-nums; }
+    /* Article links — Wikipedia-like blue */
+    #page-body.md a:not(.wikilink),
+    #page-encyclopedia-chrome a:not(.wikilink):not(.citation-ref):not(.wiki-source-link) {
+      color: var(--wiki-link);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(110, 179, 247, 0.25);
+      transition: color 0.12s, border-color 0.12s;
+    }
+    #page-body.md a:not(.wikilink):hover,
+    #page-encyclopedia-chrome a:not(.wikilink):not(.citation-ref):not(.wiki-source-link):hover {
+      color: var(--wiki-link-hover);
+      border-bottom-color: rgba(157, 207, 255, 0.45);
+    }
+    #page-body.md a.wikilink,
+    #page-encyclopedia-chrome a.wikilink {
+      color: var(--wiki-link);
+      border-bottom: 1px dashed rgba(110, 179, 247, 0.35);
+    }
+    #page-body.md a.wikilink:hover,
+    #page-encyclopedia-chrome a.wikilink:hover {
+      color: var(--wiki-link-hover);
+      border-bottom-color: var(--wiki-link-hover);
+    }
     /* no hover hint — editing is discoverable via cursor:text */
 
     /* ── Title row with edit button ── */
@@ -1451,6 +1546,40 @@
     .auto-toggle input:checked + .auto-toggle-track::after { transform:translateX(16px); background:var(--accent); }
     .auto-webhook-count { font-weight:600; color:var(--accent); }
 
+    /* ── Pipeline Config ── */
+    .pipe-cfg-section { margin-top:28px; }
+    .pipe-cfg-title { font-size:14px; font-weight:600; color:var(--text-bright); margin-bottom:4px; }
+    .pipe-cfg-desc { font-size:11px; color:var(--text-muted); margin-bottom:16px; }
+    .pipe-step-list { display:flex; flex-direction:column; gap:2px; }
+    .pipe-step-row { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; transition:border-color .15s,background .15s; }
+    .pipe-step-row:hover { border-color:var(--border-hover,#555); }
+    .pipe-step-row.dragging { opacity:0.5; border-color:var(--accent); }
+    .pipe-step-row.drag-over { border-color:var(--accent); background:var(--accent-surface); }
+    .pipe-step-row.disabled-step { opacity:0.45; }
+    .pipe-step-drag { cursor:grab; color:var(--text-muted); font-size:14px; line-height:1; user-select:none; flex-shrink:0; }
+    .pipe-step-drag:active { cursor:grabbing; }
+    .pipe-step-icon { font-size:16px; flex-shrink:0; width:22px; text-align:center; }
+    .pipe-step-info { flex:1; min-width:0; }
+    .pipe-step-name { font-size:12px; font-weight:600; color:var(--text-bright); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .pipe-step-meta { font-size:10px; color:var(--text-muted); margin-top:1px; display:flex; align-items:center; gap:6px; }
+    .pipe-step-badge { font-size:9px; padding:1px 6px; border-radius:3px; font-weight:600; text-transform:uppercase; letter-spacing:0.3px; }
+    .pipe-step-badge.core { background:rgba(79,158,255,0.1); color:var(--accent); border:1px solid rgba(79,158,255,0.2); }
+    .pipe-step-badge.custom { background:rgba(78,201,176,0.1); color:var(--green); border:1px solid rgba(78,201,176,0.2); }
+    .pipe-step-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+    .pipe-step-edit { background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:12px; padding:2px; }
+    .pipe-step-edit:hover { color:var(--accent); }
+    .pipe-step-del { background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:14px; padding:2px; line-height:1; }
+    .pipe-step-del:hover { color:var(--red); }
+    .pipe-step-model { font-size:10px; color:var(--text-muted); background:var(--bg-surface); padding:1px 6px; border-radius:3px; border:1px solid var(--border-subtle); }
+    .pipe-cfg-add-btn { margin-top:12px; display:flex; align-items:center; gap:6px; padding:8px 14px; background:var(--bg-card); border:1px dashed var(--border); border-radius:8px; color:var(--text-muted); font-size:12px; cursor:pointer; transition:border-color .15s,color .15s; width:100%; }
+    .pipe-cfg-add-btn:hover { border-color:var(--accent); color:var(--accent); }
+    .pipe-modal { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:8888; display:flex; align-items:center; justify-content:center; }
+    .pipe-modal-inner { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:24px; width:520px; max-width:90vw; max-height:80vh; overflow-y:auto; }
+    .pipe-modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+    .pipe-modal-header h3 { margin:0; font-size:16px; color:var(--text-bright); }
+    .pipe-modal-close { background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:20px; }
+    .pipe-modal-close:hover { color:var(--text); }
+
     /* ── Audit Trail Actor Tabs ── */
     .audit-actor-tabs { display:flex; gap:4px; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--border-subtle); flex-wrap:wrap; }
     .audit-tab { background:var(--bg-card); border:1px solid var(--border); color:var(--text-secondary); padding:4px 12px; border-radius:6px; font-size:12px; cursor:pointer; transition:all .15s; }
@@ -1540,12 +1669,14 @@
     .tl-file.added { background:rgba(78,201,176,0.06); }
     .tl-file.modified { background:rgba(215,186,125,0.06); }
     .tl-file.deleted { opacity:0.4; }
-    .tl-prefetch-bar { height:3px; background:var(--border); border-radius:2px; overflow:hidden; margin-top:4px; width:100%; display:none; position:relative; }
-    .tl-prefetch-bar.active { display:block; }
-    .tl-prefetch-fill { height:100%; background:linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 65%, var(--text-muted))); transition:width 0.35s ease; width:0%; border-radius:2px; box-shadow:0 0 8px color-mix(in srgb, var(--accent) 40%, transparent); }
-    .tl-prefetch-track { display:flex; gap:1px; height:100%; width:100%; position:absolute; inset:0; opacity:0.35; pointer-events:none; }
+    .tl-prefetch-bar { height:3px; background:var(--border); border-radius:2px; overflow:hidden; margin-top:4px; width:100%; display:none; position:relative; min-height:3px; }
+    .tl-prefetch-bar.has-commits { display:block; }
+    .tl-prefetch-bar.prefetch-loading .tl-prefetch-fill { animation:tl-prefetch-pulse 1.2s ease-in-out infinite; }
+    @keyframes tl-prefetch-pulse { 0%,100%{ filter:brightness(1); } 50%{ filter:brightness(1.12); } }
+    .tl-prefetch-fill { position:absolute; left:0; top:0; height:100%; z-index:0; background:linear-gradient(90deg, var(--accent), rgba(79,158,255,0.75)); transition:width 0.35s ease; width:0%; border-radius:2px; box-shadow:0 0 6px rgba(79,158,255,0.25); }
+    .tl-prefetch-track { position:relative; z-index:1; display:flex; gap:1px; height:100%; width:100%; pointer-events:none; }
     .tl-prefetch-seg { flex:1; min-width:0; background:var(--bg-card); border-radius:1px; }
-    .tl-prefetch-seg.done { background:color-mix(in srgb, var(--accent) 35%, var(--border)); }
+    .tl-prefetch-seg.done { background:rgba(79,158,255,0.22); }
     @keyframes tl-file-enter { from { opacity:0; transform:translateX(-12px); } to { opacity:1; transform:translateX(0); } }
     @keyframes tl-file-exit { from { opacity:1; transform:translateX(0); } to { opacity:0; transform:translateX(10px); } }
     .tl-file.tl-anim-enter { animation:tl-file-enter 0.32s cubic-bezier(0.22,1,0.36,1) forwards; }
@@ -1882,9 +2013,13 @@
                 </button>
               </div>
             </div>
-            <div class="tl-prefetch-bar" id="tl-prefetch-bar"><div class="tl-prefetch-fill" id="tl-prefetch-fill"></div></div>
             <div id="tl-content" class="tl-content">
-              <div id="tl-tree-view" class="tl-tree"></div>
+              <div id="tl-tree-view" class="tl-tree">
+                <div class="tl-tree-panes" id="tl-tree-panes">
+                  <div id="tl-tree-pane-0" class="tl-tree-pane is-front"></div>
+                  <div id="tl-tree-pane-1" class="tl-tree-pane is-back" aria-hidden="true"></div>
+                </div>
+              </div>
               <div id="tl-graph-view" class="tl-graph" style="display:none"><svg id="tl-graph-svg"></svg></div>
             </div>
             <div id="tl-commit-info" class="tl-commit-info"></div>
@@ -2285,6 +2420,63 @@
         `<div id="tab-bar-right"><div class="status-dot"></div><span id="status-text">${document.getElementById('status-text')?.textContent || 'Loading...'}</span></div>`;
     }
 
+    function estimateReadingMinutes(wordCount) {
+      const n = Number(wordCount) || 0;
+      return Math.max(1, Math.round(n / 200));
+    }
+
+    function formatWikiSourceLine(s) {
+      const str = String(s);
+      if (/^https?:\/\//i.test(str)) {
+        return `<a href="${esc(str)}" target="_blank" rel="noopener noreferrer" class="wiki-source-link">${esc(str)}</a>`;
+      }
+      return esc(str);
+    }
+
+    /** UX-011: See also, Sources + citation markers, last-updated footer (outside #page-body for WYSIWYG safety) */
+    function renderEncyclopediaChrome(page) {
+      const chrome = document.getElementById('page-encyclopedia-chrome');
+      if (!chrome) return;
+      const fm = page.frontmatter || {};
+      const title = page.title || '';
+      const sources = Array.isArray(fm.sources) ? fm.sources.map(String).filter(Boolean) : [];
+      const parts = [];
+
+      if (sources.length) {
+        const markers = sources.map((s, i) =>
+          `<a href="#wiki-source-${i + 1}" class="citation-ref" title="${esc(s)}"><sup>[${i + 1}]</sup></a>`
+        ).join('');
+        parts.push(`<div class="wiki-citation-hatnote"><span class="wiki-citation-label">Source references: </span>${markers}</div>`);
+        const listItems = sources.map((s, i) =>
+          `<li id="wiki-source-${i + 1}" class="wiki-source-item">${formatWikiSourceLine(s)}</li>`
+        ).join('');
+        parts.push(`<section class="page-encyclopedia-section page-sources-block" aria-labelledby="wiki-sources-heading"><h2 id="wiki-sources-heading" class="page-encyclopedia-heading">Sources</h2><ol class="wiki-source-list">${listItems}</ol></section>`);
+      }
+
+      const seen = new Set();
+      const outgoing = (page.wikilinks || []).filter((l) => {
+        const n = String(l).trim();
+        if (!n || n.toLowerCase() === String(title).toLowerCase()) return false;
+        const key = n.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      if (outgoing.length) {
+        const items = outgoing.map((name) =>
+          `<li><a href="#" class="wikilink" data-wikilink="${esc(name)}" onclick="event.preventDefault();if(!state.editing)openPage('${esc(name)}')">${esc(name)}</a></li>`
+        ).join('');
+        parts.push(`<section class="page-encyclopedia-section page-see-also-block" aria-labelledby="wiki-see-also-heading"><h2 id="wiki-see-also-heading" class="page-encyclopedia-heading">See also</h2><ul class="wiki-see-also-list">${items}</ul></section>`);
+      }
+
+      const updated = fm.updated || fm.created;
+      if (updated) {
+        parts.push(`<footer class="page-article-footer"><div class="page-article-footer-inner"><span class="page-last-updated">Last updated: ${esc(String(updated))}</span></div></footer>`);
+      }
+
+      chrome.innerHTML = parts.join('');
+    }
+
     // ── Open page ──
     async function openPage(title, fromTab) {
       try {
@@ -2339,7 +2531,7 @@
             <div class="meta-row"><span class="meta-key">Tags</span><div class="meta-val">${tags}<span class="meta-add-tag" onclick="addTagToPage('${esc(page.title)}')">+</span></div></div>
             ${sourcePaths ? `<div class="meta-row"><span class="meta-key">Sources</span><div class="meta-val">${sourcePaths}</div></div>` : ''}
             ${related ? `<div class="meta-row"><span class="meta-key">Related</span><div class="meta-val">${related}</div></div>` : ''}
-            <div class="meta-row"><span class="meta-key">Stats</span><div class="meta-val"><span class="meta-stat">${page.wordCount}w</span><span class="meta-stat">${page.wikilinks.length} links</span></div></div>
+            <div class="meta-row"><span class="meta-key">Stats</span><div class="meta-val"><span class="meta-stat">${page.wordCount}w</span><span class="meta-stat">${estimateReadingMinutes(page.wordCount)} min read</span><span class="meta-stat">${page.wikilinks.length} links</span></div></div>
           </div>`;
 
         // Entity info box (UX-031)
@@ -2375,33 +2567,16 @@
 
         buildToc(body);
 
-        // See Also: pages this page links to
-        const seeAlso = page.wikilinks.filter(w => w !== title).slice(0, 10);
+        renderEncyclopediaChrome(page);
+
         const backlinks = findBacklinks(title);
         const blContainer = document.getElementById('page-backlinks');
-        let blHtml = '';
-
-        if(seeAlso.length) {
-          blHtml += `<div style="margin-bottom:20px">
-            <div class="backlinks-title">See Also</div>
-            ${seeAlso.map(s => `<span class="backlink-item" onclick="openPage('${esc(s)}')">${esc(s)}</span>`).join('')}
-          </div>`;
+        if (backlinks.length) {
+          blContainer.innerHTML = `<div class="backlinks-title">Linked from (${backlinks.length})</div>` +
+            backlinks.map(b => `<span class="backlink-item" onclick="openPage('${esc(b)}')">${esc(b)}</span>`).join('');
+        } else {
+          blContainer.innerHTML = '';
         }
-
-        if(backlinks.length) {
-          blHtml += `<div style="margin-bottom:16px">
-            <div class="backlinks-title">Linked from (${backlinks.length})</div>
-            ${backlinks.map(b => `<span class="backlink-item" onclick="openPage('${esc(b)}')">${esc(b)}</span>`).join('')}
-          </div>`;
-        }
-
-        // Last updated + reading time
-        const readingTime = Math.max(1, Math.ceil(page.wordCount / 200));
-        blHtml += `<div style="font-size:11px;color:var(--text-dim);margin-top:16px;padding-top:12px;border-top:1px solid var(--border-subtle)">
-          ${page.frontmatter.updated ? `Last updated: ${esc(page.frontmatter.updated)} · ` : ''}${readingTime} min read · ${page.wordCount} words
-        </div>`;
-
-        blContainer.innerHTML = blHtml;
 
         highlightActiveTreeItem(title);
         document.getElementById('sb-path').textContent = relPath || title;
@@ -2458,6 +2633,8 @@
         const sizeStr = formatBytes(meta.size || 0);
         document.getElementById('page-meta').innerHTML = `<span class="meta-badge meta-type">${typeLabel}</span><span class="meta-badge">${sizeStr}</span><span class="meta-badge">${meta.extension || ''}</span>`;
         document.getElementById('page-toc').innerHTML = '';
+        const enc = document.getElementById('page-encyclopedia-chrome');
+        if (enc) enc.innerHTML = '';
 
         const body = document.getElementById('page-body');
         let html = '';
@@ -3555,9 +3732,22 @@
               </div>
             </div>
           </div>
+          <!-- Pipeline Configuration -->
+          <div class="pipe-cfg-section">
+            <div class="pipe-cfg-title">Pipeline Configuration</div>
+            <div class="pipe-cfg-desc">Toggle core steps and add custom LLM processing steps to the ingest pipeline. Drag to reorder.</div>
+            <div class="pipe-step-list" id="pipe-cfg-steps">
+              <div style="color:var(--text-muted);font-size:12px;padding:12px 0;text-align:center">Loading…</div>
+            </div>
+            <button class="pipe-cfg-add-btn" onclick="openAddPipeStepModal()">
+              <span style="font-size:16px">+</span> Add Custom Step
+            </button>
+          </div>
+          <div id="pipe-cfg-modal" class="pipe-modal" style="display:none"></div>
           <span class="settings-status" id="automations-status"></span>
         `;
         loadAutoSettings();
+        loadPipelineConfig();
       } else if(section === 'hotkeys') {
         const shortcuts = [
           ['⌘K','Search pages'],['⌘G','Toggle graph'],['⌘,','Open settings'],
@@ -3708,6 +3898,259 @@
       } catch(e) {
         if(lastEl) { lastEl.textContent = '✗ Failed to start'; }
       }
+    }
+
+    // ── Pipeline Configuration ───────────────────────────────────────────
+    const CORE_STEPS = [
+      { id: 'detect',      icon: '🔍', label: 'Detect' },
+      { id: 'extract',     icon: '📝', label: 'Extract' },
+      { id: 'dedup',       icon: '🔄', label: 'Dedup' },
+      { id: 'copy-raw',    icon: '💾', label: 'Save Raw' },
+      { id: 'llm-compile', icon: '🤖', label: 'LLM Compile' },
+      { id: 'write-pages', icon: '📄', label: 'Write Pages' },
+      { id: 'embed',       icon: '🧮', label: 'Embed' },
+      { id: 'update-index',icon: '📇', label: 'Index' },
+      { id: 'git-commit',  icon: '📦', label: 'Git Commit' },
+    ];
+    let pipeCustomSteps = [];
+    let pipeDisabledSteps = [];
+    let pipeDragSrcIdx = null;
+
+    async function loadPipelineConfig() {
+      try {
+        const data = await api('/api/pipeline/config');
+        pipeCustomSteps = data.custom_steps || [];
+        pipeDisabledSteps = data.disabled_steps || [];
+        renderPipelineConfig();
+      } catch { renderPipelineConfig(); }
+    }
+
+    function renderPipelineConfig() {
+      const container = document.getElementById('pipe-cfg-steps');
+      if (!container) return;
+      const allSteps = buildPipeStepsList();
+      if (allSteps.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:12px 0;text-align:center">No steps configured</div>';
+        return;
+      }
+      container.innerHTML = allSteps.map((s, i) => {
+        const isDisabled = pipeDisabledSteps.includes(s.id);
+        const isCustom = s.type === 'custom';
+        const checkedAttr = isDisabled ? '' : 'checked';
+        const disabledClass = isDisabled ? ' disabled-step' : '';
+        const modelBadge = s.model ? `<span class="pipe-step-model">${esc(s.model)}</span>` : '';
+        const editBtn = isCustom ? `<button class="pipe-step-edit" onclick="editPipeStep(${i})" title="Edit step">✎</button>` : '';
+        const delBtn = isCustom ? `<button class="pipe-step-del" onclick="deletePipeStep('${esc(s.id)}')" title="Remove step">×</button>` : '';
+        return `<div class="pipe-step-row${disabledClass}" draggable="${isCustom}" data-idx="${i}" data-id="${esc(s.id)}"
+          ondragstart="pipeDragStart(event,${i})" ondragover="pipeDragOver(event,${i})" ondragleave="pipeDragLeave(event)"
+          ondrop="pipeDrop(event,${i})" ondragend="pipeDragEnd(event)">
+          <span class="pipe-step-drag" title="${isCustom ? 'Drag to reorder' : 'Core step (fixed order)'}">${isCustom ? '⠿' : '┃'}</span>
+          <span class="pipe-step-icon">${s.icon}</span>
+          <div class="pipe-step-info">
+            <div class="pipe-step-name">${esc(s.label)}</div>
+            <div class="pipe-step-meta">
+              <span class="pipe-step-badge ${s.type}">${s.type}</span>
+              ${modelBadge}
+              ${isCustom && s.prompt ? `<span title="${esc(s.prompt)}" style="cursor:help">💬 prompt</span>` : ''}
+            </div>
+          </div>
+          <div class="pipe-step-actions">
+            ${editBtn}
+            ${delBtn}
+            <label class="auto-toggle" title="${isDisabled ? 'Enable' : 'Disable'} step">
+              <input type="checkbox" ${checkedAttr} onchange="togglePipeStep('${esc(s.id)}',this.checked)">
+              <span class="auto-toggle-track"></span>
+            </label>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function buildPipeStepsList() {
+      const core = CORE_STEPS.map(s => ({ ...s, type: 'core' }));
+      const custom = pipeCustomSteps.map(s => ({
+        id: s.id, icon: '⚡', label: s.name, type: 'custom', model: s.model || '', prompt: s.system_prompt || ''
+      }));
+      const all = [];
+      let coreIdx = 0;
+      const customByPos = custom.map((c, i) => ({ ...c, origIdx: i, pos: pipeCustomSteps[i].position ?? 999 }));
+      customByPos.sort((a, b) => a.pos - b.pos);
+      let ci = 0;
+      for (let i = 0; i <= core.length; i++) {
+        while (ci < customByPos.length && customByPos[ci].pos <= i) {
+          all.push(customByPos[ci]);
+          ci++;
+        }
+        if (i < core.length) all.push(core[i]);
+      }
+      while (ci < customByPos.length) { all.push(customByPos[ci]); ci++; }
+      return all;
+    }
+
+    function togglePipeStep(stepId, enabled) {
+      if (enabled) {
+        pipeDisabledSteps = pipeDisabledSteps.filter(id => id !== stepId);
+      } else {
+        if (!pipeDisabledSteps.includes(stepId)) pipeDisabledSteps.push(stepId);
+      }
+      savePipelineConfig();
+      renderPipelineConfig();
+    }
+
+    async function savePipelineConfig() {
+      const s = document.getElementById('automations-status');
+      try {
+        await fetch('/api/pipeline/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ custom_steps: pipeCustomSteps, disabled_steps: pipeDisabledSteps })
+        });
+        if (s) { s.className = 'settings-status ok'; s.textContent = '✓ Pipeline saved'; setTimeout(() => s.textContent = '', 2000); }
+      } catch {
+        if (s) { s.className = 'settings-status err'; s.textContent = '✗ Save failed'; }
+      }
+    }
+
+    function openAddPipeStepModal(editIdx) {
+      const modal = document.getElementById('pipe-cfg-modal');
+      if (!modal) return;
+      const isEdit = editIdx !== undefined;
+      const existing = isEdit ? pipeCustomSteps[editIdx] : null;
+      modal.style.display = 'flex';
+      modal.innerHTML = `
+        <div class="pipe-modal-inner">
+          <div class="pipe-modal-header">
+            <h3>${isEdit ? 'Edit Custom Step' : 'Add Custom Step'}</h3>
+            <button class="pipe-modal-close" onclick="closePipeModal()">×</button>
+          </div>
+          <div class="settings-group" style="margin-bottom:14px">
+            <label class="settings-label">Step Name</label>
+            <input class="settings-input" id="pipe-step-name" placeholder="e.g. Summarize for Executives" value="${isEdit ? esc(existing.name) : ''}" />
+          </div>
+          <div class="settings-group" style="margin-bottom:14px">
+            <label class="settings-label">System Prompt</label>
+            <textarea class="settings-input auto-textarea" id="pipe-step-prompt" rows="6"
+              placeholder="You are a document processor. For each document, generate a concise executive summary..."
+              style="min-height:120px;resize:vertical;font-family:var(--font-mono);font-size:12px">${isEdit ? esc(existing.system_prompt || '') : ''}</textarea>
+            <div class="auto-hint">This prompt runs on every ingested document. The document content is appended as the user message.</div>
+          </div>
+          <div class="settings-group" style="margin-bottom:14px">
+            <label class="settings-label">LLM Model <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+            <select class="settings-select" id="pipe-step-model">
+              <option value="">Use default</option>
+              <option value="claude-sonnet-4-20250514" ${isEdit && existing.model === 'claude-sonnet-4-20250514' ? 'selected' : ''}>Claude Sonnet 4</option>
+              <option value="claude-3-5-haiku-20241022" ${isEdit && existing.model === 'claude-3-5-haiku-20241022' ? 'selected' : ''}>Claude 3.5 Haiku</option>
+              <option value="gpt-4o" ${isEdit && existing.model === 'gpt-4o' ? 'selected' : ''}>GPT-4o</option>
+              <option value="gpt-4o-mini" ${isEdit && existing.model === 'gpt-4o-mini' ? 'selected' : ''}>GPT-4o Mini</option>
+              <option value="llama3" ${isEdit && existing.model === 'llama3' ? 'selected' : ''}>Llama 3 (Ollama)</option>
+            </select>
+          </div>
+          <div class="settings-group" style="margin-bottom:14px">
+            <label class="settings-label">Position</label>
+            <select class="settings-select" id="pipe-step-position">
+              ${[
+                { v: 4, l: 'Before LLM Compile' },
+                { v: 5, l: 'After LLM Compile' },
+                { v: 6, l: 'After Write Pages' },
+                { v: 8, l: 'Before Git Commit' },
+                { v: 999, l: 'End of pipeline' },
+              ].map(o => `<option value="${o.v}" ${isEdit && existing.position == o.v ? 'selected' : ''}>${o.l}</option>`).join('')}
+            </select>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button class="settings-btn settings-btn-primary" onclick="savePipeStep(${isEdit ? editIdx : -1})">${isEdit ? 'Update Step' : 'Add Step'}</button>
+            <button class="settings-btn" onclick="closePipeModal()">Cancel</button>
+          </div>
+          <div id="pipe-modal-status" class="settings-status" style="margin-top:8px"></div>
+        </div>`;
+      setTimeout(() => document.getElementById('pipe-step-name')?.focus(), 100);
+    }
+
+    function editPipeStep(allIdx) {
+      const allSteps = buildPipeStepsList();
+      const step = allSteps[allIdx];
+      if (!step || step.type !== 'custom') return;
+      const customIdx = pipeCustomSteps.findIndex(s => s.id === step.id);
+      if (customIdx >= 0) openAddPipeStepModal(customIdx);
+    }
+
+    function closePipeModal() {
+      const modal = document.getElementById('pipe-cfg-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function savePipeStep(editIdx) {
+      const name = document.getElementById('pipe-step-name').value.trim();
+      const prompt = document.getElementById('pipe-step-prompt').value.trim();
+      const model = document.getElementById('pipe-step-model').value;
+      const position = parseInt(document.getElementById('pipe-step-position').value, 10);
+      const statusEl = document.getElementById('pipe-modal-status');
+      if (!name) { statusEl.className = 'settings-status err'; statusEl.textContent = '✗ Name is required'; return; }
+      if (!prompt) { statusEl.className = 'settings-status err'; statusEl.textContent = '✗ System prompt is required'; return; }
+
+      if (editIdx >= 0) {
+        pipeCustomSteps[editIdx] = { ...pipeCustomSteps[editIdx], name, system_prompt: prompt, model: model || undefined, position, enabled: true };
+      } else {
+        const id = 'custom-' + Date.now().toString(36);
+        pipeCustomSteps.push({ id, name, system_prompt: prompt, model: model || undefined, position, enabled: true });
+      }
+      savePipelineConfig();
+      renderPipelineConfig();
+      closePipeModal();
+    }
+
+    function deletePipeStep(stepId) {
+      pipeCustomSteps = pipeCustomSteps.filter(s => s.id !== stepId);
+      pipeDisabledSteps = pipeDisabledSteps.filter(id => id !== stepId);
+      savePipelineConfig();
+      renderPipelineConfig();
+    }
+
+    function pipeDragStart(e, idx) {
+      const allSteps = buildPipeStepsList();
+      if (allSteps[idx]?.type !== 'custom') { e.preventDefault(); return; }
+      pipeDragSrcIdx = idx;
+      e.currentTarget.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    function pipeDragOver(e, idx) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      e.currentTarget.classList.add('drag-over');
+    }
+    function pipeDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+    function pipeDragEnd(e) {
+      e.currentTarget.classList.remove('dragging');
+      document.querySelectorAll('.pipe-step-row').forEach(el => el.classList.remove('drag-over'));
+    }
+    function pipeDrop(e, targetIdx) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      if (pipeDragSrcIdx === null || pipeDragSrcIdx === targetIdx) return;
+      const allSteps = buildPipeStepsList();
+      const srcStep = allSteps[pipeDragSrcIdx];
+      if (!srcStep || srcStep.type !== 'custom') return;
+
+      let newPosition;
+      const targetStep = allSteps[targetIdx];
+      if (targetStep) {
+        if (targetStep.type === 'core') {
+          const coreIdx = CORE_STEPS.findIndex(s => s.id === targetStep.id);
+          newPosition = targetIdx < pipeDragSrcIdx ? coreIdx : coreIdx + 1;
+        } else {
+          newPosition = targetStep.pos ?? 999;
+        }
+      } else {
+        newPosition = 999;
+      }
+
+      const customIdx = pipeCustomSteps.findIndex(s => s.id === srcStep.id);
+      if (customIdx >= 0) {
+        pipeCustomSteps[customIdx] = { ...pipeCustomSteps[customIdx], position: newPosition };
+        savePipelineConfig();
+        renderPipelineConfig();
+      }
+      pipeDragSrcIdx = null;
     }
 
     // ── Connectors / Sources ──────────────────────────────────────────────
@@ -4376,8 +4819,18 @@
 
     let pipelineEventSource = null;
     let currentPipelineSteps = {};
+    let pipelineStepPrevStatuses = {};
 
     let pipelineAutoSwitch = true;
+
+    function parsePagesFromPipelineComplete(ev) {
+      if (!ev) return null;
+      const d = ev.detail != null ? String(ev.detail) : '';
+      const m = d.match(/(\d+)\s*pages?/i);
+      if (m) return parseInt(m[1], 10);
+      if (ev.pagesCreated != null && Number.isFinite(Number(ev.pagesCreated))) return Number(ev.pagesCreated);
+      return null;
+    }
 
     function connectPipelineSSE() {
       if (pipelineEventSource) pipelineEventSource.close();
@@ -4421,6 +4874,7 @@
       const container = document.getElementById('pipe-factory-line');
       if (!container) return;
       const dropzone = document.getElementById('pipe-dropzone');
+      const celebEl = document.getElementById('pipe-celebration');
       const hasActivity = Object.keys(currentPipelineSteps).length > 0;
 
       // Toggle dropzone visibility
@@ -4428,36 +4882,91 @@
 
       if (!hasActivity) {
         container.innerHTML = '';
+        pipelineStepPrevStatuses = {};
+        if (celebEl) celebEl.innerHTML = '';
         return;
       }
 
-      // Find the furthest completed step for connector animation
-      let lastDoneIdx = -1;
-      for (let i = PIPELINE_STEPS.length - 1; i >= 0; i--) {
-        const ev = currentPipelineSteps[PIPELINE_STEPS[i].id];
-        if (ev && (ev.status === 'done' || ev.status === 'running')) { lastDoneIdx = i; break; }
-      }
+      const prev = pipelineStepPrevStatuses;
 
-      let html = '<div class="factory-line">';
+      let doneLike = 0;
+      let hasRunningStep = false;
+      let hasStepError = false;
+      for (const step of PIPELINE_STEPS) {
+        const ev = currentPipelineSteps[step.id];
+        const st = ev ? ev.status : 'pending';
+        if (st === 'done' || st === 'skipped') doneLike++;
+        if (st === 'running') hasRunningStep = true;
+        if (st === 'error') hasStepError = true;
+      }
+      if (currentPipelineSteps.error) hasStepError = true;
+
+      let progressPct = Math.min(100, Math.round(((doneLike + (hasRunningStep ? 0.5 : 0)) / PIPELINE_STEPS.length) * 100));
+      if (currentPipelineSteps.complete && currentPipelineSteps.complete.status === 'done') progressPct = 100;
+
+      const nextPrev = {};
+
+      let html = '<div class="factory-line-wrap"><div class="factory-line">';
       for (let i = 0; i < PIPELINE_STEPS.length; i++) {
         const step = PIPELINE_STEPS[i];
         const event = currentPipelineSteps[step.id];
         const status = event ? event.status : 'pending';
         const detail = event ? (event.detail || '') : '';
+        nextPrev[step.id] = status;
 
         if (i > 0) {
-          const connClass = i <= lastDoneIdx ? (status === 'running' ? 'active' : 'done') : '';
+          const left = PIPELINE_STEPS[i - 1];
+          const leftEv = currentPipelineSteps[left.id];
+          const leftSt = leftEv ? leftEv.status : 'pending';
+          let connClass = '';
+          if (leftSt === 'done' || leftSt === 'skipped') {
+            if (status === 'running') connClass = 'active';
+            else if (status === 'done' || status === 'skipped' || status === 'error') connClass = 'done';
+            else connClass = 'done';
+          } else if (leftSt === 'running') connClass = 'active';
           html += `<div class="factory-conn ${connClass}"><svg viewBox="0 0 28 10"><line class="conn-line" x1="0" y1="5" x2="28" y2="5" stroke="var(--border)" stroke-width="1.5" fill="none"/></svg></div>`;
         }
 
-        html += `<div class="factory-stage ${status}" onclick="showStageDetail('${step.id}')">
+        const was = prev[step.id];
+        const fsJustStarted = (status === 'running' && was !== 'running' && (was === undefined || was === 'pending'));
+        const fsJustDone = (status === 'done' && was === 'running');
+        const extra = `${fsJustStarted ? ' fs-just-started' : ''}${fsJustDone ? ' fs-just-done' : ''}`;
+
+        html += `<div class="factory-stage ${status}${extra}" onclick="showStageDetail('${step.id}')">
           <div class="fs-icon">${step.icon}</div>
           <div class="fs-label">${step.label}</div>
           ${detail ? `<div class="fs-detail" title="${esc(detail)}">${esc(detail)}</div>` : ''}
         </div>`;
       }
       html += '</div>';
+
+      const progErr = hasStepError ? ' factory-progress--error' : '';
+      html += `<div class="factory-progress${progErr}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progressPct)}" aria-label="Pipeline progress"><div class="factory-progress-fill" style="transform:scaleX(${Math.min(1, progressPct / 100)})"></div></div>`;
+      html += `<div class="factory-progress-label"><span>Ingest progress</span><span>${Math.round(progressPct)}%</span></div></div>`;
+
       container.innerHTML = html;
+
+      if (celebEl) {
+        const completeEv = currentPipelineSteps.complete;
+        if (completeEv && completeEv.status === 'done' && !currentPipelineSteps.error) {
+          const n = parsePagesFromPipelineComplete(completeEv);
+          const pageWord = n === 1 ? 'page' : 'pages';
+          const summaryHtml = n != null
+            ? `Your document found a home in <strong>${n}</strong> ${pageWord}.`
+            : 'Your document found a home in your wiki.';
+          celebEl.innerHTML = `<div class="pipe-celebration pipe-celebration--all-done" role="status">
+            <div class="celeb-confetti" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <h3>🎉 Pipeline complete</h3>
+            <p class="celeb-summary">${summaryHtml}</p>
+          </div>`;
+        } else {
+          celebEl.innerHTML = '';
+        }
+      }
+
+      pipelineStepPrevStatuses = nextPrev;
     }
 
     const SOURCE_ICONS = {
@@ -4765,6 +5274,11 @@
       graphCache: {},
       _graphNodePos: {},
       _tlGraphSim: null,
+      _treeHasRendered: false,
+      _lastDirSignature: null,
+      _tlGraphLastHash: null,
+      _tlSliderRaf: null,
+      _tlSliderPendingIdx: null,
     };
 
     function railTimelapseClick() {
@@ -4813,19 +5327,44 @@
       document.getElementById('tl-label-end').textContent = new Date(last.date).toLocaleDateString();
 
       // Clear loading state so tree/graph can render into content
-      content.innerHTML = '<div id="tl-tree-view" class="tl-tree"></div><div id="tl-graph-view" class="tl-graph" style="display:none"><svg id="tl-graph-svg"></svg></div>';
+      content.innerHTML = '<div id="tl-tree-view" class="tl-tree"><div class="tl-tree-panes" id="tl-tree-panes"><div id="tl-tree-pane-0" class="tl-tree-pane is-front"></div><div id="tl-tree-pane-1" class="tl-tree-pane is-back" aria-hidden="true"></div></div></div><div id="tl-graph-view" class="tl-graph" style="display:none"><svg id="tl-graph-svg"></svg></div>';
+
+      tlState._treeHasRendered = false;
+      tlState._lastDirSignature = null;
+      const pbar = document.getElementById('tl-prefetch-bar');
+      if(pbar) { pbar.classList.add('has-commits'); }
+      initPrefetchBarSegments();
 
       renderTimelapseAt(tlState.currentIdx);
       prefetchAllTrees();
     }
 
+    function initPrefetchBarSegments() {
+      const track = document.getElementById('tl-prefetch-track');
+      if(!track || !tlState.commits.length) return;
+      track.innerHTML = tlState.commits.map(() => '<div class="tl-prefetch-seg"></div>').join('');
+      updatePrefetchBarProgress();
+    }
+
+    function updatePrefetchBarProgress() {
+      const fill = document.getElementById('tl-prefetch-fill');
+      const segs = document.querySelectorAll('#tl-prefetch-track .tl-prefetch-seg');
+      if(!tlState.commits.length) return;
+      let done = 0;
+      tlState.commits.forEach((c, i) => {
+        const ok = !!tlState.treeCache[c.hash];
+        if(ok) done++;
+        if(segs[i]) segs[i].classList.toggle('done', ok);
+      });
+      if(fill) fill.style.width = `${(done / tlState.commits.length) * 100}%`;
+    }
+
     async function prefetchAllTrees() {
       const uncached = tlState.commits.map(c => c.hash).filter(h => !tlState.treeCache[h]);
-      if(!uncached.length) { tlState.prefetched = true; return; }
+      if(!uncached.length) { tlState.prefetched = true; updatePrefetchBarProgress(); return; }
 
       const bar = document.getElementById('tl-prefetch-bar');
-      const fill = document.getElementById('tl-prefetch-fill');
-      if(bar) bar.classList.add('active');
+      if(bar) bar.classList.add('prefetch-loading');
 
       const batchSize = 30;
       let done = 0;
@@ -4842,15 +5381,16 @@
           }
         } catch(err) { console.warn('Prefetch batch failed:', err); }
         done += batch.length;
-        if(fill) fill.style.width = `${Math.round(done / uncached.length * 100)}%`;
+        updatePrefetchBarProgress();
       }
 
       tlState.prefetched = true;
-      if(bar) bar.classList.remove('active');
-      if(fill) fill.style.width = '0';
+      if(bar) bar.classList.remove('prefetch-loading');
+      updatePrefetchBarProgress();
     }
 
-    function renderTimelapseAt(idx) {
+    function renderTimelapseAt(idx, opts = {}) {
+      const { crossfade = false } = opts;
       tlState.currentIdx = idx;
       const commit = tlState.commits[idx];
       if(!commit) return;
@@ -4868,9 +5408,9 @@
       document.getElementById('tl-label-current').textContent = `${idx + 1} / ${tlState.commits.length}`;
 
       if(tlState.mode === 'tree') {
-        renderTimelapseTree(commit, idx);
+        renderTimelapseTree(commit, idx, { crossfade });
       } else {
-        renderTimelapseGraph(commit, idx);
+        renderTimelapseGraph(commit, idx, { crossfade });
       }
     }
 
@@ -4922,27 +5462,21 @@
       return dirs;
     }
 
-    function renderTimelapseTree(commit, idx) {
-      const container = document.getElementById('tl-tree-view');
+    function folderBadgeHtml(files) {
+      const added = files.filter(f => f.status === 'added').length;
+      const mod = files.filter(f => f.status === 'modified').length;
+      const del = files.filter(f => f.status === 'deleted').length;
+      const parts = [];
+      if(added) parts.push(`<span class="tl-folder-badge add">+${added}</span>`);
+      if(mod) parts.push(`<span class="tl-folder-badge mod">~${mod}</span>`);
+      if(del) parts.push(`<span class="tl-folder-badge del">-${del}</span>`);
+      return parts.join('');
+    }
+
+    function buildTimelapseTreeHtml(commit, idx) {
       const dirs = buildTreeData(commit, idx);
+      if(Object.keys(dirs).length === 0) return null;
 
-      if(Object.keys(dirs).length === 0) {
-        container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No files at this point in history.</div>';
-        return;
-      }
-
-      const folderBadge = (files) => {
-        const added = files.filter(f => f.status === 'added').length;
-        const mod = files.filter(f => f.status === 'modified').length;
-        const del = files.filter(f => f.status === 'deleted').length;
-        const parts = [];
-        if(added) parts.push(`<span class="tl-folder-badge add">+${added}</span>`);
-        if(mod) parts.push(`<span class="tl-folder-badge mod">~${mod}</span>`);
-        if(del) parts.push(`<span class="tl-folder-badge del">-${del}</span>`);
-        return parts.join('');
-      };
-
-      // Build a stable key→status map for diffing against existing DOM
       const newFileMap = new Map();
       const sortedDirs = Object.entries(dirs).sort(([a],[b]) => a.localeCompare(b));
       for(const [dir, files] of sortedDirs) {
@@ -4954,49 +5488,6 @@
         }
       }
 
-      // If the container already has rendered files, try in-place patching
-      const existingEls = container.querySelectorAll('[data-tl-file]');
-      if(existingEls.length > 0 && tlState._lastDirSignature) {
-        const dirSig = sortedDirs.map(([d]) => d).join(',');
-        const existingKeys = new Set();
-        existingEls.forEach(el => existingKeys.add(el.getAttribute('data-tl-file')));
-        const newKeys = new Set(newFileMap.keys());
-        const sameStructure = dirSig === tlState._lastDirSignature
-          && existingKeys.size === newKeys.size
-          && [...existingKeys].every(k => newKeys.has(k));
-
-        if(sameStructure) {
-          existingEls.forEach(el => {
-            const key = el.getAttribute('data-tl-file');
-            const entry = newFileMap.get(key);
-            if(!entry) return;
-            const oldStatus = el.getAttribute('data-tl-status');
-            if(oldStatus !== entry.status) {
-              el.className = `tl-file ${entry.status}`;
-              el.setAttribute('data-tl-status', entry.status);
-              const dot = el.querySelector('.tl-file-status');
-              if(dot) dot.className = `tl-file-status ${entry.status}`;
-              const nameEl = el.querySelector('.tl-file-name');
-              if(nameEl) nameEl.style.textDecoration = entry.status === 'deleted' ? 'line-through' : '';
-              el.style.opacity = entry.status === 'deleted' ? '0.4' : '1';
-              el.style.transform = 'none';
-            }
-          });
-          container.querySelectorAll('[data-tl-folder]').forEach(folderEl => {
-            const dirName = folderEl.getAttribute('data-tl-folder');
-            const dirFiles = dirs[dirName];
-            if(dirFiles) {
-              const badgeContainer = folderEl.querySelector('.tl-folder-badges');
-              if(badgeContainer) badgeContainer.innerHTML = folderBadge(dirFiles);
-              const countEl = folderEl.querySelector('.tl-folder-count');
-              if(countEl) countEl.textContent = String(dirFiles.filter(f => !(f.name.startsWith('.') && f.status === 'unchanged')).length);
-            }
-          });
-          return;
-        }
-      }
-
-      // Full render (first load or structure changed) — use crossfade
       let html = `<div class="tl-legend">
         <span class="tl-legend-item"><span class="tl-legend-dot" style="background:var(--green)"></span>Added</span>
         <span class="tl-legend-item"><span class="tl-legend-dot" style="background:var(--amber)"></span>Modified</span>
@@ -5007,7 +5498,7 @@
       for(const [dir, files] of sortedDirs) {
         const sortedFiles = files.sort((a,b) => a.name.localeCompare(b.name));
         const visibleFiles = sortedFiles.filter(f => !(f.name.startsWith('.') && f.status === 'unchanged'));
-        const badges = folderBadge(sortedFiles);
+        const badges = folderBadgeHtml(sortedFiles);
         html += `<div class="tl-folder" data-tl-folder="${esc(dir)}">
           <div class="tl-folder-header">
             <span class="tl-folder-icon">${getFolderIcon(dir)}</span>
@@ -5029,12 +5520,184 @@
         html += `</div></div>`;
       }
 
-      // Crossfade: set opacity low, swap content, fade back in
-      container.style.opacity = '0.3';
-      container.innerHTML = html;
-      requestAnimationFrame(() => { container.style.opacity = '1'; });
+      return { html, sortedDirs, dirs, newFileMap };
+    }
+
+    function applyTimelapseFileRow(el, entry) {
+      el.className = `tl-file ${entry.status}`;
+      el.setAttribute('data-tl-status', entry.status);
+      const dot = el.querySelector('.tl-file-status');
+      if(dot) dot.className = `tl-file-status ${entry.status}`;
+      const nameEl = el.querySelector('.tl-file-name');
+      if(nameEl) nameEl.style.textDecoration = entry.status === 'deleted' ? 'line-through' : '';
+      el.style.opacity = entry.status === 'deleted' ? '0.4' : '1';
+      el.style.transform = '';
+    }
+
+    function patchTimelapseTreePane(pane, dirs, sortedDirs, newFileMap) {
+      const existingEls = pane.querySelectorAll('[data-tl-file]');
+      if(existingEls.length === 0 || !tlState._lastDirSignature) return false;
+
+      const dirSig = sortedDirs.map(([d]) => d).join(',');
+      const existingKeys = new Set();
+      existingEls.forEach(el => existingKeys.add(el.getAttribute('data-tl-file')));
+      const newKeys = new Set(newFileMap.keys());
+
+      const refreshFolderChrome = () => {
+        pane.querySelectorAll('[data-tl-folder]').forEach(folderEl => {
+          const dirName = folderEl.getAttribute('data-tl-folder');
+          const dirFiles = dirs[dirName];
+          if(dirFiles) {
+            const badgeContainer = folderEl.querySelector('.tl-folder-badges');
+            if(badgeContainer) badgeContainer.innerHTML = folderBadgeHtml(dirFiles);
+            const countEl = folderEl.querySelector('.tl-folder-count');
+            if(countEl) countEl.textContent = String(dirFiles.filter(f => !(f.name.startsWith('.') && f.status === 'unchanged')).length);
+          }
+        });
+      };
+
+      if(dirSig === tlState._lastDirSignature && existingKeys.size === newKeys.size && [...existingKeys].every(k => newKeys.has(k))) {
+        existingEls.forEach(el => {
+          const key = el.getAttribute('data-tl-file');
+          const entry = newFileMap.get(key);
+          if(entry) applyTimelapseFileRow(el, entry);
+        });
+        refreshFolderChrome();
+        return true;
+      }
+
+      if(dirSig === tlState._lastDirSignature) {
+        const toRemove = [...existingKeys].filter(k => !newKeys.has(k));
+        const toAdd = [...newKeys].filter(k => !existingKeys.has(k));
+        if(toRemove.length === 0 && toAdd.length === 0) return false;
+
+        toRemove.forEach(k => {
+          for(const el of pane.querySelectorAll('[data-tl-file]')) {
+            if(el.getAttribute('data-tl-file') !== k) continue;
+            el.classList.add('tl-anim-exit');
+            el.addEventListener('animationend', () => { el.remove(); }, { once: true });
+            break;
+          }
+        });
+
+        for(const [dir, files] of sortedDirs) {
+          const sortedFiles = files.sort((a,b) => a.name.localeCompare(b.name));
+          const visibleFiles = sortedFiles.filter(f => !(f.name.startsWith('.') && f.status === 'unchanged'));
+          let folderEl = null;
+          for(const fe of pane.querySelectorAll('[data-tl-folder]')) {
+            if(fe.getAttribute('data-tl-folder') === dir) { folderEl = fe; break; }
+          }
+          const childContainer = folderEl?.querySelector('.tl-folder-children');
+          if(!childContainer) continue;
+
+          for(const f of visibleFiles) {
+            if(!toAdd.includes(f.full)) continue;
+            const icon = getFileIcon(f.name);
+            const extBadge = f.ext && f.ext !== f.name ? `<span class="tl-file-ext-badge">.${esc(f.ext)}</span>` : '';
+            const row = document.createElement('div');
+            row.className = `tl-file ${f.status} tl-anim-enter`;
+            row.setAttribute('data-tl-file', f.full);
+            row.setAttribute('data-tl-status', f.status);
+            row.innerHTML = `<span class="tl-file-icon">${icon}</span>
+            <span class="tl-file-name" ${f.status === 'deleted' ? 'style="text-decoration:line-through"' : ''}>${esc(f.name.split('/').pop())}</span>
+            ${extBadge}
+            <span class="tl-file-status ${f.status}" title="${f.status}"></span>`;
+            childContainer.appendChild(row);
+            requestAnimationFrame(() => row.classList.remove('tl-anim-enter'));
+          }
+
+          for(const f of visibleFiles) {
+            const el = [...childContainer.querySelectorAll('[data-tl-file]')].find(n => n.getAttribute('data-tl-file') === f.full);
+            if(el) childContainer.appendChild(el);
+          }
+        }
+
+        pane.querySelectorAll('[data-tl-file]').forEach(el => {
+          const key = el.getAttribute('data-tl-file');
+          const entry = newFileMap.get(key);
+          if(entry) applyTimelapseFileRow(el, entry);
+        });
+        refreshFolderChrome();
+        return true;
+      }
+
+      return false;
+    }
+
+    function crossfadeTimelapseTreePanes(html, sortedDirs) {
+      const pane0 = document.getElementById('tl-tree-pane-0');
+      const pane1 = document.getElementById('tl-tree-pane-1');
+      const panes = document.getElementById('tl-tree-panes');
+      if(!pane0 || !pane1 || !panes) return;
+
+      pane1.innerHTML = html;
+      pane1.setAttribute('aria-hidden', 'false');
+      const h = Math.max(pane0.offsetHeight || 0, pane1.offsetHeight || 0, 80);
+      panes.style.minHeight = h + 'px';
+
+      const finish = () => {
+        pane0.innerHTML = pane1.innerHTML;
+        pane0.classList.remove('tl-pane-fade');
+        pane0.style.opacity = '';
+        pane1.innerHTML = '';
+        pane1.classList.remove('tl-pane-visible');
+        pane1.setAttribute('aria-hidden', 'true');
+        panes.style.minHeight = '';
+        tlState._lastDirSignature = sortedDirs.map(([d]) => d).join(',');
+      };
+
+      requestAnimationFrame(() => {
+        pane0.classList.add('tl-pane-fade');
+        pane1.classList.add('tl-pane-visible');
+      });
+
+      let settled = false;
+      const done = () => { if(settled) return; settled = true; finish(); };
+      pane1.addEventListener('transitionend', e => { if(e.propertyName === 'opacity') done(); }, { once: true });
+      setTimeout(done, 420);
+    }
+
+    function renderTimelapseTree(commit, idx, opts = {}) {
+      const { crossfade = false } = opts;
+      const pane0 = document.getElementById('tl-tree-pane-0');
+      const pane1 = document.getElementById('tl-tree-pane-1');
+      if(!pane0) return;
+
+      const built = buildTimelapseTreeHtml(commit, idx);
+      if(!built) {
+        pane0.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">No files at this point in history.</div>';
+        if(pane1) pane1.innerHTML = '';
+        tlState._lastDirSignature = null;
+        tlState._treeHasRendered = true;
+        return;
+      }
+
+      const { html, sortedDirs, dirs, newFileMap } = built;
+
+      if(crossfade && tlState._treeHasRendered) {
+        crossfadeTimelapseTreePanes(html, sortedDirs);
+        tlState._treeHasRendered = true;
+        return;
+      }
+
+      if(tlState._treeHasRendered && patchTimelapseTreePane(pane0, dirs, sortedDirs, newFileMap)) {
+        tlState._lastDirSignature = sortedDirs.map(([d]) => d).join(',');
+        return;
+      }
+
+      pane0.innerHTML = html;
+      if(pane1) pane1.innerHTML = '';
+      if(tlState._treeHasRendered) {
+        requestAnimationFrame(() => {
+          pane0.querySelectorAll('.tl-file').forEach(el => {
+            el.classList.add('tl-anim-enter');
+            requestAnimationFrame(() => el.classList.remove('tl-anim-enter'));
+          });
+        });
+      }
 
       tlState._lastDirSignature = sortedDirs.map(([d]) => d).join(',');
+      tlState._treeHasRendered = true;
     }
 
     async function restoreToCommit(hash, shortHash) {
@@ -5055,9 +5718,9 @@
       } catch(err) { alert('Restore failed: ' + err.message); }
     }
 
-    async function renderTimelapseGraph(commit, idx) {
+    async function renderTimelapseGraph(commit, idx, opts = {}) {
+      const { crossfade = false } = opts;
       const container = document.getElementById('tl-graph-view');
-      // Ensure SVG has explicit dimensions so D3 forces work correctly
       const rect = container.getBoundingClientRect();
       const width = rect.width > 20 ? rect.width : (container.parentElement?.clientWidth || 800);
       const height = Math.max(400, rect.height > 20 ? rect.height : 500);
@@ -5080,14 +5743,21 @@
       const cColor = c => COLORS[(c||0) % COLORS.length];
       const isHub = d => (d.linksIn||0) >= 3;
       const nR = d => Math.max(4, Math.min(18, 4 + Math.sqrt(d.linksIn||0) * 3));
+      const linkKey = d => `${d.source?.id??d.source}\u2192${d.target?.id??d.target}`;
 
       if(!data.nodes || !data.nodes.length) {
-        if(tlState._tlGraphSim) { tlState._tlGraphSim.stop(); tlState._tlGraphSim = null; }
+        if(tlState._tlGraphSim) {
+          tlState._tlGraphSim.stop();
+          tlState._tlGraphSim.on('tick', null);
+          tlState._tlGraphSim.on('end', null);
+          tlState._tlGraphSim = null;
+        }
         svg.selectAll('*').remove();
         svg.append('text').attr('x',width/2).attr('y',height/2)
           .attr('text-anchor','middle').attr('fill',cs('--text-muted'))
           .attr('font-size',13).attr('font-family','Inter,sans-serif')
           .text(`No wiki pages at commit ${commit.hashShort}`);
+        tlState._tlGraphLastHash = null;
         return;
       }
 
@@ -5095,8 +5765,6 @@
         const p = tlState._graphNodePos[n.id];
         if(p) { n.x = p.x; n.y = p.y; }
       }
-
-      const linkKey = d => `${d.source?.id??d.source}\u2192${d.target?.id??d.target}`;
 
       let g = svg.select('g.tl-root');
       if(!g.node()) {
@@ -5109,49 +5777,95 @@
         svg.call(d3.zoom().scaleExtent([0.15,5]).on('zoom', e => g.attr('transform', e.transform)));
       }
 
+      if(crossfade && tlState._tlGraphLastHash) {
+        g.interrupt().style('opacity', 0.48);
+      } else {
+        g.style('opacity', 1);
+      }
+
       let tip = container.querySelector('.tl-tip');
       if(!tip) { tip = document.createElement('div'); tip.className = 'tl-tip'; container.appendChild(tip); }
 
-      if(tlState._tlGraphSim) tlState._tlGraphSim.stop();
+      const reuseSim = !!(tlState._tlGraphSim && tlState._tlGraphLastHash && tlState._tlGraphSim.nodes().length && data.nodes.length);
+      let sim;
 
-      const sim = d3.forceSimulation(data.nodes)
-        .force('link', d3.forceLink(data.links).id(d=>d.id).distance(80))
-        .force('charge', d3.forceManyBody().strength(-220))
-        .force('center', d3.forceCenter(width/2, height/2))
-        .force('collision', d3.forceCollide().radius(d => isHub(d)?26:18));
-      tlState._tlGraphSim = sim;
+      if(reuseSim) {
+        sim = tlState._tlGraphSim;
+        sim.on('tick', null);
+        sim.on('end', null);
+        const prevById = new Map(sim.nodes().map(d => [d.id, d]));
+        for(const n of data.nodes) {
+          const o = prevById.get(n.id);
+          const p = tlState._graphNodePos[n.id];
+          if(o) {
+            n.x = o.x;
+            n.y = o.y;
+            n.vx = (o.vx || 0) * 0.32;
+            n.vy = (o.vy || 0) * 0.32;
+          } else if(p) {
+            n.x = p.x;
+            n.y = p.y;
+          } else {
+            n.x = width / 2 + (Math.random() - 0.5) * 80;
+            n.y = height / 2 + (Math.random() - 0.5) * 80;
+          }
+        }
+        sim.nodes(data.nodes);
+        sim.force('link', d3.forceLink(data.links).id(d=>d.id).distance(80));
+        sim.force('charge', d3.forceManyBody().strength(-220));
+        sim.force('center', d3.forceCenter(width/2, height/2));
+        sim.force('collision', d3.forceCollide().radius(d => isHub(d)?26:18));
+        sim.alpha(0.3).restart();
+      } else {
+        if(tlState._tlGraphSim) {
+          tlState._tlGraphSim.stop();
+          tlState._tlGraphSim.on('tick', null);
+          tlState._tlGraphSim.on('end', null);
+          tlState._tlGraphSim = null;
+        }
+        sim = d3.forceSimulation(data.nodes)
+          .force('link', d3.forceLink(data.links).id(d=>d.id).distance(80))
+          .force('charge', d3.forceManyBody().strength(-220))
+          .force('center', d3.forceCenter(width/2, height/2))
+          .force('collision', d3.forceCollide().radius(d => isHub(d)?26:18));
+        tlState._tlGraphSim = sim;
+      }
 
-      // ── Links with stroke-dashoffset draw animation ──
+      const soft = reuseSim;
+
       const lk = g.select('g.tl-links').selectAll('line').data(data.links, linkKey);
-      lk.exit().transition().duration(300).attr('stroke-opacity',0).remove();
+      lk.exit().transition().duration(soft ? 200 : 300).attr('stroke-opacity',0).remove();
       const lkE = lk.enter().append('line')
         .attr('stroke',cs('--border-subtle')).attr('stroke-width',0.8)
-        .attr('stroke-dasharray','500').attr('stroke-dashoffset','500').attr('stroke-opacity',0.4);
-      lkE.transition().duration(500).delay(150).attr('stroke-dashoffset',0)
-        .on('end', function(){ d3.select(this).attr('stroke-dasharray',null); });
+        .attr('stroke-opacity', soft ? 0.2 : 0.4);
+      if(soft) {
+        lkE.transition().duration(380).attr('stroke-opacity',0.4);
+      } else {
+        lkE.attr('stroke-dasharray','500').attr('stroke-dashoffset','500')
+          .transition().duration(500).delay(150).attr('stroke-dashoffset',0)
+          .on('end', function(){ d3.select(this).attr('stroke-dasharray',null); });
+      }
       const links = lkE.merge(lk);
-      lk.transition().duration(300).attr('stroke-opacity',0.4);
+      lk.transition().duration(soft ? 320 : 300).attr('stroke-opacity',0.4);
 
-      // ── Hub rings (gold, linksIn >= 3) ──
       const rg = g.select('g.tl-rings').selectAll('circle').data(data.nodes.filter(isHub), d=>d.id);
-      rg.exit().transition().duration(300).attr('opacity',0).remove();
+      rg.exit().transition().duration(soft ? 200 : 300).attr('opacity',0).remove();
       const rgE = rg.enter().append('circle')
-        .attr('r',d=>nR(d)+5).attr('fill','none').attr('stroke','#d4a843').attr('stroke-width',1.5).attr('opacity',0);
-      rgE.transition().duration(300).delay(100).attr('opacity',0.5);
+        .attr('r',d=>nR(d)+5).attr('fill','none').attr('stroke','#d4a843').attr('stroke-width',1.5).attr('opacity', soft ? 0.35 : 0);
+      rgE.transition().duration(soft ? 260 : 300).delay(soft ? 0 : 100).attr('opacity',0.5);
       const rings = rgE.merge(rg);
-      rg.transition().duration(300).attr('r',d=>nR(d)+5);
+      rg.transition().duration(soft ? 300 : 300).attr('r',d=>nR(d)+5);
 
-      // ── Nodes with fade-in + scale ──
       const nd = g.select('g.tl-nodes').selectAll('circle').data(data.nodes, d=>d.id);
-      nd.exit().transition().duration(300).attr('opacity',0).attr('r',0).remove();
+      nd.exit().transition().duration(soft ? 220 : 300).attr('opacity',0).attr('r',0).remove();
       const ndE = nd.enter().append('circle')
-        .attr('r',0).attr('opacity',0)
+        .attr('r', soft ? d=>nR(d) : 0).attr('opacity', soft ? 0.75 : 0)
         .attr('fill',d=>cColor(d.community))
         .attr('stroke',d=>isHub(d)?'#d4a843':cs('--bg'))
         .attr('stroke-width',d=>isHub(d)?2:1.5)
         .attr('cursor','pointer');
-      ndE.transition().duration(300).attr('r',d=>nR(d)).attr('opacity',1);
-      nd.transition().duration(300)
+      ndE.transition().duration(soft ? 420 : 300).attr('r',d=>nR(d)).attr('opacity',1);
+      nd.transition().duration(soft ? 450 : 300)
         .attr('r',d=>nR(d)).attr('fill',d=>cColor(d.community))
         .attr('stroke',d=>isHub(d)?'#d4a843':cs('--bg'));
       const nodes = ndE.merge(nd);
@@ -5161,7 +5875,6 @@
         .on('end',(e,d)=>{if(!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null;})
       );
 
-      // ── Labels (visible for hubs, shown on hover for others) ──
       const lb = g.select('g.tl-labels').selectAll('text').data(data.nodes, d=>d.id);
       lb.exit().transition().duration(200).attr('opacity',0).remove();
       const lbE = lb.enter().append('text')
@@ -5172,11 +5885,10 @@
         .attr('fill',d=>isHub(d)?cs('--text-bright'):cs('--text-dim'))
         .attr('text-anchor','middle').attr('dy',d=>nR(d)+13)
         .attr('pointer-events','none').attr('opacity',0);
-      lbE.transition().duration(300).delay(200).attr('opacity',d=>isHub(d)?1:0);
+      lbE.transition().duration(300).delay(soft ? 40 : 200).attr('opacity',d=>isHub(d)?1:0);
       const labels = lbE.merge(lb);
       labels.text(d=>d.title.length>22?d.title.slice(0,20)+'\u2026':d.title);
 
-      // ── Hover: tooltip + label reveal ──
       nodes.on('mouseover',(e,d) => {
         tip.style.display='block';
         const hb = isHub(d)?'<span style="display:inline-block;font-size:10px;padding:1px 6px;border-radius:3px;background:rgba(212,168,67,0.15);color:#d4a843;font-weight:500;margin-left:6px">Hub</span>':'';
@@ -5190,7 +5902,6 @@
         labels.filter(l=>l.id===d.id).attr('opacity',isHub(d)?1:0);
       });
 
-      // ── Simulation tick ──
       sim.on('tick', () => {
         links.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
           .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
@@ -5203,7 +5914,11 @@
         for(const n of data.nodes) tlState._graphNodePos[n.id] = { x:n.x, y:n.y };
       });
 
-      // ── Batch-prefetch neighboring commits' graphs ──
+      tlState._tlGraphLastHash = commit.hash;
+      if(crossfade) {
+        g.transition().duration(280).style('opacity', 1);
+      }
+
       if(typeof idx === 'number') {
         const lo = Math.max(0,idx-5), hi = Math.min(tlState.commits.length-1,idx+5);
         const need = [];
@@ -5223,7 +5938,7 @@
       const speed = parseInt(document.getElementById('tl-speed').value) || 2000;
       tlState.interval = setInterval(() => {
         if(tlState.currentIdx >= tlState.commits.length - 1) { tlPause(); return; }
-        renderTimelapseAt(tlState.currentIdx + 1);
+        renderTimelapseAt(tlState.currentIdx + 1, { crossfade: true });
       }, speed);
     }
 
@@ -5298,17 +6013,24 @@
     document.getElementById('sa-refresh').addEventListener('click', () => { loadTree(); loadHome(); });
     document.getElementById('git-status-badge').addEventListener('click', toggleGitDropdown);
 
-    let _tlSliderDebounce = null;
-    let _tlRafId = null;
     document.getElementById('tl-slider').addEventListener('input', e => {
-      const val = parseInt(e.target.value);
-      const max = parseInt(e.target.max) || 1;
+      const val = parseInt(e.target.value, 10);
+      const max = parseInt(e.target.max, 10) || 1;
       e.target.style.setProperty('--slider-pct', `${(val / max) * 100}%`);
-      clearTimeout(_tlSliderDebounce);
-      _tlSliderDebounce = setTimeout(() => {
-        if(_tlRafId) cancelAnimationFrame(_tlRafId);
-        _tlRafId = requestAnimationFrame(() => renderTimelapseAt(val));
-      }, 30);
+      tlState._tlSliderPendingIdx = val;
+      if(tlState._tlSliderRaf != null) return;
+      tlState._tlSliderRaf = requestAnimationFrame(() => {
+        tlState._tlSliderRaf = null;
+        renderTimelapseAt(tlState._tlSliderPendingIdx);
+      });
+    });
+    document.getElementById('tl-slider').addEventListener('change', e => {
+      const val = parseInt(e.target.value, 10);
+      if(tlState._tlSliderRaf != null) {
+        cancelAnimationFrame(tlState._tlSliderRaf);
+        tlState._tlSliderRaf = null;
+      }
+      renderTimelapseAt(val);
     });
     document.getElementById('tl-play').addEventListener('click', tlPlay);
     document.getElementById('tl-prev').addEventListener('click', () => { if(tlState.currentIdx > 0) renderTimelapseAt(tlState.currentIdx - 1); });
