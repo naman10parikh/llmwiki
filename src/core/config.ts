@@ -37,6 +37,17 @@ export interface UserConfig {
     pdf?: { enabled?: boolean };
     video?: { enabled?: boolean };
   };
+  pipeline?: {
+    custom_steps?: Array<{
+      id: string;
+      name: string;
+      enabled: boolean;
+      system_prompt: string;
+      model?: string;
+      position?: number;
+    }>;
+    disabled_steps?: string[];
+  };
 }
 
 export function loadConfig(configPath: string): UserConfig {

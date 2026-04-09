@@ -1117,6 +1117,39 @@ export function createServer(vaultRoot: string, port: number): void {
     }
   });
 
+  // ─── Pipeline Configuration (custom steps) ──────────────────────────────────
+
+  app.get('/api/pipeline/config', async (_req, res) => {
+    try {
+      const { loadConfig } = await import('../core/config.js');
+      const userConfig = loadConfig(config.configPath) as Record<string, unknown>;
+      const pipelineConfig = (userConfig['pipeline'] as Record<string, unknown>) ?? {};
+      const customSteps = (pipelineConfig['custom_steps'] as unknown[]) ?? [];
+      const disabledSteps = (pipelineConfig['disabled_steps'] as string[]) ?? [];
+      res.json({ custom_steps: customSteps, disabled_steps: disabledSteps });
+    } catch {
+      res.json({ custom_steps: [], disabled_steps: [] });
+    }
+  });
+
+  app.put('/api/pipeline/config', async (req, res) => {
+    try {
+      const { loadConfig } = await import('../core/config.js');
+      const YAML = await import('yaml');
+      const current = loadConfig(config.configPath) as Record<string, unknown>;
+      const body = req.body as { custom_steps?: unknown[]; disabled_steps?: string[] };
+      const pipeline = (current['pipeline'] as Record<string, unknown>) ?? {};
+      if (body.custom_steps !== undefined) pipeline['custom_steps'] = body.custom_steps;
+      if (body.disabled_steps !== undefined) pipeline['disabled_steps'] = body.disabled_steps;
+      current['pipeline'] = pipeline;
+      writeFileSync(config.configPath, YAML.stringify(current), 'utf-8');
+      res.json({ status: 'saved' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Failed to save pipeline config: ${msg}` });
+    }
+  });
+
   // ─── Automation 3: Webhook Ingest ─────────────────────────────────────────
 
   // POST /api/webhook/ingest — accept external content, run ingest pipeline

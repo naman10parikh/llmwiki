@@ -27,6 +27,9 @@
       --accent: #4f9eff;
       --accent-dim: rgba(79,158,255,0.12);
       --accent-surface: rgba(79,158,255,0.06);
+      --wiki-link: #6eb3f7;
+      --wiki-link-hover: #9dcfff;
+      --wiki-link-visited: #8fa8c4;
       --green: #4ec9b0;
       --green-dim: rgba(78,201,176,0.15);
       --amber: #d7ba7d;
@@ -798,8 +801,8 @@
     .md h4 { font-size: 13px; font-weight: 600; margin: 16px 0 4px; color: var(--text-bright); }
     .md p { margin: 6px 0; }
     .md strong { color: var(--text-bright); }
-    .md a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color 0.15s; }
-    .md a:hover { border-bottom-color: var(--accent); }
+    .md a { color: var(--wiki-link); text-decoration: none; border-bottom: 1px solid rgba(110, 179, 247, 0.22); transition: color 0.12s, border-color 0.12s; }
+    .md a:hover { color: var(--wiki-link-hover); border-bottom-color: rgba(157, 207, 255, 0.45); }
     .md ul, .md ol { margin: 6px 0 6px 20px; }
     .md li { margin: 2px 0; }
     .md li > ul, .md li > ol { margin: 2px 0 2px 16px; }
@@ -827,10 +830,10 @@
       color: var(--text-secondary);
     }
     .md blockquote {
-      border-left: 3px solid var(--border);
-      padding: 6px 14px;
-      margin: 10px 0;
-      background: rgba(255,255,255,0.02);
+      border-left: 3px solid rgba(110, 179, 247, 0.22);
+      padding: 8px 16px;
+      margin: 12px 0;
+      background: rgba(255,255,255,0.025);
       border-radius: 0 var(--radius-md) var(--radius-md) 0;
       color: var(--text-dim);
     }
@@ -843,8 +846,8 @@
     .md tr:hover td { background: var(--bg-hover); }
     .md input[type="checkbox"] { margin-right: 6px; accent-color: var(--accent); }
 
-    .wikilink { color: var(--accent); cursor: pointer; border-bottom: 1px dashed rgba(79,158,255,0.3); transition: border-color 0.15s; }
-    .wikilink:hover { border-bottom-color: var(--accent); }
+    .wikilink { color: var(--wiki-link); cursor: pointer; border-bottom: 1px dashed rgba(110, 179, 247, 0.35); transition: color 0.12s, border-color 0.12s; }
+    .wikilink:hover { color: var(--wiki-link-hover); border-bottom-color: var(--wiki-link-hover); }
 
     /* Table of contents */
     #page-toc {
@@ -1288,6 +1291,9 @@
     .factory-conn { display:flex; align-items:center; flex-shrink:0; padding:0 1px; }
     .factory-conn svg { width:24px; height:10px; }
     @keyframes factoryPulse { 0%,100% { box-shadow:0 0 0 1px rgba(79,158,255,0.3), 0 0 12px rgba(79,158,255,0.12); } 50% { box-shadow:0 0 0 2px rgba(79,158,255,0.5), 0 0 24px rgba(79,158,255,0.2); } }
+    @keyframes runningEnterGlow { 0% { opacity:1; transform:scale(1); box-shadow:0 0 0 0 rgba(79,158,255,0), 0 0 0 0 rgba(79,158,255,0); } 40% { opacity:1; transform:scale(1.04); box-shadow:0 0 0 3px rgba(79,158,255,0.45), 0 0 28px 6px rgba(79,158,255,0.35); } 100% { opacity:1; transform:scale(1); box-shadow:0 0 0 1px rgba(79,158,255,0.3), 0 0 12px rgba(79,158,255,0.12); } }
+    @keyframes stageDonePop { 0% { transform:scale(1); } 45% { transform:scale(1.08); } 100% { transform:scale(1); } }
+    @keyframes checkmarkPop { 0% { transform:scale(0); opacity:0; } 55% { transform:scale(1.15); opacity:1; } 100% { transform:scale(1); opacity:1; } }
     @keyframes pipeSlideIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
     @keyframes pipeCelebrate { 0% { transform:scale(.96); opacity:0; } 60% { transform:scale(1.01); } 100% { transform:scale(1); opacity:1; } }
     @keyframes celebPulse { 0%,100% { box-shadow:0 0 0 0 rgba(78,201,176,0.15); } 50% { box-shadow:0 0 16px 4px rgba(78,201,176,0.08); } }
@@ -1308,6 +1314,24 @@
     .pipe-celebration .celeb-link { font-size:11px; padding:3px 10px; border-radius:6px; background:var(--accent-dim); color:var(--accent); cursor:pointer; border:none; font-family:var(--font); transition:background .15s; }
     .pipe-celebration .celeb-link:hover { background:rgba(79,158,255,0.2); }
     .pipe-celebration .celeb-badges { display:flex; gap:6px; flex-wrap:wrap; }
+    .pipe-celebration--all-done { position:relative; overflow:visible; animation:pipeCelebrate .45s ease, celebWrapPulse 2.5s ease-in-out .45s 1 both; }
+    @keyframes celebWrapPulse { 0%,100% { box-shadow:0 0 0 0 rgba(78,201,176,0.2); transform:scale(1); } 50% { box-shadow:0 0 24px 8px rgba(78,201,176,0.12); transform:scale(1.01); } }
+    .celeb-confetti { position:absolute; left:0; right:0; top:0; bottom:0; pointer-events:none; overflow:visible; }
+    .celeb-confetti span { position:absolute; left:50%; top:50%; width:5px; height:8px; margin:-4px 0 0 -2px; border-radius:1px; opacity:0; animation:confettiPiece .95s cubic-bezier(.2,.8,.2,1) forwards; box-shadow:0 0 0 1px rgba(255,255,255,0.15); }
+    .celeb-confetti span:nth-child(3n) { background:var(--accent); }
+    .celeb-confetti span:nth-child(3n+1) { background:var(--green); }
+    .celeb-confetti span:nth-child(3n+2) { background:var(--amber); }
+    .celeb-confetti span:nth-child(1) { animation-delay:0s; --tx:-38px; --ty:-52px; --rot:160deg; }
+    .celeb-confetti span:nth-child(2) { animation-delay:.04s; --tx:42px; --ty:-48px; --rot:-140deg; }
+    .celeb-confetti span:nth-child(3) { animation-delay:.08s; --tx:-22px; --ty:-58px; --rot:90deg; }
+    .celeb-confetti span:nth-child(4) { animation-delay:.12s; --tx:30px; --ty:-55px; --rot:-95deg; }
+    .celeb-confetti span:nth-child(5) { animation-delay:.16s; --tx:-48px; --ty:-38px; --rot:120deg; }
+    .celeb-confetti span:nth-child(6) { animation-delay:.2s; --tx:48px; --ty:-40px; --rot:-110deg; }
+    .celeb-confetti span:nth-child(7) { animation-delay:.24s; --tx:-8px; --ty:-62px; --rot:45deg; }
+    .celeb-confetti span:nth-child(8) { animation-delay:.28s; --tx:12px; --ty:-60px; --rot:-55deg; }
+    .celeb-confetti span:nth-child(9) { animation-delay:.32s; --tx:-55px; --ty:-28px; --rot:175deg; }
+    .celeb-confetti span:nth-child(10) { animation-delay:.36s; --tx:55px; --ty:-30px; --rot:-175deg; }
+    @keyframes confettiPiece { 0% { opacity:0; transform:translate(-50%,-50%) translate(0,0) rotate(0deg) scale(.6); } 12% { opacity:1; } 100% { opacity:0; transform:translate(-50%,-50%) translate(var(--tx,20px),var(--ty,-70px)) rotate(var(--rot,45deg)) scale(.35); } }
     .pipe-empty { text-align:center; padding:60px 20px; color:var(--text-muted); }
     .pipe-empty .pipe-empty-icon { font-size:48px; margin-bottom:16px; opacity:0.6; }
     .pipe-empty p { font-size:13px; max-width:340px; margin:0 auto; line-height:1.6; }
@@ -1317,11 +1341,17 @@
     .pipe-dropzone.dragover { border-color:var(--accent); background:rgba(79,158,255,0.06); border-style:solid; }
     .pipe-dropzone.has-activity { display:none; }
     .pipe-dropzone-inner { display:flex; flex-direction:column; align-items:center; text-align:center; }
-    /* Animated factory connectors */
-    .factory-conn .conn-line { stroke-dasharray:16 6; animation:factoryFlow 1s linear infinite; }
-    .factory-conn.active .conn-line { stroke:var(--accent); }
-    .factory-conn.done .conn-line { stroke:var(--green); stroke-dasharray:none; }
+    /* Animated factory connectors — flow only when active */
+    .factory-conn .conn-line { stroke-dasharray:16 6; stroke-dashoffset:0; }
+    .factory-conn.active .conn-line { stroke:var(--accent); animation:factoryFlow .85s linear infinite; opacity:1; }
+    .factory-conn.done .conn-line { stroke:var(--green); stroke-dasharray:none; animation:none; opacity:1; }
     @keyframes factoryFlow { from { stroke-dashoffset:22; } to { stroke-dashoffset:0; } }
+    .factory-line-wrap { width:100%; }
+    .factory-progress { margin-top:12px; height:6px; border-radius:999px; background:var(--bg-surface); border:1px solid var(--border-subtle); overflow:hidden; position:relative; }
+    .factory-progress.factory-progress--error { border-color:rgba(241,76,76,0.35); }
+    .factory-progress-fill { height:100%; width:100%; border-radius:999px; transform-origin:left center; transform:scaleX(0); background:linear-gradient(90deg, rgba(79,158,255,0.25), rgba(78,201,176,0.65)); box-shadow:0 0 12px rgba(78,201,176,0.15); transition:transform .45s cubic-bezier(.25,.8,.25,1); }
+    .factory-progress--error .factory-progress-fill { background:linear-gradient(90deg, rgba(241,76,76,0.2), rgba(241,76,76,0.55)); box-shadow:0 0 10px rgba(241,76,76,0.12); }
+    .factory-progress-label { display:flex; justify-content:space-between; align-items:center; margin-top:6px; font-size:10px; color:var(--text-dim); letter-spacing:.02em; }
     /* Stagger animation for steps appearing */
     .factory-stage { animation:stageAppear .3s ease both; }
     .factory-stage:nth-child(1) { animation-delay:0s; }
@@ -1477,7 +1507,13 @@
     .tl-mode-btn.active { background:var(--bg-card); color:var(--text); box-shadow:var(--shadow-sm); }
     .tl-mode-btn:hover:not(.active) { color:var(--text-secondary); }
     .tl-content { flex:1; overflow:auto; padding:0 24px; min-height:0; display:flex; flex-direction:column; }
-    .tl-tree { font-size:13px; padding-bottom:16px; flex:1; }
+    .tl-tree { font-size:13px; padding-bottom:16px; flex:1; position:relative; }
+    .tl-tree-panes { position:relative; min-height:80px; }
+    .tl-tree-pane { transition:opacity 0.38s ease; }
+    .tl-tree-pane.is-back { position:absolute; left:0; right:0; top:0; opacity:0; pointer-events:none; z-index:1; }
+    .tl-tree-pane.is-front { position:relative; z-index:2; }
+    .tl-tree-pane.is-back.tl-pane-visible { opacity:1; pointer-events:auto; z-index:3; }
+    .tl-tree-pane.is-front.tl-pane-fade { opacity:0; }
     .tl-graph { flex:1; min-height:400px; position:relative; overflow:hidden; }
     .tl-folder { margin-bottom:4px; }
     .tl-folder-header { display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:6px; cursor:pointer; color:var(--text-secondary); font-weight:500; font-size:12px; letter-spacing:0.3px; }
@@ -1490,7 +1526,7 @@
     .tl-folder-badge.mod { background:rgba(215,186,125,0.15); color:var(--amber); }
     .tl-folder-badge.del { background:var(--red-dim); color:var(--red); }
     .tl-folder-children { padding-left:20px; border-left:1px solid var(--border-subtle); margin-left:12px; }
-    .tl-file { display:flex; align-items:center; gap:8px; padding:4px 8px; border-radius:5px; cursor:pointer; transition:opacity 0.2s ease, transform 0.2s ease, background 0.2s ease; }
+    .tl-file { display:flex; align-items:center; gap:8px; padding:4px 8px; border-radius:5px; cursor:pointer; transition:opacity 0.28s ease, transform 0.28s cubic-bezier(0.22,1,0.36,1), background 0.2s ease; }
     .tl-file:hover { background:var(--bg-hover); }
     .tl-file-icon { font-size:13px; flex-shrink:0; width:16px; text-align:center; }
     .tl-file-name { flex:1; font-size:13px; color:var(--text); }
@@ -1504,9 +1540,17 @@
     .tl-file.added { background:rgba(78,201,176,0.06); }
     .tl-file.modified { background:rgba(215,186,125,0.06); }
     .tl-file.deleted { opacity:0.4; }
-    .tl-prefetch-bar { height:2px; background:var(--border); border-radius:1px; overflow:hidden; margin:0 24px 4px; display:none; }
+    .tl-prefetch-bar { height:3px; background:var(--border); border-radius:2px; overflow:hidden; margin-top:4px; width:100%; display:none; position:relative; }
     .tl-prefetch-bar.active { display:block; }
-    .tl-prefetch-fill { height:100%; background:var(--accent); transition:width 0.3s ease; width:0; border-radius:1px; }
+    .tl-prefetch-fill { height:100%; background:linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 65%, var(--text-muted))); transition:width 0.35s ease; width:0%; border-radius:2px; box-shadow:0 0 8px color-mix(in srgb, var(--accent) 40%, transparent); }
+    .tl-prefetch-track { display:flex; gap:1px; height:100%; width:100%; position:absolute; inset:0; opacity:0.35; pointer-events:none; }
+    .tl-prefetch-seg { flex:1; min-width:0; background:var(--bg-card); border-radius:1px; }
+    .tl-prefetch-seg.done { background:color-mix(in srgb, var(--accent) 35%, var(--border)); }
+    @keyframes tl-file-enter { from { opacity:0; transform:translateX(-12px); } to { opacity:1; transform:translateX(0); } }
+    @keyframes tl-file-exit { from { opacity:1; transform:translateX(0); } to { opacity:0; transform:translateX(10px); } }
+    .tl-file.tl-anim-enter { animation:tl-file-enter 0.32s cubic-bezier(0.22,1,0.36,1) forwards; }
+    .tl-file.tl-anim-exit { animation:tl-file-exit 0.24s ease forwards; pointer-events:none; }
+    .tl-graph-root-fade { transition:opacity 0.35s ease; }
     .tl-legend { display:flex; gap:12px; padding:4px 8px 8px; font-size:11px; color:var(--text-muted); }
     .tl-legend-item { display:flex; align-items:center; gap:4px; }
     .tl-legend-dot { width:6px; height:6px; border-radius:50%; }
@@ -1691,6 +1735,7 @@
               <div id="page-infobox"></div>
               <div id="page-toc"></div>
               <div id="page-body" class="md"></div>
+              <div id="page-encyclopedia-chrome"></div>
               <div id="wysiwyg-bar">
                 <button id="wysiwyg-save-btn" onclick="saveWysiwyg()">Save</button>
                 <button id="wysiwyg-cancel-btn" onclick="cancelWysiwyg()">Cancel</button>
@@ -1857,6 +1902,7 @@
               </div>
               <div class="tl-slider-wrap">
                 <input type="range" id="tl-slider" class="tl-slider" min="0" max="0" value="0" />
+                <div class="tl-prefetch-bar" id="tl-prefetch-bar"><div class="tl-prefetch-track" id="tl-prefetch-track"></div><div class="tl-prefetch-fill" id="tl-prefetch-fill"></div></div>
                 <div class="tl-slider-labels">
                   <span id="tl-label-start"></span>
                   <span id="tl-label-current"></span>
@@ -2329,14 +2375,33 @@
 
         buildToc(body);
 
+        // See Also: pages this page links to
+        const seeAlso = page.wikilinks.filter(w => w !== title).slice(0, 10);
         const backlinks = findBacklinks(title);
         const blContainer = document.getElementById('page-backlinks');
-        if(backlinks.length) {
-          blContainer.innerHTML = `<div class="backlinks-title">Linked from (${backlinks.length})</div>` +
-            backlinks.map(b => `<span class="backlink-item" onclick="openPage('${esc(b)}')">${esc(b)}</span>`).join('');
-        } else {
-          blContainer.innerHTML = '';
+        let blHtml = '';
+
+        if(seeAlso.length) {
+          blHtml += `<div style="margin-bottom:20px">
+            <div class="backlinks-title">See Also</div>
+            ${seeAlso.map(s => `<span class="backlink-item" onclick="openPage('${esc(s)}')">${esc(s)}</span>`).join('')}
+          </div>`;
         }
+
+        if(backlinks.length) {
+          blHtml += `<div style="margin-bottom:16px">
+            <div class="backlinks-title">Linked from (${backlinks.length})</div>
+            ${backlinks.map(b => `<span class="backlink-item" onclick="openPage('${esc(b)}')">${esc(b)}</span>`).join('')}
+          </div>`;
+        }
+
+        // Last updated + reading time
+        const readingTime = Math.max(1, Math.ceil(page.wordCount / 200));
+        blHtml += `<div style="font-size:11px;color:var(--text-dim);margin-top:16px;padding-top:12px;border-top:1px solid var(--border-subtle)">
+          ${page.frontmatter.updated ? `Last updated: ${esc(page.frontmatter.updated)} · ` : ''}${readingTime} min read · ${page.wordCount} words
+        </div>`;
+
+        blContainer.innerHTML = blHtml;
 
         highlightActiveTreeItem(title);
         document.getElementById('sb-path').textContent = relPath || title;
@@ -4127,24 +4192,31 @@
       const input = document.getElementById('query-input');
       const result = document.getElementById('query-result');
       const btn = document.getElementById('query-btn');
+      const modelSelect = document.getElementById('query-model');
       const q = input.value.trim();
       if(!q) return;
       btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
       result.classList.add('visible');
-      result.innerHTML = '<span class="spinner"></span> Searching...';
+      result.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:var(--text-muted)"><span class="spinner"></span> Thinking...</div>`;
       try {
-        const res = await fetch('/api/query', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})});
+        const model = modelSelect?.value || 'claude-sonnet-4-20250514';
+        const res = await fetch('/api/query', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q, model})});
         const data = await res.json();
-        if(data.error) result.textContent = 'Error: '+data.error;
-        else {
-          let html = renderWikilinks(renderMarkdown(data.answer||'No results.'));
+        if(data.error) {
+          result.innerHTML = `<div style="color:var(--red);font-size:13px">Error: ${esc(data.error)}</div>`;
+        } else {
+          let html = `<div class="md" style="font-size:14px;line-height:1.7">${renderWikilinks(renderMarkdown(data.answer||'No results found in your knowledge base.'))}</div>`;
           if(data.sourcesConsulted?.length) {
-            html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border-subtle);font-size:11px;color:var(--text-muted)">Sources: '+
-              data.sourcesConsulted.map(s=>`<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;background:var(--bg-hover);border-radius:4px;cursor:pointer" onclick="openPage('${esc(s)}')">${esc(s)}</span>`).join('')+'</div>';
+            html += `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border-subtle)">
+              <div style="font-size:10px;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:6px">Sources consulted</div>
+              <div style="display:flex;flex-wrap:wrap;gap:4px">${data.sourcesConsulted.map(s=>
+                `<span style="font-size:11px;padding:3px 8px;background:var(--bg-hover);border-radius:4px;cursor:pointer;color:var(--accent);border:1px solid var(--border-subtle)" onclick="openPage('${esc(s)}')">${esc(s)}</span>`
+              ).join('')}</div>
+            </div>`;
           }
           result.innerHTML = html;
         }
-      } catch { result.textContent = 'Query failed.'; }
+      } catch { result.innerHTML = '<div style="color:var(--red)">Query failed. Check your API key in Settings.</div>'; }
       btn.disabled = false; btn.textContent = 'Ask';
     }
 
