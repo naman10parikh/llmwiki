@@ -569,15 +569,42 @@ export function createServer(vaultRoot: string, port: number): void {
   app.get('/api/search', (req, res) => {
     try {
       const q = (req.query['q'] as string ?? '').toLowerCase().trim();
-      if (!q) { res.json([]); return; }
-      const pages = listPages(config);
-      const results = pages
-        .filter(p => p.title.toLowerCase().includes(q) || p.category.toLowerCase().includes(q))
-        .slice(0, 20)
-        .map(p => ({ title: p.title, category: p.category, wordCount: p.wordCount }));
-      res.json(results);
+      const limit = parseInt(req.query['limit'] as string) || 20;
+      if (!q) { res.json({ results: [] }); return; }
+
+      const pages = listWikiPages(config.wikiDir);
+      const results: Array<{ title: string; category: string; wordCount: number; snippet?: string }> = [];
+
+      for (const pagePath of pages) {
+        const page = readWikiPage(pagePath);
+        const titleMatch = page.title.toLowerCase().includes(q);
+        const tagMatch = (page.frontmatter['tags'] as string[] ?? []).some(
+          (t: string) => t.toLowerCase().includes(q)
+        );
+
+        let snippet: string | undefined;
+        let contentMatch = false;
+        if (!titleMatch) {
+          const bodyLower = page.content.toLowerCase();
+          const idx = bodyLower.indexOf(q);
+          if (idx >= 0) {
+            contentMatch = true;
+            const start = Math.max(0, idx - 40);
+            const end = Math.min(page.content.length, idx + q.length + 60);
+            snippet = (start > 0 ? '…' : '') + page.content.substring(start, end).replace(/\n/g, ' ') + (end < page.content.length ? '…' : '');
+          }
+        }
+
+        if (titleMatch || tagMatch || contentMatch) {
+          const category = (page.frontmatter['category'] as string) ?? 'uncategorized';
+          results.push({ title: page.title, category, wordCount: page.wordCount, snippet });
+        }
+        if (results.length >= limit) break;
+      }
+
+      res.json({ results });
     } catch {
-      res.json([]);
+      res.json({ results: [] });
     }
   });
 

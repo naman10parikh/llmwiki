@@ -606,18 +606,60 @@
       text-wrap: balance;
     }
 
+    /* ── Metadata Properties Panel (Obsidian-style) ── */
     #page-meta {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 18px;
+      font-size: 12px;
+    }
+    .meta-props-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .meta-props-header svg { opacity: 0.5; }
+    .meta-props-grid {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 4px 10px;
+      align-items: start;
+    }
+    .meta-key {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+      padding-top: 3px;
+    }
+    .meta-val {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 18px;
+      gap: 4px;
       align-items: center;
+      min-height: 24px;
     }
-    .meta-badge { padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 500; }
-    .meta-type { background: var(--bg-card); color: var(--amber); border: 1px solid var(--border-subtle); }
-    .meta-date { color: var(--text-muted); font-size: 11px; }
-    .meta-tag { background: var(--accent-dim); color: var(--accent); }
+    .meta-badge { padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: default; }
+    .meta-type { background: var(--bg-card); color: var(--amber); border: 1px solid var(--border); }
+    .meta-date { color: var(--text-secondary); font-size: 11px; }
+    .meta-tag { background: var(--accent-dim); color: var(--accent); cursor: pointer; transition: background 0.15s; }
+    .meta-tag:hover { background: rgba(79,158,255,0.2); }
     .meta-stat { color: var(--text-muted); font-size: 11px; }
+    .meta-add-tag {
+      font-size: 10px; color: var(--text-muted); cursor: pointer; padding: 2px 6px;
+      border: 1px dashed var(--border); border-radius: 6px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .meta-add-tag:hover { color: var(--accent); border-color: var(--accent); }
 
     /* ── Entity info box (UX-031) ── */
     .page-infobox { float:right; clear:right; margin:0 0 20px 28px; width:240px; background:var(--bg-surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font-size:12px; }
@@ -633,29 +675,12 @@
     #page-view.active { display:flex; flex-direction:column; }
     .page-layout { display:flex; flex-direction:column; max-width:860px; margin:0 auto; width:100%; padding:32px 40px 60px; }
     #page-body { line-height: 1.82; color: var(--text-secondary); font-size:15px; cursor:text; position:relative; }
-    #page-body::after { content:'Click to edit'; position:absolute; top:8px; right:8px; font-size:11px; color:var(--text-muted); opacity:0; transition:opacity 0.2s; pointer-events:none; padding:2px 8px; background:var(--bg-card); border-radius:4px; border:1px solid var(--border-subtle); }
-    #page-body:hover::after { opacity:0.7; }
-    #page-body.editing-hint-hidden::after { display:none; }
+    /* no hover hint — editing is discoverable via cursor:text */
 
     /* ── Title row with edit button ── */
     #page-title-row { display: flex; align-items: flex-start; gap: 12px; }
     #page-title-row #page-title { flex: 1; min-width: 0; }
-    #page-edit-btn {
-      flex-shrink: 0;
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 6px;
-      margin-top: 4px;
-      border-radius: 6px;
-      color: var(--text-muted);
-      opacity: 0;
-      transition: color 0.15s, background 0.15s, opacity 0.2s;
-    }
-    #page-title-row:hover #page-edit-btn { opacity: 0.6; }
-    #page-edit-btn:hover { color: var(--accent); background: var(--accent-dim); opacity: 1 !important; }
-    #page-edit-btn.active { color: var(--accent); background: var(--accent-dim); opacity: 1 !important; }
-    #page-edit-btn svg { display: block; }
+    #page-edit-btn { display: none !important; }
 
     /* ── WYSIWYG Inline Editor (Obsidian-style) ── */
     #page-editor { display: none; } /* kept for compatibility but not used */
@@ -1533,9 +1558,9 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="19" r="3"/><circle cx="19" cy="19" r="3"/><line x1="12" y1="8" x2="5" y2="16"/><line x1="12" y1="8" x2="19" y2="16"/></svg>
           <span class="rail-tooltip">Knowledge Graph</span>
         </button>
-        <button class="rail-btn" id="rail-pipeline" title="Pipeline">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h4l3 6-3 6H4"/><path d="M14 6h4l3 6-3 6h-4"/><line x1="8" y1="12" x2="14" y2="12"/></svg>
-          <span class="rail-tooltip">Pipeline</span>
+        <button class="rail-btn" id="rail-pipeline" title="Upload & Ingest">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span class="rail-tooltip">Upload & Ingest</span>
         </button>
         <button class="rail-btn" id="rail-history" title="History">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -2212,13 +2237,26 @@
         }
         document.getElementById('page-breadcrumbs').innerHTML = breadcrumbs;
 
-        let meta = '';
-        if(page.frontmatter.type) meta += `<span class="meta-badge meta-type">${esc(page.frontmatter.type)}</span>`;
-        if(page.frontmatter.created) meta += `<span class="meta-date">${esc(page.frontmatter.created)}</span>`;
-        meta += `<span class="meta-stat">${page.wordCount} words</span>`;
-        meta += `<span class="meta-stat">${page.wikilinks.length} links</span>`;
-        (page.frontmatter.tags||[]).forEach(t => { meta += `<span class="meta-badge meta-tag">${esc(t)}</span>`; });
-        document.getElementById('page-meta').innerHTML = meta;
+        const fm = page.frontmatter || {};
+        const tags = (fm.tags || []).map(t => `<span class="meta-badge meta-tag" onclick="event.stopPropagation()">${esc(t)}</span>`).join('');
+        const sources = (fm.sources || []).map(s => `<code style="font-size:10px;background:var(--bg);padding:1px 5px;border-radius:3px">${esc(s)}</code>`).join(' ');
+        const related = (fm.related || []).map(r => {
+          const name = r.replace(/^\[\[|\]\]$/g, '');
+          return `<span class="meta-badge meta-tag" onclick="openPage('${esc(name)}')" style="cursor:pointer">${esc(name)}</span>`;
+        }).join('');
+        document.getElementById('page-meta').innerHTML = `
+          <div class="meta-props-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'grid':'none'">
+            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M3 1l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+            Properties
+          </div>
+          <div class="meta-props-grid">
+            ${fm.type ? `<span class="meta-key">Type</span><div class="meta-val"><span class="meta-badge meta-type">${esc(fm.type)}</span></div>` : ''}
+            ${fm.created ? `<span class="meta-key">Created</span><div class="meta-val"><span class="meta-date">${esc(fm.created)}</span></div>` : ''}
+            <span class="meta-key">Stats</span><div class="meta-val"><span class="meta-stat">${page.wordCount} words</span><span class="meta-stat">${page.wikilinks.length} links</span></div>
+            <span class="meta-key">Tags</span><div class="meta-val">${tags}<span class="meta-add-tag" onclick="addTagToPage('${esc(page.title)}')">+ add</span></div>
+            ${sources ? `<span class="meta-key">Sources</span><div class="meta-val">${sources}</div>` : ''}
+            ${related ? `<span class="meta-key">Related</span><div class="meta-val">${related}</div>` : ''}
+          </div>`;
 
         // Entity info box (UX-031)
         const infobox = document.getElementById('page-infobox');
@@ -2599,6 +2637,29 @@
     function toggleEditMode() {
       if (state.editing) { cancelWysiwyg(); return; }
       activateWysiwyg();
+    }
+
+    async function addTagToPage(title) {
+      const tag = prompt('Add a tag:');
+      if (!tag || !tag.trim()) return;
+      try {
+        const data = await fetch('/api/pages/' + encodeURIComponent(title) + '/raw').then(r => r.json());
+        let raw = data.raw || '';
+        const tagMatch = raw.match(/^tags:\s*\[([^\]]*)\]/m);
+        if (tagMatch) {
+          const existing = tagMatch[1] ? tagMatch[1].split(',').map(t => t.trim().replace(/^"|"$/g, '')) : [];
+          existing.push(tag.trim());
+          raw = raw.replace(/^tags:\s*\[[^\]]*\]/m, `tags: [${existing.map(t => `"${t}"`).join(', ')}]`);
+        } else {
+          raw = raw.replace(/^---\n/, `---\ntags: ["${tag.trim()}"]\n`);
+        }
+        await fetch('/api/pages/' + encodeURIComponent(data.slug || title), {
+          method: 'PUT', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ content: raw }),
+        });
+        await openPage(title, true);
+        showToast('✓ Tag added');
+      } catch(e) { showToast('Failed to add tag'); }
     }
 
     // Legacy stubs (keep for any remaining references)
@@ -3765,33 +3826,61 @@
       document.getElementById('search-overlay').classList.remove('visible');
       document.getElementById('rail-search').classList.remove('active');
     }
+    let _searchDebounce = null;
     function doSearch(query) {
       if(!query.trim()) { state.searchResults = []; renderSearchResults(); return; }
       const q = query.toLowerCase();
-      state.searchResults = state.allPages
-        .filter(p => p.title.toLowerCase().includes(q) || (p.category||'').toLowerCase().includes(q))
-        .slice(0, 15);
+
+      // Immediate client-side filter (titles, categories, tags)
+      const titleMatches = state.allPages
+        .filter(p => p.title.toLowerCase().includes(q) || (p.category||'').toLowerCase().includes(q) || (p.frontmatter?.tags||[]).some(t => t.toLowerCase().includes(q)))
+        .map(p => ({ ...p, matchType: 'title' }));
+      state.searchResults = titleMatches.slice(0, 15);
       state.searchIndex = 0;
       renderSearchResults();
+
+      // Debounced server-side full-text search
+      clearTimeout(_searchDebounce);
+      _searchDebounce = setTimeout(async () => {
+        try {
+          const data = await api('/api/search?q=' + encodeURIComponent(query) + '&limit=10');
+          if (data?.results?.length) {
+            const existing = new Set(state.searchResults.map(r => r.title));
+            const fullTextResults = data.results
+              .filter(r => !existing.has(r.title))
+              .map(r => ({ ...r, matchType: 'content', snippet: r.snippet }));
+            state.searchResults = [...state.searchResults, ...fullTextResults].slice(0, 20);
+            renderSearchResults();
+          }
+        } catch {}
+      }, 200);
     }
+
     function renderSearchResults() {
       const container = document.getElementById('search-results');
       if(!state.searchResults.length) {
         const q = document.getElementById('search-input').value.trim();
         container.innerHTML = q
           ? `<div id="search-empty">No results for "${esc(q)}"</div>`
-          : `<div id="search-empty">Type to search your knowledge base</div>`;
+          : `<div id="search-empty">Type to search across all pages, content, and metadata</div>`;
         return;
       }
-      container.innerHTML = state.searchResults.map((r,i) =>
-        `<div class="search-result${i===state.searchIndex?' selected':''}"
+      container.innerHTML = state.searchResults.map((r,i) => {
+        const snippet = r.snippet ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:400px">${esc(r.snippet)}</div>` : '';
+        const matchIcon = r.matchType === 'content' ? '📝' : '◇';
+        return `<div class="search-result${i===state.searchIndex?' selected':''}"
               onclick="closeSearch();openPage('${esc(r.title)}')"
               onmouseenter="state.searchIndex=${i};renderSearchResults()">
-          <span class="search-result-icon">◇</span>
-          <span class="search-result-title">${esc(r.title)}</span>
-          <span class="category-badge ${catClass(r.category)}">${esc(r.category)}</span>
-        </div>`
-      ).join('');
+          <span class="search-result-icon">${matchIcon}</span>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="search-result-title">${esc(r.title)}</span>
+              <span class="category-badge ${catClass(r.category)}">${esc(r.category || '')}</span>
+            </div>
+            ${snippet}
+          </div>
+        </div>`;
+      }).join('');
     }
 
     document.getElementById('search-input').addEventListener('input', e => doSearch(e.target.value));
@@ -4307,47 +4396,81 @@
       if (!container) return;
       if (container.style.display !== 'none') { container.style.display = 'none'; return; }
       container.style.display = 'block';
-      container.innerHTML = '<p style="color:var(--text-muted);font-size:12px">Loading…</p>';
+      container.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text-muted);font-size:12px"><div class="spinner" style="margin:0 auto 8px"></div>Loading AI analysis...</div>';
       try {
         const run = await api(`/api/pipeline/runs/${runId}`);
-        let html = '';
+        let html = '<div style="padding:12px 0;border-top:1px solid var(--border-subtle);animation:pipeSlideIn .3s ease">';
 
         if (run.summary) {
           const s = run.summary;
-          html += `<div class="ai-summary-card">
-            <h4 style="margin:0 0 8px;font-size:13px;color:var(--accent)">What the AI Did</h4>
-            <p style="margin:0 0 8px;font-size:12px;color:var(--text)">${esc(s.whatHappened)}</p>`;
-          if (s.entitiesFound?.length) html += `<div class="ai-tag-row"><span class="ai-tag-label">Entities:</span>${s.entitiesFound.map(e => `<span class="ai-tag entity">${esc(e)}</span>`).join('')}</div>`;
-          if (s.conceptsFound?.length) html += `<div class="ai-tag-row"><span class="ai-tag-label">Concepts:</span>${s.conceptsFound.map(c => `<span class="ai-tag concept">${esc(c)}</span>`).join('')}</div>`;
-          if (s.pagesCreated?.length) html += `<div class="ai-tag-row"><span class="ai-tag-label">Pages:</span>${s.pagesCreated.map(p => `<span class="ai-tag page">${esc(p)}</span>`).join('')}</div>`;
-          html += `<p style="margin:8px 0 0;font-size:11px;color:var(--text-muted)">${esc(s.decisionsExplained)}</p>`;
+          html += `<div style="background:rgba(79,158,255,0.04);border:1px solid rgba(79,158,255,0.12);border-radius:8px;padding:14px 16px;margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <span style="font-size:16px">🤖</span>
+              <span style="font-size:13px;font-weight:600;color:var(--text-bright)">AI Analysis</span>
+            </div>
+            <p style="margin:0 0 12px;font-size:13px;color:var(--text-secondary);line-height:1.6">${esc(s.whatHappened)}</p>`;
+
+          if (s.entitiesFound?.length) {
+            html += `<div style="margin-bottom:8px">
+              <span style="font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Entities Found</span>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">${s.entitiesFound.map(e =>
+                `<span style="font-size:11px;padding:3px 9px;border-radius:6px;background:var(--green-dim);color:var(--green)">${esc(e)}</span>`
+              ).join('')}</div>
+            </div>`;
+          }
+
+          if (s.conceptsFound?.length) {
+            html += `<div style="margin-bottom:8px">
+              <span style="font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Concepts</span>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">${s.conceptsFound.map(c =>
+                `<span style="font-size:11px;padding:3px 9px;border-radius:6px;background:var(--purple-dim);color:var(--purple)">${esc(c)}</span>`
+              ).join('')}</div>
+            </div>`;
+          }
+
+          if (s.pagesCreated?.length) {
+            html += `<div style="margin-bottom:8px">
+              <span style="font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Pages Created</span>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">${s.pagesCreated.map(p =>
+                `<span style="font-size:11px;padding:3px 9px;border-radius:6px;background:var(--accent-dim);color:var(--accent);cursor:pointer" onclick="openPage('${esc(p)}')">${esc(p)}</span>`
+              ).join('')}</div>
+            </div>`;
+          }
+
+          if (s.decisionsExplained) {
+            html += `<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(79,158,255,0.1)">
+              <span style="font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">Reasoning</span>
+              <p style="margin:4px 0 0;font-size:12px;color:var(--text-secondary);line-height:1.6">${esc(s.decisionsExplained)}</p>
+            </div>`;
+          }
           html += `</div>`;
+        }
+
+        if (run.events?.length) {
+          html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">${run.events.map(e => {
+            const icon = e.status === 'done' ? '✓' : e.status === 'error' ? '✗' : e.status === 'skipped' ? '–' : '⋯';
+            const color = e.status === 'done' ? 'var(--green)' : e.status === 'error' ? 'var(--red)' : 'var(--text-muted)';
+            return `<span style="color:${color};font-size:10px;padding:2px 6px;background:var(--bg-surface);border-radius:4px" title="${esc(e.detail || '')}">${icon} ${e.step}</span>`;
+          }).join('')}</div>`;
         }
 
         if (run.llmTrace) {
           const t = run.llmTrace;
-          html += `<details class="llm-trace">
-            <summary style="cursor:pointer;font-size:12px;color:var(--text-muted);padding:6px 0">
-              LLM Trace · ${t.durationMs ? (t.durationMs/1000).toFixed(1) + 's' : ''}
+          html += `<details style="margin-top:8px">
+            <summary style="cursor:pointer;font-size:11px;color:var(--text-muted);padding:4px 0;user-select:none">
+              🔬 LLM Trace ${t.durationMs ? `· ${(t.durationMs/1000).toFixed(1)}s` : ''} ${t.model ? `· ${t.model}` : ''}
             </summary>
-            <div class="llm-trace-content">
-              <div class="llm-trace-section"><strong>System:</strong><pre>${esc(t.systemPrompt)}</pre></div>
-              <div class="llm-trace-section"><strong>Prompt (truncated):</strong><pre>${esc(t.userPrompt.substring(0, 500))}…</pre></div>
-              <div class="llm-trace-section"><strong>Response (truncated):</strong><pre>${esc(t.response.substring(0, 500))}…</pre></div>
+            <div style="background:var(--bg-surface);border-radius:6px;padding:10px;margin-top:6px">
+              ${t.systemPrompt ? `<div style="margin-bottom:8px"><div style="font-size:10px;color:var(--text-muted);font-weight:600;margin-bottom:3px">System Prompt</div><pre style="font-size:11px;font-family:var(--font-mono);background:var(--bg);padding:8px;border-radius:4px;overflow-x:auto;white-space:pre-wrap;max-height:120px;overflow-y:auto;margin:0;color:var(--text-secondary)">${esc(t.systemPrompt)}</pre></div>` : ''}
+              ${t.userPrompt ? `<div style="margin-bottom:8px"><div style="font-size:10px;color:var(--text-muted);font-weight:600;margin-bottom:3px">User Prompt</div><pre style="font-size:11px;font-family:var(--font-mono);background:var(--bg);padding:8px;border-radius:4px;overflow-x:auto;white-space:pre-wrap;max-height:120px;overflow-y:auto;margin:0;color:var(--text-secondary)">${esc((t.userPrompt || '').substring(0, 800))}${(t.userPrompt||'').length > 800 ? '…' : ''}</pre></div>` : ''}
+              ${t.response ? `<div><div style="font-size:10px;color:var(--text-muted);font-weight:600;margin-bottom:3px">Response</div><pre style="font-size:11px;font-family:var(--font-mono);background:var(--bg);padding:8px;border-radius:4px;overflow-x:auto;white-space:pre-wrap;max-height:160px;overflow-y:auto;margin:0;color:var(--text-secondary)">${esc((t.response || '').substring(0, 1200))}${(t.response||'').length > 1200 ? '…' : ''}</pre></div>` : ''}
             </div>
           </details>`;
         }
 
-        if (run.events?.length) {
-          html += `<div class="pipeline-steps-mini">${run.events.map(e => {
-            const icon = e.status === 'done' ? '✓' : e.status === 'error' ? '✗' : e.status === 'skipped' ? '–' : '⋯';
-            const color = e.status === 'done' ? 'var(--green)' : e.status === 'error' ? 'var(--red)' : 'var(--text-muted)';
-            return `<span style="color:${color};font-size:11px" title="${esc(e.detail || '')}">${icon} ${e.step}</span>`;
-          }).join(' → ')}</div>`;
-        }
-
-        container.innerHTML = html || '<p style="color:var(--text-muted)">No details available.</p>';
-      } catch { container.innerHTML = '<p style="color:var(--red)">Failed to load run details.</p>'; }
+        html += '</div>';
+        container.innerHTML = html || '<p style="color:var(--text-muted);font-size:12px;padding:8px 0">No details available for this run.</p>';
+      } catch { container.innerHTML = '<p style="color:var(--red);font-size:12px;padding:8px 0">Failed to load run details.</p>'; }
     }
 
     function formatTimeAgo(dateStr) {
