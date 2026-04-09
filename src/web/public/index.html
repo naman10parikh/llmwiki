@@ -1589,7 +1589,7 @@
             </button>
           </div>
         </div>
-        <div id="sidebar-tree"></div>
+        <div id="sidebar-tree" ondragover="event.preventDefault();this.style.outline='2px solid var(--accent)'" ondragleave="this.style.outline=''" ondrop="event.preventDefault();this.style.outline='';handleTreeDrop(event)"></div>
         <div id="sidebar-upload">
           <div id="sidebar-drop-zone">Drop files or click to upload</div>
         </div>
@@ -1629,7 +1629,16 @@
             </div>
             <div class="stats-row" id="home-stats"></div>
             <div class="home-query">
-              <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:6px;">Ask your knowledge</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted)">Ask your knowledge</div>
+                <select id="query-model" class="settings-select" style="width:auto;font-size:10px;padding:2px 8px;background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:4px;color:var(--text-muted)">
+                  <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
+                  <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                  <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
+                  <option value="gpt-4o">GPT-4o</option>
+                  <option value="gpt-4o-mini">GPT-4o Mini</option>
+                </select>
+              </div>
               <div class="query-form">
                 <input type="text" class="query-input" id="query-input" placeholder="What do you want to know?" />
                 <button class="btn" id="query-btn">Ask</button>
@@ -4358,6 +4367,23 @@
         }
       }
       input.value = '';
+    }
+
+    async function handleTreeDrop(event) {
+      const files = event.dataTransfer?.files;
+      if (!files?.length) return;
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          await fetch('/api/upload', { method: 'POST', body: formData });
+          showToast(`✓ Uploaded ${file.name}`);
+        } catch (err) {
+          showToast('Upload failed: ' + (err.message || 'unknown'));
+        }
+      }
+      loadTree();
+      loadHome();
     }
 
     async function handlePipeDrop(event) {
