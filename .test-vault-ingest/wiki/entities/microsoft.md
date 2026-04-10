@@ -7,7 +7,7 @@ tags:
   - company
   - technology
 sources:
-  - /Users/naman/llmwiki/.test-vault-ingest/raw/2026-04-10/external-source.md
+  - /Users/naman/llmwiki/.test-vault-ingest/raw/typescript-article.md
 summary: Major technology company that created TypeScript
 added_by: human
 ---

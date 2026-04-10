@@ -8,7 +8,7 @@ tags:
   - programming
   - javascript
 sources:
-  - /Users/naman/llmwiki/.test-vault-ingest/raw/2026-04-10/external-source.md
+  - /Users/naman/llmwiki/.test-vault-ingest/raw/typescript-article.md
 summary: Overview of the TypeScript programming language
 added_by: human
 ---
