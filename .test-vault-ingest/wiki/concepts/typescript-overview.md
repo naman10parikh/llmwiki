@@ -1,14 +1,14 @@
 ---
 title: TypeScript Overview
 type: concepts
-created: '2026-04-09'
-updated: '2026-04-09'
+created: '2026-04-10'
+updated: '2026-04-10'
 tags:
   - typescript
   - programming
   - javascript
 sources:
-  - /Users/naman/llmwiki/.test-vault-ingest/raw/2026-04-09/external-source.md
+  - /Users/naman/llmwiki/.test-vault-ingest/raw/typescript-article.md
 summary: Overview of the TypeScript programming language
 added_by: human
 ---
