@@ -1,6 +1,6 @@
 {
   "name": "wikimem",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Self-improving wiki IDE. Ingest anything (13 formats), query with any LLM, three automations: ingest, scrape, improve.",
   "type": "module",
   "bin": {
