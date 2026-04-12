@@ -556,6 +556,14 @@ export async function runObserver(config: VaultConfig, options?: ObserverOptions
     // git/audit failure is non-fatal
   }
 
+  // Record history snapshot for time-lapse
+  try {
+    const { recordSnapshot } = await import('./history.js');
+    recordSnapshot(config, 'improve', `Observer scan: ${allPaths.length} pages, avg score ${avgScore}/${MAX_SCORE}`);
+  } catch {
+    // History recording is optional
+  }
+
   return report;
 }
 

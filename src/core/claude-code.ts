@@ -58,11 +58,12 @@ export async function runClaudeCode(
     '--output-format', 'text',
     '--system-prompt', systemPrompt,
     '--max-turns', '1',
+    '--tools', '',
   ];
 
   return new Promise<string>((resolve, reject) => {
     const proc = spawn(binary, args, {
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env },
       timeout: 300_000,
     });

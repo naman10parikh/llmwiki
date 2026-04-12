@@ -390,6 +390,14 @@ async function _ingestSourceInner(
     decisionsExplained: `The AI analyzed the source document, identified ${entitiesFound.length} entities and ${conceptsFound.length} concepts, then created structured wiki pages with cross-references to existing knowledge.`,
   });
 
+  // Step 8: Record history snapshot for time-lapse
+  try {
+    const { recordSnapshot } = await import('./history.js');
+    recordSnapshot(config, 'ingest', `Ingested "${title}": ${pagesUpdated} pages, ${linksAdded} links`);
+  } catch {
+    // History recording is optional
+  }
+
   pipelineEvents.completeRun({ pagesCreated: pagesUpdated, linksAdded, title });
 
   return { title, pagesUpdated, linksAdded, rawPath };

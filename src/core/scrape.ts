@@ -43,6 +43,16 @@ export async function scrapeExternalSources(
     sourceList || 'No files scraped.',
   );
 
+  // Record history snapshot for time-lapse
+  if (totalFiles > 0) {
+    try {
+      const { recordSnapshot } = await import('./history.js');
+      recordSnapshot(config, 'scrape', `Scraped ${totalFiles} files from ${toProcess.length} source(s)`);
+    } catch {
+      // History recording is optional
+    }
+  }
+
   return {
     sourcesProcessed: toProcess.length,
     filesDeposited: totalFiles,

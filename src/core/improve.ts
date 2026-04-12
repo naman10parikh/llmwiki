@@ -88,6 +88,14 @@ export async function improveWiki(
     } catch {
       // Git commit failure is non-fatal
     }
+
+    // Record history snapshot for time-lapse
+    try {
+      const { recordSnapshot } = await import('./history.js');
+      recordSnapshot(config, 'improve', `Improved wiki: score ${score}/100, ${actions.length} actions applied`);
+    } catch {
+      // History recording is optional
+    }
   }
 
   return { score, dimensions, actions };
