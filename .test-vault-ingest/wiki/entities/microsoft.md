@@ -7,14 +7,14 @@ tags:
   - company
   - technology
 sources:
-  - /Users/naman/llmwiki/.test-vault-ingest/raw/2026-04-12/external-source.md
+  - /Users/naman/llmwiki/.test-vault-ingest/raw/typescript-article.md
 summary: Major technology company that created TypeScript
 added_by: human
 confidence: 53
 validation_status: unreviewed
-learned_at: '2026-04-12T05:28:35.674Z'
+learned_at: '2026-04-12T05:50:10.318Z'
 fact_version: 1
 previous_versions: 0
-ingest_session: ingest-mnvbpe1m-942x
+ingest_session: ingest-mnvch4zs-68xt
 ---
 Microsoft is a technology company known for creating [[TypeScript]], Windows, and Azure.
