@@ -8,15 +8,15 @@ tags:
   - programming
   - javascript
 sources:
-  - /Users/naman/llmwiki/.test-vault-ingest/raw/2026-04-12/external-source.md
+  - /Users/naman/llmwiki/.test-vault-ingest/raw/typescript-article.md
 summary: Overview of the TypeScript programming language
 added_by: human
 confidence: 57
 validation_status: unreviewed
-learned_at: '2026-04-12T04:06:12.145Z'
+learned_at: '2026-04-12T04:14:51.080Z'
 fact_version: 1
 previous_versions: 0
-ingest_session: ingest-mnv8rfld-l5l9
+ingest_session: ingest-mnv92k06-1hhv
 ---
 TypeScript is a typed superset of JavaScript. It was created by [[Microsoft]] and is used
 in many modern [[Web Development]] frameworks. See also [[JavaScript]].
