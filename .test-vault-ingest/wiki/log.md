@@ -5,6 +5,6 @@ type: log
 
 # Wiki Log
 
-## [2026-04-12 04:14] ingest | test-source
+## [2026-04-12 04:14] ingest | frontmatter-test
 
-Processed /Users/naman/llmwiki/.test-vault-ingest/raw/test-source.md. Created/updated 2 pages.
+Processed /Users/naman/llmwiki/.test-vault-ingest/raw/frontmatter-test.md. Created/updated 2 pages.
