@@ -5,6 +5,6 @@ type: log
 
 # Wiki Log
 
-## [2026-04-12 04:06] ingest | typescript-article
+## [2026-04-12 04:06] ingest | test-source
 
-Processed /Users/naman/llmwiki/.test-vault-ingest/raw/typescript-article.md. Created/updated 2 pages.
+Processed /Users/naman/llmwiki/.test-vault-ingest/raw/test-source.md. Created/updated 2 pages.
