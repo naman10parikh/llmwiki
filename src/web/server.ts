@@ -3,8 +3,9 @@ import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync, statSy
 import { join, resolve, extname, basename, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
-import { getVaultConfig, getVaultStats, listWikiPages, readWikiPage, writeWikiPage } from '../core/vault.js';
+import { getVaultConfig, getVaultStats, listWikiPages, readWikiPage, writeWikiPage, readPageVersions } from '../core/vault.js';
 import type { VaultConfig } from '../core/vault.js';
+import { getBundledCredentials, getBundledDeviceFlowClientId, hasBundledDefaults } from '../core/oauth-defaults.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -148,7 +149,15 @@ export function createServer(vaultRoot: string, port: number): void {
         res.status(400).json({ error: 'Missing title or slug' });
         return;
       }
+      if (!/^[a-zA-Z0-9_-]+$/.test(slug)) {
+        res.status(400).json({ error: 'Invalid slug — only alphanumeric, hyphens, and underscores allowed' });
+        return;
+      }
       const dest = join(config.wikiDir, `${slug}.md`);
+      if (!resolve(dest).startsWith(resolve(config.wikiDir))) {
+        res.status(403).json({ error: 'Path traversal denied' });
+        return;
+      }
       if (existsSync(dest)) {
         res.status(409).json({ error: 'Page already exists' });
         return;
@@ -285,6 +294,41 @@ export function createServer(vaultRoot: string, port: number): void {
     }
   });
 
+  // API: get page version history (COMP-MP-002 temporal reasoning)
+  app.get('/api/pages/:title/versions', (req, res) => {
+    try {
+      const title = req.params['title'];
+      if (!title) { res.status(400).json({ error: 'Missing title' }); return; }
+      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const versions = readPageVersions(config.root, slug);
+      // Also include current page as the "latest" entry
+      const pages = listWikiPages(config.wikiDir);
+      const titleLower = title.toLowerCase();
+      const match = pages.find((p) => {
+        const fileSlug = basename(p, '.md');
+        if (fileSlug === slug) return true;
+        try { return readWikiPage(p).title.toLowerCase() === titleLower; } catch { return false; }
+      });
+      let current = null;
+      if (match) {
+        try {
+          const page = readWikiPage(match);
+          current = {
+            version: (page.frontmatter['fact_version'] as number) ?? versions.length + 1,
+            timestamp: (page.frontmatter['learned_at'] as string) ?? (page.frontmatter['updated'] as string) ?? new Date().toISOString(),
+            content: page.content,
+            frontmatter: page.frontmatter,
+            source: (page.frontmatter['sources'] as string[])?.[0],
+            actor: (page.frontmatter['added_by'] as string) ?? 'unknown',
+          };
+        } catch { /* unreadable */ }
+      }
+      res.json({ versions, current, total: versions.length + (current ? 1 : 0) });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to read page versions' });
+    }
+  });
+
   // API: update page content (full markdown with frontmatter)
   app.put('/api/pages/:title', async (req, res) => {
     try {
@@ -361,6 +405,63 @@ export function createServer(vaultRoot: string, port: number): void {
     }
   });
 
+  // API: update validation status / confidence on a wiki page
+  app.patch('/api/pages/:title/validate', async (req, res) => {
+    try {
+      const title = req.params['title'];
+      if (!title) { res.status(400).json({ error: 'Missing title' }); return; }
+      const { validation_status, confidence } = req.body as {
+        validation_status?: string;
+        confidence?: number;
+      };
+      const allowed = ['verified', 'outdated', 'wrong', 'unreviewed'];
+      if (validation_status && !allowed.includes(validation_status)) {
+        res.status(400).json({ error: `Invalid status. Allowed: ${allowed.join(', ')}` });
+        return;
+      }
+
+      const pages = listWikiPages(config.wikiDir);
+      const titleLower = title.toLowerCase();
+      const slugified = titleLower.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const match = pages.find((p) => {
+        const fileSlug = basename(p, '.md');
+        if (fileSlug === title || fileSlug === slugified) return true;
+        try { return readWikiPage(p).title.toLowerCase() === titleLower; } catch { return false; }
+      });
+      if (!match) { res.status(404).json({ error: 'Page not found' }); return; }
+
+      const matter = await import('gray-matter');
+      const raw = readFileSync(match, 'utf-8');
+      const parsed = matter.default(raw);
+
+      if (validation_status) parsed.data['validation_status'] = validation_status;
+      if (confidence !== undefined) parsed.data['confidence'] = Math.max(0, Math.min(100, confidence));
+      parsed.data['validated_at'] = new Date().toISOString().split('T')[0];
+
+      // Adjust confidence based on validation feedback
+      if (validation_status === 'verified') {
+        parsed.data['confidence'] = Math.max(parsed.data['confidence'] ?? 50, 85);
+      } else if (validation_status === 'outdated') {
+        parsed.data['confidence'] = Math.min(parsed.data['confidence'] ?? 50, 40);
+      } else if (validation_status === 'wrong') {
+        parsed.data['confidence'] = Math.min(parsed.data['confidence'] ?? 50, 15);
+      }
+
+      writeFileSync(match, matter.default.stringify(parsed.content, parsed.data), 'utf-8');
+
+      try {
+        const { autoCommit } = await import('../core/git.js');
+        await autoCommit(config.root, 'manual', `validate page "${title}" as ${validation_status ?? 'updated'}`);
+      } catch { /* git commit is best-effort */ }
+
+      const page = readWikiPage(match);
+      res.json({ status: 'updated', page });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Failed to validate: ${msg}` });
+    }
+  });
+
   // API: rename a wiki page
   app.post('/api/pages/:title/rename', async (req, res) => {
     try {
@@ -381,7 +482,9 @@ export function createServer(vaultRoot: string, port: number): void {
       const content = readFileSync(match, 'utf-8');
       const newContent = content.replace(/^title:\s*["']?.*?["']?\s*$/m, `title: "${newTitle}"`);
       const newSlug = newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      if (!newSlug) { res.status(400).json({ error: 'Invalid title — produces empty slug' }); return; }
       const newPath = join(match.substring(0, match.lastIndexOf('/')), newSlug + '.md');
+      if (!resolve(newPath).startsWith(resolve(config.wikiDir))) { res.status(403).json({ error: 'Path traversal denied' }); return; }
 
       writeFileSync(newPath, newContent, 'utf-8');
       if (newPath !== match) {
@@ -656,46 +759,166 @@ export function createServer(vaultRoot: string, port: number): void {
     }
   });
 
-  // API: search pages
+  // API: search pages (with filters: category, tag, dateFrom, dateTo)
   app.get('/api/search', (req, res) => {
     try {
       const q = (req.query['q'] as string ?? '').toLowerCase().trim();
       const limit = parseInt(req.query['limit'] as string) || 20;
-      if (!q) { res.json({ results: [] }); return; }
+      const filterCategory = (req.query['category'] as string ?? '').toLowerCase().trim();
+      const filterTag = (req.query['tag'] as string ?? '').toLowerCase().trim();
+      const filterDateFrom = (req.query['dateFrom'] as string ?? '').trim();
+      const filterDateTo = (req.query['dateTo'] as string ?? '').trim();
+
+      if (!q && !filterCategory && !filterTag) { res.json({ results: [] }); return; }
 
       const pages = listWikiPages(config.wikiDir);
-      const results: Array<{ title: string; category: string; wordCount: number; snippet?: string }> = [];
+      const results: Array<{ title: string; category: string; tags: string[]; created?: string; wordCount: number; snippet?: string; matchType: string }> = [];
 
       for (const pagePath of pages) {
         const page = readWikiPage(pagePath);
+        const category = ((page.frontmatter['category'] ?? page.frontmatter['type'] ?? '') as string).toLowerCase();
+        const tags = ((page.frontmatter['tags'] as string[]) ?? []).map((t: string) => t.toLowerCase());
+        const created = (page.frontmatter['created'] ?? page.frontmatter['date'] ?? '') as string;
+
+        // Apply filters
+        if (filterCategory && category !== filterCategory) continue;
+        if (filterTag && !tags.includes(filterTag)) continue;
+        if (filterDateFrom && created && created < filterDateFrom) continue;
+        if (filterDateTo && created && created > filterDateTo) continue;
+
+        // If no text query, include all filtered pages
+        if (!q) {
+          results.push({ title: page.title, category: category || 'uncategorized', tags, created, wordCount: page.wordCount, matchType: 'filter' });
+          if (results.length >= limit) break;
+          continue;
+        }
+
+        // Text matching
         const titleMatch = page.title.toLowerCase().includes(q);
-        const tagMatch = (page.frontmatter['tags'] as string[] ?? []).some(
-          (t: string) => t.toLowerCase().includes(q)
-        );
+        const tagMatch = tags.some(t => t.includes(q));
 
         let snippet: string | undefined;
         let contentMatch = false;
-        if (!titleMatch) {
-          const bodyLower = page.content.toLowerCase();
-          const idx = bodyLower.indexOf(q);
-          if (idx >= 0) {
-            contentMatch = true;
-            const start = Math.max(0, idx - 40);
-            const end = Math.min(page.content.length, idx + q.length + 60);
-            snippet = (start > 0 ? '…' : '') + page.content.substring(start, end).replace(/\n/g, ' ') + (end < page.content.length ? '…' : '');
-          }
+        const bodyLower = page.content.toLowerCase();
+        const idx = bodyLower.indexOf(q);
+        if (idx >= 0) {
+          contentMatch = true;
+          // Build snippet with highlighted match context
+          const start = Math.max(0, idx - 50);
+          const end = Math.min(page.content.length, idx + q.length + 80);
+          const raw = page.content.substring(start, end).replace(/\n/g, ' ').replace(/\s+/g, ' ');
+          // Wrap the matched term in <mark> for highlighting
+          const matchStart = idx - start;
+          const before = raw.substring(0, matchStart);
+          const match = raw.substring(matchStart, matchStart + q.length);
+          const after = raw.substring(matchStart + q.length);
+          snippet = (start > 0 ? '…' : '') + before + '<mark>' + match + '</mark>' + after + (end < page.content.length ? '…' : '');
         }
 
         if (titleMatch || tagMatch || contentMatch) {
-          const category = (page.frontmatter['category'] as string) ?? 'uncategorized';
-          results.push({ title: page.title, category, wordCount: page.wordCount, snippet });
+          const matchType = titleMatch ? 'title' : tagMatch ? 'tag' : 'content';
+          results.push({ title: page.title, category: category || 'uncategorized', tags, created, wordCount: page.wordCount, snippet, matchType });
         }
         if (results.length >= limit) break;
       }
 
-      res.json({ results });
+      // Also return available filter options for the UI
+      const allCategories = [...new Set(pages.map(p => {
+        const pg = readWikiPage(p);
+        return ((pg.frontmatter['category'] ?? pg.frontmatter['type'] ?? '') as string).toLowerCase();
+      }).filter(Boolean))].sort();
+
+      const allTags = [...new Set(pages.flatMap(p => {
+        const pg = readWikiPage(p);
+        return ((pg.frontmatter['tags'] as string[]) ?? []).map((t: string) => t.toLowerCase());
+      }))].sort();
+
+      res.json({ results, filters: { categories: allCategories, tags: allTags } });
     } catch {
       res.json({ results: [] });
+    }
+  });
+
+  // Utility: extract keywords from text (lowercase, deduplicated, stopwords removed)
+  function extractKeywords(text: string): Set<string> {
+    const stopwords = new Set(['the','a','an','is','are','was','were','be','been','being','have','has','had','do','does','did','will','would','could','should','may','might','can','shall','and','or','but','if','in','on','at','to','for','of','with','by','from','as','into','about','that','this','it','its','not','no','so','up','out','then','than','more','also','very','just','only','each','any','all','both','few','many','some','such','too','own','same','other','most','much','what','when','where','which','who','how']);
+    return new Set(
+      text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
+        .filter(w => w.length > 2 && !stopwords.has(w))
+    );
+  }
+
+  // Utility: Jaccard similarity between two sets
+  function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+    if (a.size === 0 && b.size === 0) return 0;
+    let intersection = 0;
+    for (const item of a) { if (b.has(item)) intersection++; }
+    const union = a.size + b.size - intersection;
+    return union === 0 ? 0 : intersection / union;
+  }
+
+  // API: similar pages (Jaccard similarity on tags + wikilinks + title keywords)
+  app.get('/api/pages/:title/similar', (req, res) => {
+    try {
+      const targetTitle = decodeURIComponent(req.params['title'] ?? '');
+      const limit = parseInt(req.query['limit'] as string) || 5;
+      const pages = listWikiPages(config.wikiDir);
+
+      // Find target page
+      let targetPage: ReturnType<typeof readWikiPage> | null = null;
+      const allPages: Array<ReturnType<typeof readWikiPage>> = [];
+
+      for (const p of pages) {
+        const page = readWikiPage(p);
+        allPages.push(page);
+        if (page.title.toLowerCase() === targetTitle.toLowerCase()) {
+          targetPage = page;
+        }
+      }
+
+      if (!targetPage) {
+        res.json({ similar: [] });
+        return;
+      }
+
+      // Build feature sets for target
+      const targetTags = new Set((targetPage.frontmatter['tags'] as string[] ?? []).map((t: string) => t.toLowerCase()));
+      const targetLinks = new Set((targetPage.wikilinks ?? []).map((l: string) => l.toLowerCase()));
+      const targetWords = extractKeywords(targetPage.title + ' ' + targetPage.content);
+      const targetCategory = ((targetPage.frontmatter['category'] ?? targetPage.frontmatter['type'] ?? '') as string).toLowerCase();
+
+      // Score each other page
+      const scored: Array<{ title: string; category: string; score: number; sharedTags: string[]; sharedLinks: string[] }> = [];
+
+      for (const page of allPages) {
+        if (page.title.toLowerCase() === targetTitle.toLowerCase()) continue;
+
+        const pageTags = new Set((page.frontmatter['tags'] as string[] ?? []).map((t: string) => t.toLowerCase()));
+        const pageLinks = new Set((page.wikilinks ?? []).map((l: string) => l.toLowerCase()));
+        const pageWords = extractKeywords(page.title + ' ' + page.content);
+        const pageCategory = ((page.frontmatter['category'] ?? page.frontmatter['type'] ?? '') as string).toLowerCase();
+
+        // Jaccard similarity components (weighted)
+        const tagSim = jaccardSimilarity(targetTags, pageTags);
+        const linkSim = jaccardSimilarity(targetLinks, pageLinks);
+        const wordSim = jaccardSimilarity(targetWords, pageWords);
+        const catBonus = targetCategory && targetCategory === pageCategory ? 0.15 : 0;
+
+        // Weighted composite: tags 40%, links 30%, keywords 20%, category 10%
+        const score = (tagSim * 0.4) + (linkSim * 0.3) + (wordSim * 0.2) + catBonus;
+
+        if (score > 0.02) {
+          const sharedTags = [...targetTags].filter(t => pageTags.has(t));
+          const sharedLinks = [...targetLinks].filter(l => pageLinks.has(l));
+          const category = (page.frontmatter['category'] as string) ?? (page.frontmatter['type'] as string) ?? 'uncategorized';
+          scored.push({ title: page.title, category, score: Math.round(score * 100) / 100, sharedTags, sharedLinks });
+        }
+      }
+
+      scored.sort((a, b) => b.score - a.score);
+      res.json({ similar: scored.slice(0, limit) });
+    } catch {
+      res.json({ similar: [] });
     }
   });
 
@@ -1386,6 +1609,38 @@ export function createServer(vaultRoot: string, port: number): void {
 
   const oauthStates = new Map<string, { provider: string; createdAt: number }>();
 
+  /**
+   * Resolve OAuth credentials: bundled defaults → env vars → config.yaml.
+   * Bundled defaults ship with the npm package (pre-registered WikiMem OAuth apps).
+   * Env vars override bundled defaults (for development/self-hosted).
+   * config.yaml is the user-level fallback.
+   */
+  function resolveOAuthCredentials(providerName: string): { clientId: string; clientSecret: string } | null {
+    const providerConfig = OAUTH_PROVIDERS[providerName];
+    if (!providerConfig) return null;
+
+    // 1. Environment variables (highest priority — override bundled defaults)
+    const envPrefix = `WIKIMEM_${providerName.toUpperCase()}`;
+    const envId = process.env[`${envPrefix}_CLIENT_ID`];
+    const envSecret = process.env[`${envPrefix}_CLIENT_SECRET`];
+    if (envId && envSecret) return { clientId: envId, clientSecret: envSecret };
+
+    // 2. Bundled defaults (pre-registered WikiMem OAuth apps shipped with package)
+    const bundled = getBundledCredentials(providerName);
+    if (bundled) return bundled;
+
+    // 3. User-configured credentials in config.yaml
+    try {
+      const { loadConfig: lc } = require('../core/config.js') as { loadConfig: (p: string) => Record<string, unknown> };
+      const userConfig = lc(config.configPath);
+      const configId = userConfig[providerConfig.clientIdKey] as string | undefined;
+      const configSecret = userConfig[providerConfig.clientSecretKey] as string | undefined;
+      if (configId && configSecret) return { clientId: configId, clientSecret: configSecret };
+    } catch { /* config load failure is non-fatal */ }
+
+    return null;
+  }
+
   function getTokenStorePath(): string {
     return join(vaultRoot, '.wikimem', 'tokens.json');
   }
@@ -1404,14 +1659,20 @@ export function createServer(vaultRoot: string, port: number): void {
     writeFileSync(tokenPath, JSON.stringify(tokens, null, 2), 'utf-8');
   }
 
-  // GET /api/auth/tokens — list which providers have tokens stored
+  // GET /api/auth/tokens — list which providers have tokens stored + credential availability
   app.get('/api/auth/tokens', (_req, res) => {
     try {
       const tokens = loadOAuthTokens();
-      const result: Record<string, { connected: boolean; connectedAt?: string }> = {};
+      const result: Record<string, { connected: boolean; connectedAt?: string; hasCredentials: boolean; hasDeviceFlow?: boolean }> = {};
       for (const provider of Object.keys(OAUTH_PROVIDERS)) {
         const token = tokens[provider];
-        result[provider] = { connected: !!token, connectedAt: token?.connectedAt };
+        const creds = resolveOAuthCredentials(provider);
+        result[provider] = {
+          connected: !!token,
+          connectedAt: token?.connectedAt,
+          hasCredentials: !!creds,
+          ...(provider === 'github' ? { hasDeviceFlow: !!resolveDeviceFlowClientId() } : {}),
+        };
       }
       res.json(result);
     } catch { res.json({}); }
@@ -1425,11 +1686,10 @@ export function createServer(vaultRoot: string, port: number): void {
       const providerConfig = OAUTH_PROVIDERS[providerName];
       if (!providerConfig) { res.status(400).json({ error: `Unknown provider: ${providerName}` }); return; }
 
-      const { loadConfig } = await import('../core/config.js');
-      const userConfig = loadConfig(config.configPath) as Record<string, unknown>;
-      const clientId = userConfig[providerConfig.clientIdKey] as string | undefined;
-      if (!clientId) {
-        res.status(400).json({ error: `Missing ${providerConfig.clientIdKey} in config.yaml` }); return;
+      const creds = resolveOAuthCredentials(providerName);
+      if (!creds) {
+        res.status(400).json({ error: 'no_credentials', message: `No OAuth credentials found for ${providerName}. Add credentials in Settings or set WIKIMEM_${providerName.toUpperCase()}_CLIENT_ID / _CLIENT_SECRET env vars.` });
+        return;
       }
 
       const state = randomBytes(24).toString('hex');
@@ -1442,7 +1702,7 @@ export function createServer(vaultRoot: string, port: number): void {
 
       const redirectUri = `http://localhost:${port}/api/auth/callback`;
       const params = new URLSearchParams({
-        client_id: clientId,
+        client_id: creds.clientId,
         redirect_uri: redirectUri,
         scope: providerConfig.scopes,
         state,
@@ -1475,12 +1735,9 @@ export function createServer(vaultRoot: string, port: number): void {
       const providerConfig = OAUTH_PROVIDERS[stateData.provider];
       if (!providerConfig) { res.status(400).send('<h2>Unknown provider</h2>'); return; }
 
-      const { loadConfig } = await import('../core/config.js');
-      const userConfig = loadConfig(config.configPath) as Record<string, unknown>;
-      const clientId = userConfig[providerConfig.clientIdKey] as string;
-      const clientSecret = userConfig[providerConfig.clientSecretKey] as string;
-      if (!clientId || !clientSecret) {
-        res.status(400).send('<h2>Missing client credentials in config</h2>'); return;
+      const creds = resolveOAuthCredentials(stateData.provider);
+      if (!creds) {
+        res.status(400).send('<h2>Missing client credentials</h2><p>Configure OAuth credentials in Settings or via environment variables.</p>'); return;
       }
 
       const redirectUri = `http://localhost:${port}/api/auth/callback`;
@@ -1491,8 +1748,8 @@ export function createServer(vaultRoot: string, port: number): void {
           Accept: 'application/json',
         },
         body: new URLSearchParams({
-          client_id: clientId,
-          client_secret: clientSecret,
+          client_id: creds.clientId,
+          client_secret: creds.clientSecret,
           code,
           redirect_uri: redirectUri,
           grant_type: 'authorization_code',
@@ -1510,11 +1767,21 @@ export function createServer(vaultRoot: string, port: number): void {
         scope: tokenBody['scope'] as string | undefined,
       });
 
+      // Auto-trigger sync after successful OAuth connection (fire-and-forget)
+      import('../core/sync/index.js').then(({ syncProvider: sp }) => {
+        sp(stateData.provider, vaultRoot).catch(() => {});
+      }).catch(() => {});
+
+      const providerDisplay = stateData.provider.charAt(0).toUpperCase() + stateData.provider.slice(1);
       res.send(`<!DOCTYPE html><html><head><style>
         body { font-family: Inter, system-ui, sans-serif; background: #1e1e1e; color: #ccc; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
         .card { background: #252526; border: 1px solid #3e3e3e; border-radius: 12px; padding: 32px 40px; text-align: center; }
         h2 { color: #4ec9b0; margin: 0 0 8px; } p { color: #808080; font-size: 14px; }
-      </style></head><body><div class="card"><h2>Connected!</h2><p>${stateData.provider} is now linked to WikiMem.</p><p style="margin-top:12px"><small>You can close this tab.</small></p></div></body></html>`);
+        .spin { width:20px;height:20px;border:2px solid #3e3e3e;border-top-color:#4ec9b0;border-radius:50%;animation:s 1s linear infinite;margin:12px auto 0 }
+        @keyframes s { to { transform:rotate(360deg) } }
+      </style></head><body><div class="card"><h2>Connected!</h2><p>${providerDisplay} is now linked to WikiMem.</p><div class="spin"></div><p style="margin-top:8px"><small>Syncing your data... This window will close automatically.</small></p></div>
+      <script>if(window.opener){window.opener.postMessage({type:'wikimem-oauth-connected',provider:'${stateData.provider}'},'*');}setTimeout(function(){window.close()},3000)</script>
+      </body></html>`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       res.status(500).send(`<h2>OAuth callback failed</h2><pre>${msg}</pre>`);
@@ -1535,6 +1802,164 @@ export function createServer(vaultRoot: string, port: number): void {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       res.status(500).json({ error: `Disconnect failed: ${msg}` });
+    }
+  });
+
+  // POST /api/auth/tokens/:provider — manually store an API key (for Notion, etc.)
+  app.post('/api/auth/tokens/:provider', (req, res) => {
+    try {
+      const provider = req.params['provider'];
+      if (!provider) { res.status(400).json({ error: 'Missing provider' }); return; }
+      const { api_key } = req.body as { api_key?: string };
+      if (!api_key) { res.status(400).json({ error: 'Missing api_key' }); return; }
+      saveOAuthToken(provider, { access_token: api_key });
+      res.json({ status: 'connected', provider });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Save token failed: ${msg}` });
+    }
+  });
+
+  // ─── GitHub Device Flow (no client_secret needed) ──────────────────────────
+
+  /**
+   * Resolve the GitHub client ID for Device Flow.
+   * Priority: env vars → bundled defaults → config.yaml
+   */
+  function resolveDeviceFlowClientId(): string | null {
+    // 1. Env vars (highest priority)
+    const deviceId = process.env['WIKIMEM_GITHUB_DEVICE_CLIENT_ID'];
+    if (deviceId) return deviceId;
+    const regularId = process.env['WIKIMEM_GITHUB_CLIENT_ID'];
+    if (regularId) return regularId;
+
+    // 2. Bundled defaults (shipped with package)
+    const bundled = getBundledDeviceFlowClientId();
+    if (bundled) return bundled;
+
+    // 3. config.yaml (user-configured)
+    try {
+      const { loadConfig: lc } = require('../core/config.js') as { loadConfig: (p: string) => Record<string, unknown> };
+      const userConfig = lc(config.configPath);
+      const configId = userConfig['github_client_id'] as string | undefined;
+      if (configId) return configId;
+    } catch { /* config load failure is non-fatal */ }
+
+    return null;
+  }
+
+  // POST /api/auth/device-flow/start — initiate GitHub Device Flow
+  app.post('/api/auth/device-flow/start', async (_req, res) => {
+    try {
+      const clientId = resolveDeviceFlowClientId();
+      if (!clientId) {
+        res.status(400).json({
+          error: 'no_client_id',
+          message: 'No GitHub client ID found. Set WIKIMEM_GITHUB_DEVICE_CLIENT_ID or WIKIMEM_GITHUB_CLIENT_ID env var.',
+        });
+        return;
+      }
+
+      const ghRes = await fetch('https://github.com/login/device/code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
+        body: new URLSearchParams({
+          client_id: clientId,
+          scope: 'repo read:user',
+        }),
+      });
+
+      const body = await ghRes.json() as Record<string, unknown>;
+
+      if (body['error']) {
+        res.status(400).json({ error: body['error'], message: body['error_description'] ?? 'Device flow initiation failed' });
+        return;
+      }
+
+      res.json({
+        device_code: body['device_code'],
+        user_code: body['user_code'],
+        verification_uri: body['verification_uri'],
+        expires_in: body['expires_in'],
+        interval: body['interval'],
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Device flow start failed: ${msg}` });
+    }
+  });
+
+  // POST /api/auth/device-flow/poll — poll for token after user enters code
+  app.post('/api/auth/device-flow/poll', async (req, res) => {
+    try {
+      const { device_code } = req.body as { device_code?: string };
+      if (!device_code) {
+        res.status(400).json({ error: 'missing_device_code', message: 'device_code is required' });
+        return;
+      }
+
+      const clientId = resolveDeviceFlowClientId();
+      if (!clientId) {
+        res.status(400).json({ error: 'no_client_id', message: 'No GitHub client ID configured' });
+        return;
+      }
+
+      const ghRes = await fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
+        body: new URLSearchParams({
+          client_id: clientId,
+          device_code,
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+        }),
+      });
+
+      const body = await ghRes.json() as Record<string, unknown>;
+      const error = body['error'] as string | undefined;
+
+      if (error === 'authorization_pending') {
+        res.json({ status: 'pending' });
+        return;
+      }
+      if (error === 'slow_down') {
+        res.json({ status: 'slow_down' });
+        return;
+      }
+      if (error === 'expired_token') {
+        res.json({ status: 'expired' });
+        return;
+      }
+      if (error) {
+        res.status(400).json({ status: 'error', error, message: body['error_description'] ?? 'Token exchange failed' });
+        return;
+      }
+
+      const accessToken = body['access_token'] as string | undefined;
+      if (!accessToken) {
+        res.status(400).json({ status: 'error', error: 'no_token', message: 'No access_token in response' });
+        return;
+      }
+
+      saveOAuthToken('github', {
+        access_token: accessToken,
+        scope: body['scope'] as string | undefined,
+      });
+
+      // Auto-trigger GitHub sync after device flow connection (fire-and-forget)
+      import('../core/sync/index.js').then(({ syncProvider: sp }) => {
+        sp('github', vaultRoot).catch(() => {});
+      }).catch(() => {});
+
+      res.json({ status: 'complete', access_token: accessToken });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Device flow poll failed: ${msg}` });
     }
   });
 
@@ -1910,10 +2335,11 @@ export function createServer(vaultRoot: string, port: number): void {
   // ─── Observer APIs ────────────────────────────────────────────────────────
 
   // POST /api/observer/run — trigger observer manually
-  app.post('/api/observer/run', async (_req, res) => {
+  app.post('/api/observer/run', async (req, res) => {
     try {
+      const { autoImprove, maxImprovements, maxBudget, model } = req.body as { autoImprove?: boolean; maxImprovements?: number; maxBudget?: number; model?: string } ?? {};
       const { runObserver } = await import('../core/observer.js');
-      const report = await runObserver(config);
+      const report = await runObserver(config, { autoImprove, maxImprovements, maxBudget, model });
       res.json({
         success: true,
         date: report.date,
@@ -1924,6 +2350,16 @@ export function createServer(vaultRoot: string, port: number): void {
         orphanCount: report.orphans.length,
         gapCount: report.gaps.length,
         contradictionCount: report.contradictions.length,
+        contradictions: report.contradictions,
+        improvementCount: report.improvements?.length ?? 0,
+        improvements: report.improvements ?? [],
+        topIssues: report.topIssues ?? [],
+        weakestPages: report.scores.filter(s => s.score < report.maxScore).slice(0, 10).map(s => ({
+          title: s.title,
+          score: s.score,
+          maxScore: s.maxScore,
+          issues: s.issues,
+        })),
         reportPath: `.wikimem/observer-reports/${report.date}.json`,
       });
     } catch (err) {
@@ -1952,6 +2388,134 @@ export function createServer(vaultRoot: string, port: number): void {
       const report = readObserverReport(vaultRoot, date);
       if (!report) { res.status(404).json({ error: `No report found for ${date}` }); return; }
       res.json(report);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // ─── Lint / Health Check ──────────────────────────────────────────────────
+
+  // POST /api/lint — run wiki lint check (includes contradiction detection)
+  app.post('/api/lint', async (_req, res) => {
+    try {
+      const { lintWiki } = await import('../core/lint.js');
+      const { createProviderFromUserConfig } = await import('../providers/index.js');
+      const { loadConfig } = await import('../core/config.js');
+      const userConfig = loadConfig(config.configPath);
+      const provider = createProviderFromUserConfig(userConfig);
+      const result = await lintWiki(config, provider, { fix: false });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // GET /api/contradictions — get detected contradictions with page content for side-by-side diff
+  app.get('/api/contradictions', async (_req, res) => {
+    try {
+      const { flagContradictions } = await import('../core/observer.js');
+      const pages = listWikiPages(config.wikiDir);
+      const contradictions = flagContradictions(pages);
+      // Enrich with page content for side-by-side display
+      const enriched = contradictions.map(c => {
+        const pageA = readWikiPage(c.pageA);
+        const pageB = readWikiPage(c.pageB);
+        return {
+          ...c,
+          summaryA: String(pageA.frontmatter['summary'] ?? '').slice(0, 500),
+          summaryB: String(pageB.frontmatter['summary'] ?? '').slice(0, 500),
+          contentSnippetA: pageA.content.slice(0, 300),
+          contentSnippetB: pageB.content.slice(0, 300),
+        };
+      });
+      res.json({ contradictions: enriched, count: enriched.length });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // POST /api/contradictions/resolve — resolve a detected contradiction
+  app.post('/api/contradictions/resolve', async (req, res) => {
+    try {
+      const { pageAPath, pageBPath, resolution, reason } = req.body as {
+        pageAPath: string;
+        pageBPath: string;
+        resolution: 'keep-a' | 'keep-b' | 'merge' | 'dismiss';
+        reason?: string;
+      };
+      if (!pageAPath || !pageBPath || !resolution) {
+        res.status(400).json({ error: 'Missing pageAPath, pageBPath, or resolution' });
+        return;
+      }
+
+      const { readFileSync, writeFileSync } = await import('node:fs');
+      const matter = (await import('gray-matter')).default;
+      const { basename } = await import('node:path');
+
+      // Read both pages
+      const rawA = readFileSync(pageAPath, 'utf-8');
+      const rawB = readFileSync(pageBPath, 'utf-8');
+      const parsedA = matter(rawA);
+      const parsedB = matter(rawB);
+
+      const now = new Date().toISOString().split('T')[0] ?? '';
+      const entry = {
+        date: now,
+        resolution,
+        opposing_page: '',
+        reason: reason ?? '',
+      };
+
+      // Add conflicts_resolved to the page that "won" or both for merge/dismiss
+      if (resolution === 'keep-a' || resolution === 'merge' || resolution === 'dismiss') {
+        const existing = Array.isArray(parsedA.data['conflicts_resolved'])
+          ? (parsedA.data['conflicts_resolved'] as unknown[])
+          : [];
+        entry.opposing_page = basename(pageBPath, '.md');
+        existing.push({ ...entry });
+        parsedA.data['conflicts_resolved'] = existing;
+        parsedA.data['updated'] = now;
+        writeFileSync(pageAPath, matter.stringify(parsedA.content, parsedA.data), 'utf-8');
+      }
+
+      if (resolution === 'keep-b' || resolution === 'merge' || resolution === 'dismiss') {
+        const existing = Array.isArray(parsedB.data['conflicts_resolved'])
+          ? (parsedB.data['conflicts_resolved'] as unknown[])
+          : [];
+        entry.opposing_page = basename(pageAPath, '.md');
+        existing.push({ ...entry });
+        parsedB.data['conflicts_resolved'] = existing;
+        parsedB.data['updated'] = now;
+        writeFileSync(pageBPath, matter.stringify(parsedB.content, parsedB.data), 'utf-8');
+      }
+
+      // Auto-commit the resolution
+      try {
+        const { autoCommit, isGitRepo } = await import('../core/git.js');
+        if (await isGitRepo(vaultRoot)) {
+          const titleA = String(parsedA.data['title'] ?? basename(pageAPath, '.md'));
+          const titleB = String(parsedB.data['title'] ?? basename(pageBPath, '.md'));
+          await autoCommit(
+            vaultRoot,
+            'resolve',
+            `conflict between "${titleA}" and "${titleB}" → ${resolution}`,
+            reason ?? '',
+          );
+        }
+      } catch { /* non-fatal */ }
+
+      // Audit trail
+      try {
+        const { appendAuditEntry } = await import('../core/audit-trail.js');
+        appendAuditEntry(vaultRoot, {
+          action: 'edit',
+          actor: 'human',
+          summary: `Resolved conflict: ${resolution} (${basename(pageAPath, '.md')} vs ${basename(pageBPath, '.md')})${reason ? ': ' + reason : ''}`,
+          pagesAffected: [basename(pageAPath, '.md'), basename(pageBPath, '.md')],
+        });
+      } catch { /* non-fatal */ }
+
+      res.json({ success: true, resolution });
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }
@@ -2071,21 +2635,30 @@ export function createServer(vaultRoot: string, port: number): void {
       const { getConnectorManager } = await import('../core/connectors.js');
       const mgr = getConnectorManager(vaultRoot);
       const body = req.body as {
-        type: 'folder' | 'git-repo' | 'github';
+        type: string;
         name?: string;
         path?: string;
         url?: string;
         includeGlobs?: string[];
         excludeGlobs?: string[];
         autoSync?: boolean;
+        syncSchedule?: string;
+        topics?: string[];
       };
 
       if (!body.type) { res.status(400).json({ error: 'Missing type' }); return; }
 
       let resolvedPath = body.path || '';
 
-      // For git repos, clone if URL provided
-      if (body.type === 'github' || (body.type === 'git-repo' && body.url)) {
+      // RSS and Notion connectors don't need a filesystem path
+      if (body.type === 'rss' || body.type === 'notion') {
+        if (!body.url && body.type === 'rss') {
+          res.status(400).json({ error: 'RSS connector requires a feed URL' }); return;
+        }
+        resolvedPath = resolvedPath || join(vaultRoot, 'raw');
+        mkdirSync(resolvedPath, { recursive: true });
+      } else if (body.type === 'github' || (body.type === 'git-repo' && body.url)) {
+        // For git repos, clone if URL provided
         const reposDir = join(vaultRoot, '.wikimem-repos');
         mkdirSync(reposDir, { recursive: true });
         const repoName = (body.url ?? '').split('/').pop()?.replace('.git', '') || 'repo';
@@ -2105,13 +2678,14 @@ export function createServer(vaultRoot: string, port: number): void {
       }
 
       const connector = mgr.add({
-        type: body.type,
-        name: body.name || basename(resolvedPath),
+        type: body.type as 'folder' | 'git-repo' | 'github' | 'slack' | 'linear' | 'jira' | 'gmail' | 'gdrive' | 'notion' | 'rss',
+        name: body.name || (body.type === 'rss' ? (body.url ?? 'RSS Feed') : basename(resolvedPath)),
         path: resolvedPath,
         url: body.url,
         includeGlobs: body.includeGlobs,
         excludeGlobs: body.excludeGlobs,
         autoSync: body.autoSync ?? false,
+        syncSchedule: body.syncSchedule,
       });
 
       if (connector.autoSync) mgr.startWatcher(connector);
@@ -2197,6 +2771,144 @@ export function createServer(vaultRoot: string, port: number): void {
       res.status(500).json({ error: String(err) });
     }
   });
+
+  // ─── Platform Sync APIs ──────────────────────────────────────────────────
+
+  // Shared scheduler singleton — reused across routes and startup
+  let syncScheduler: import('../core/sync/index.js').SyncScheduler | null = null;
+  async function getSyncScheduler(): Promise<import('../core/sync/index.js').SyncScheduler> {
+    if (!syncScheduler) {
+      const { SyncScheduler } = await import('../core/sync/index.js');
+      syncScheduler = new SyncScheduler(vaultRoot);
+    }
+    return syncScheduler;
+  }
+
+  // IMPORTANT: Specific routes MUST be registered before the generic :provider route
+  // to avoid Express matching "rss" or "schedules" as a provider name.
+
+  // GET /api/sync/schedules — list all active sync schedules
+  app.get('/api/sync/schedules', async (_req, res) => {
+    try {
+      const scheduler = await getSyncScheduler();
+      res.json({ schedules: scheduler.getSchedules() });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // POST /api/sync/rss/:connectorId — trigger RSS feed sync for a specific connector
+  app.post('/api/sync/rss/:connectorId', async (req, res) => {
+    try {
+      const connectorId = req.params['connectorId'];
+      if (!connectorId) { res.status(400).json({ error: 'Missing connectorId' }); return; }
+      const { syncRssConnector } = await import('../core/sync/index.js');
+      const result = await syncRssConnector(connectorId, vaultRoot);
+      res.json(result);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `RSS sync failed: ${msg}` });
+    }
+  });
+
+  // POST /api/sync/:provider/schedule — set sync schedule for a provider
+  app.post('/api/sync/:provider/schedule', async (req, res) => {
+    try {
+      const provider = req.params['provider'];
+      const { schedule } = req.body as { schedule?: string };
+      if (!provider || !schedule) { res.status(400).json({ error: 'Missing provider or schedule' }); return; }
+      const scheduler = await getSyncScheduler();
+      scheduler.schedule(provider, schedule);
+      res.json({ status: 'scheduled', provider, schedule });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // POST /api/sync/:provider — trigger sync for a connected OAuth provider
+  // MUST be last among /api/sync/* routes (generic :provider catches everything)
+  app.post('/api/sync/:provider', async (req, res) => {
+    try {
+      const provider = req.params['provider'];
+      if (!provider) { res.status(400).json({ error: 'Missing provider' }); return; }
+      const { syncProvider } = await import('../core/sync/index.js');
+      const result = await syncProvider(provider, vaultRoot);
+      res.json(result);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Sync failed: ${msg}` });
+    }
+  });
+
+  // ─── Enhanced Webhooks ──────────────────────────────────────────────────
+
+  // POST /api/webhook/github — receive GitHub push/issue/PR webhooks
+  app.post('/api/webhook/github', async (req, res) => {
+    try {
+      const { parseGitHubWebhook, webhookToMarkdown } = await import('../core/webhooks.js');
+      const headers: Record<string, string> = {};
+      for (const [k, v] of Object.entries(req.headers)) {
+        if (typeof v === 'string') headers[k] = v;
+      }
+      const payload = parseGitHubWebhook(headers, req.body);
+      if (!payload) { res.status(200).json({ status: 'ignored' }); return; }
+
+      const markdown = webhookToMarkdown(payload);
+      const { mkdirSync: mkdir, writeFileSync: write } = await import('node:fs');
+      const { join: joinPath } = await import('node:path');
+      const { slugify } = await import('../core/vault.js');
+      const now = new Date().toISOString().split('T')[0] ?? '';
+      const dateDir = joinPath(config.rawDir, now);
+      mkdir(dateDir, { recursive: true });
+      const filePath = joinPath(dateDir, `github-${payload.event}-${slugify(payload.title.substring(0, 40))}.md`);
+      write(filePath, markdown, 'utf-8');
+
+      res.json({ status: 'received', event: payload.event, title: payload.title });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // POST /api/webhook/slack — receive Slack events and slash commands
+  app.post('/api/webhook/slack', async (req, res) => {
+    try {
+      const { parseSlackWebhook, webhookToMarkdown } = await import('../core/webhooks.js');
+      const headers: Record<string, string> = {};
+      for (const [k, v] of Object.entries(req.headers)) {
+        if (typeof v === 'string') headers[k] = v;
+      }
+      const payload = parseSlackWebhook(headers, req.body);
+      if (!payload) { res.status(200).json({ status: 'ignored' }); return; }
+
+      // Handle Slack URL verification challenge
+      if (payload.event === 'url_verification') {
+        res.json({ challenge: payload.content });
+        return;
+      }
+
+      const markdown = webhookToMarkdown(payload);
+      const { mkdirSync: mkdir, writeFileSync: write } = await import('node:fs');
+      const { join: joinPath } = await import('node:path');
+      const { slugify } = await import('../core/vault.js');
+      const now = new Date().toISOString().split('T')[0] ?? '';
+      const dateDir = joinPath(config.rawDir, now);
+      mkdir(dateDir, { recursive: true });
+      const filePath = joinPath(dateDir, `slack-${payload.event}-${slugify(payload.title.substring(0, 40))}.md`);
+      write(filePath, markdown, 'utf-8');
+
+      res.json({ status: 'received', event: payload.event, title: payload.title });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // Start SyncScheduler for connected providers (reuses singleton from routes)
+  getSyncScheduler().then((scheduler) => {
+    scheduler.startFromConfig();
+    scheduler.on('sync-complete', (result: { provider: string; filesWritten: number }) => {
+      console.log(`[sync] ${result.provider}: ${result.filesWritten} files synced`);
+    });
+  }).catch(() => {});
 
   // Wire file-detected events from connectors to auto-ingest
   (async () => {
@@ -2286,3 +2998,4 @@ export function createServer(vaultRoot: string, port: number): void {
     console.log(`  Vault: ${vaultRoot}\n`);
   });
 }
+

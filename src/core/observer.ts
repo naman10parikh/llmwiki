@@ -140,7 +140,8 @@ export interface PotentialContradiction {
  * Lightweight heuristic: two pages share a topic keyword in their title
  * but their summaries contain opposing sentiment words.
  */
-function flagContradictions(pagePaths: string[]): PotentialContradiction[] {
+/** Exported for lint + UI — heuristic opposing-summary pairs across related pages */
+export function flagContradictions(pagePaths: string[]): PotentialContradiction[] {
   const contradictions: PotentialContradiction[] = [];
 
   const OPPOSING_PAIRS: Array<[string, string]> = [
@@ -280,7 +281,139 @@ function buildIncomingLinksMap(pagePaths: string[]): Map<string, number> {
 
 export interface ObserverOptions {
   maxPagesToReview?: number;
-  maxCostEstimate?: number;
+  /** Max budget per run in USD (default: $2.00). Limits how many pages can be auto-improved. */
+  maxBudget?: number;
+  /** When true, use LLM to improve the weakest pages (not just score them) */
+  autoImprove?: boolean;
+  /** Max pages to auto-improve per run (default: 3) */
+  maxImprovements?: number;
+  /** Model to use for observer LLM calls (overrides config default) */
+  model?: string;
+}
+
+const COST_PER_IMPROVEMENT_ESTIMATE = 0.15;
+
+// ─── LLM-Powered Improvement ──────────────────────────────────────────────────
+
+export interface ImprovementResult {
+  page: string;
+  title: string;
+  originalScore: number;
+  newScore?: number;
+  action: string;
+  improved: boolean;
+  error?: string;
+}
+
+const IMPROVE_SYSTEM_PROMPT = `You are a wiki quality improvement agent. You are given a wiki page that has quality issues.
+
+Your job is to improve the page by:
+1. Adding a meaningful summary to the frontmatter if missing
+2. Adding relevant tags if missing
+3. Improving structure with proper headings if readability is low
+4. Expanding very short pages with useful context
+5. Adding [[wikilinks]] to related concepts if the page has no outbound links
+
+Rules:
+- Preserve all existing content — only ADD, never remove
+- Keep the existing YAML frontmatter format
+- Use [[Double Bracket]] notation for wikilinks
+- Be concise but informative
+- Return the COMPLETE page content including frontmatter
+
+Return ONLY the improved markdown content, nothing else.`;
+
+async function improveWeakPages(
+  config: VaultConfig,
+  scores: PageScore[],
+  options: ObserverOptions,
+  incomingLinks: Map<string, number>,
+): Promise<ImprovementResult[]> {
+  const results: ImprovementResult[] = [];
+  const maxToImprove = options.maxImprovements ?? 3;
+  const maxBudget = options.maxBudget ?? 2.0;
+  const budgetAllowedPages = Math.floor(maxBudget / COST_PER_IMPROVEMENT_ESTIMATE);
+  const effectiveMax = Math.min(maxToImprove, budgetAllowedPages);
+
+  if (effectiveMax <= 0) return results;
+
+  const weakPages = scores
+    .filter((s) => s.score < s.maxScore * 0.5 && s.issues.length > 0)
+    .sort((a, b) => a.score - b.score)
+    .slice(0, effectiveMax);
+
+  if (weakPages.length === 0) return results;
+
+  const { loadConfig } = await import('./config.js');
+  const userConfig = loadConfig(config.configPath);
+
+  for (const weak of weakPages) {
+    try {
+      const page = readWikiPage(weak.page);
+      const fullContent = readFileSync(weak.page, 'utf-8');
+      const issueList = weak.issues.map((i) => `- ${i}`).join('\n');
+
+      const prompt = `Improve this wiki page. Current quality score: ${weak.score}/${weak.maxScore}
+
+Issues found:
+${issueList}
+
+Current page content:
+---
+${fullContent}
+---
+
+Return the improved complete page content.`;
+
+      let improved: string;
+
+      if (userConfig.llm_mode === 'claude-code') {
+        const { runClaudeCode } = await import('./claude-code.js');
+        improved = await runClaudeCode(IMPROVE_SYSTEM_PROMPT, prompt, { maxTokens: 4096 });
+      } else {
+        const { createProviderFromUserConfig } = await import('../providers/index.js');
+        const provider = createProviderFromUserConfig(userConfig);
+        const response = await provider.chat([
+          { role: 'user', content: prompt },
+        ], { systemPrompt: IMPROVE_SYSTEM_PROMPT, maxTokens: 4096 });
+        improved = response.content;
+      }
+
+      if (improved && improved.trim().length > fullContent.length * 0.5) {
+        const { writeFileSync } = await import('node:fs');
+        writeFileSync(weak.page, improved.trim(), 'utf-8');
+        // Re-score to get newScore
+        const reScored = scorePage(weak.page, incomingLinks);
+        results.push({
+          page: weak.page,
+          title: weak.title,
+          originalScore: weak.score,
+          newScore: reScored.score,
+          action: `Improved: ${weak.issues.slice(0, 3).join(', ')}`,
+          improved: true,
+        });
+      } else {
+        results.push({
+          page: weak.page,
+          title: weak.title,
+          originalScore: weak.score,
+          action: 'LLM response too short — skipped',
+          improved: false,
+        });
+      }
+    } catch (err) {
+      results.push({
+        page: weak.page,
+        title: weak.title,
+        originalScore: weak.score,
+        action: 'Error during improvement',
+        improved: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  return results;
 }
 
 export interface ObserverReport {
@@ -295,6 +428,7 @@ export interface ObserverReport {
   contradictions: PotentialContradiction[];
   gaps: KnowledgeGap[];
   topIssues: Array<{ issue: string; count: number }>;
+  improvements: ImprovementResult[];
 }
 
 export function getObserverReportsDir(vaultRoot: string): string {
@@ -332,6 +466,12 @@ export async function runObserver(config: VaultConfig, options?: ObserverOptions
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
+  // LLM-powered improvement of weakest pages
+  let improvements: ImprovementResult[] = [];
+  if (options?.autoImprove) {
+    improvements = await improveWeakPages(config, scores, options, incomingLinks);
+  }
+
   const date = new Date().toISOString().split('T')[0] ?? '';
   const report: ObserverReport = {
     date,
@@ -345,6 +485,7 @@ export async function runObserver(config: VaultConfig, options?: ObserverOptions
     contradictions,
     gaps,
     topIssues,
+    improvements,
   };
 
   // Save report
@@ -352,6 +493,39 @@ export async function runObserver(config: VaultConfig, options?: ObserverOptions
   mkdirSync(reportsDir, { recursive: true });
   const reportPath = join(reportsDir, `${date}.json`);
   writeFileSync(reportPath, JSON.stringify(report, null, 2), 'utf-8');
+
+  // Build rich commit body with details
+  const improvementLines = improvements
+    .filter((i) => i.improved)
+    .map((i) => `  ✓ ${i.title} (was ${i.originalScore}/${MAX_SCORE}): ${i.action}`);
+  const failedLines = improvements
+    .filter((i) => !i.improved)
+    .map((i) => `  ✗ ${i.title}: ${i.action}${i.error ? ` — ${i.error}` : ''}`);
+
+  const weakestPages = scores
+    .filter((s) => s.score < MAX_SCORE * 0.7)
+    .slice(0, 5)
+    .map((s) => `  ${s.title}: ${s.score}/${MAX_SCORE} — ${s.issues[0] ?? 'no issues'}`);
+
+  const commitBodyParts = [
+    `Pages: ${allPaths.length} (reviewed: ${reviewPaths.length})`,
+    `Average score: ${avgScore}/${MAX_SCORE}`,
+    `Orphans: ${orphans.length} | Gaps: ${gaps.length} | Contradictions: ${contradictions.length}`,
+  ];
+  if (improvementLines.length > 0) {
+    commitBodyParts.push('', 'Improvements applied:', ...improvementLines);
+  }
+  if (failedLines.length > 0) {
+    commitBodyParts.push('', 'Improvement failures:', ...failedLines);
+  }
+  if (weakestPages.length > 0) {
+    commitBodyParts.push('', 'Weakest pages:', ...weakestPages);
+  }
+  const commitBody = commitBodyParts.join('\n');
+
+  const commitSubject = improvements.some((i) => i.improved)
+    ? `quality scan + ${improvements.filter((i) => i.improved).length} page(s) improved`
+    : 'nightly quality scan';
 
   // Auto-commit
   try {
@@ -361,18 +535,25 @@ export async function runObserver(config: VaultConfig, options?: ObserverOptions
       const commitResult = await autoCommit(
         config.root,
         'observe',
-        'nightly quality scan',
-        `Pages: ${allPaths.length} (reviewed: ${reviewPaths.length}) | Avg score: ${avgScore}/${MAX_SCORE} | Orphans: ${orphans.length} | Gaps: ${gaps.length}`,
+        commitSubject,
+        commitBody,
       );
       commitHash = commitResult?.hash;
     }
+
+    const improveSummary = improvements.length > 0
+      ? ` Improved ${improvements.filter((i) => i.improved).length}/${improvements.length} pages.`
+      : '';
 
     appendAuditEntry(config.root, {
       action: 'observe',
       actor: 'observer',
       source: reportPath,
-      summary: `Quality scan: ${allPaths.length} pages (${reviewPaths.length} reviewed), avg score ${avgScore}/${MAX_SCORE}, ${orphans.length} orphans, ${gaps.length} gaps, ${contradictions.length} contradictions.`,
-      pagesAffected: reviewPaths.map((p) => basename(p, '.md')),
+      summary: `Quality scan: ${allPaths.length} pages (${reviewPaths.length} reviewed), avg score ${avgScore}/${MAX_SCORE}, ${orphans.length} orphans, ${gaps.length} gaps, ${contradictions.length} contradictions.${improveSummary}`,
+      pagesAffected: [
+        ...improvements.filter((i) => i.improved).map((i) => basename(i.page, '.md')),
+        ...reviewPaths.map((p) => basename(p, '.md')),
+      ],
       commitHash,
       duration: Date.now() - startMs,
     });

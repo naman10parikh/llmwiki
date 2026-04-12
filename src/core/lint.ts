@@ -1,8 +1,8 @@
-import { existsSync } from 'node:fs';
 import type { LLMProvider } from '../providers/types.js';
 import type { VaultConfig } from './vault.js';
-import { listWikiPages, readWikiPage, getVaultStats } from './vault.js';
+import { listWikiPages, readWikiPage } from './vault.js';
 import { basename } from 'node:path';
+import { flagContradictions } from './observer.js';
 
 export interface LintIssue {
   category: 'orphan' | 'contradiction' | 'stale' | 'missing-link' | 'empty' | 'no-summary';
@@ -114,10 +114,26 @@ export async function lintWiki(
     }
   }
 
-  // Calculate score
-  const maxIssues = pageData.length * 3; // rough estimate
-  const issueWeight = issues.reduce((sum, i) => sum + (i.severity === 'error' ? 10 : 3), 0);
-  const score = Math.max(0, Math.min(100, Math.round(100 - (issueWeight / Math.max(maxIssues, 1)) * 100)));
+  // Check 5: Potential contradictions (same heuristic as Observer)
+  for (const c of flagContradictions(pages)) {
+    issues.push({
+      category: 'contradiction',
+      severity: 'warning',
+      message: c.reason,
+      page: c.pageA,
+    });
+  }
+
+  // Calculate score — weight by severity and category
+  // Broken wikilinks are common in growing wikis (knowledge gaps), so weight them low
+  const issueWeight = issues.reduce((sum, i) => {
+    if (i.severity === 'error') return sum + 10;
+    if (i.category === 'missing-link') return sum + 0.5; // knowledge gaps are normal
+    if (i.category === 'no-summary') return sum + 1;
+    return sum + 2;
+  }, 0);
+  const maxPenalty = pageData.length * 5; // rough ceiling
+  const score = Math.max(0, Math.min(100, Math.round(100 - (issueWeight / Math.max(maxPenalty, 1)) * 100)));
 
   return { score, issues };
 }

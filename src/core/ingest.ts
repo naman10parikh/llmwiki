@@ -3,7 +3,7 @@ import { join, basename, extname, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { LLMProvider, LLMResponse } from '../providers/types.js';
 import type { VaultConfig } from './vault.js';
-import { readWikiPage, writeWikiPage, listWikiPages, slugify } from './vault.js';
+import { readWikiPage, writeWikiPage, writeWikiPageVersioned, listWikiPages, slugify } from './vault.js';
 import { updateIndex } from './index-manager.js';
 import { appendLog } from './log-manager.js';
 import { processText } from '../processors/text.js';
@@ -15,6 +15,7 @@ import { isPdfFile, processPdf } from '../processors/pdf.js';
 import { processDocx } from '../processors/docx.js';
 import { processXlsx } from '../processors/xlsx.js';
 import { processPptx } from '../processors/pptx.js';
+import { isCsvFile, processCsv } from '../processors/csv.js';
 import { embedPage } from '../search/semantic.js';
 import type { EmbeddingProvider } from '../providers/embeddings.js';
 
@@ -143,6 +144,13 @@ async function _ingestSourceInner(
           title = pptResult.title;
           break;
         }
+        case '.csv':
+        case '.tsv': {
+          const csvResult = await processCsv(source);
+          content = csvResult.markdown;
+          title = csvResult.title;
+          break;
+        }
         case '.json':
           content = `# ${basename(source, ext)}\n\n\`\`\`json\n${readFileSync(source, 'utf-8').substring(0, 20000)}\n\`\`\``;
           title = basename(source, ext);
@@ -233,7 +241,15 @@ async function _ingestSourceInner(
     : '';
 
   const prompt = buildIngestPrompt(content, title, schema, indexContent);
-  const systemPrompt = `You are a wiki maintainer. You process source documents and produce structured wiki pages in markdown with YAML frontmatter and [[wikilinks]]. Follow the schema in AGENTS.md exactly. Be concise, factual, and thorough in cross-referencing.`;
+
+  // Detect source type and enhance system prompt accordingly
+  const { detectSourceType, getSourceTypePrompt } = await import('../templates/source-types.js');
+  const ext = extname(source).toLowerCase();
+  const mimeGuess = ext === '.pdf' ? 'application/pdf' : ext === '.mp3' || ext === '.wav' ? 'audio/' : ext === '.mp4' ? 'video/' : ext === '.html' ? 'text/html' : undefined;
+  const detectedType = detectSourceType(content, title, mimeGuess);
+  const sourceTypeAddition = getSourceTypePrompt(detectedType);
+
+  const systemPrompt = `You are a wiki maintainer. You process source documents and produce structured wiki pages in markdown with YAML frontmatter and [[wikilinks]]. Follow the schema in AGENTS.md exactly. Be concise, factual, and thorough in cross-referencing.${sourceTypeAddition}`;
 
   const llmStart = Date.now();
 
@@ -270,6 +286,9 @@ async function _ingestSourceInner(
   let pagesUpdated = 0;
   let linksAdded = 0;
 
+  // Generate a session ID for multi-session reasoning (COMP-MP-005)
+  const sessionId = `ingest-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+
   for (const page of pages) {
     // User-supplied category overrides LLM-detected category
     const pageCategory = options.category ?? page.category;
@@ -282,6 +301,9 @@ async function _ingestSourceInner(
     // Merge user-supplied tags with LLM-detected tags (dedup)
     const mergedTags = [...new Set([...page.tags, ...(options.tags ?? [])])];
 
+    // Compute initial confidence score (0-100)
+    const confidence = computeConfidence(page, rawPath, response.model ?? 'unknown');
+
     const frontmatterData: Record<string, unknown> = {
       title: page.title,
       type: pageCategory,
@@ -291,6 +313,8 @@ async function _ingestSourceInner(
       sources: [rawPath],
       summary: page.summary,
       added_by: options.addedBy ?? 'human',
+      confidence,
+      validation_status: 'unreviewed',
     };
 
     // Merge any custom metadata from --interactive or future extensions
@@ -300,7 +324,13 @@ async function _ingestSourceInner(
       }
     }
 
-    writeWikiPage(pagePath, page.content, frontmatterData);
+    // Use versioned write: adds learned_at, fact_version, ingest_session,
+    // and archives previous content if page already exists (COMP-MP-002)
+    writeWikiPageVersioned(pagePath, page.content, frontmatterData, config.root, {
+      source: rawPath,
+      actor: options.addedBy ?? 'human',
+      sessionId,
+    });
 
     pagesUpdated++;
     linksAdded += (page.content.match(/\[\[[^\]]+\]\]/g) ?? []).length;
@@ -460,6 +490,49 @@ function findExistingRawHash(
     // Dir read error
   }
   return undefined;
+}
+
+/**
+ * Compute an initial confidence score (0-100) for an auto-generated page.
+ * Factors: source file type, content length, wikilink density, model tier, summary presence.
+ */
+function computeConfidence(
+  page: ParsedPage,
+  rawPath: string,
+  model: string,
+): number {
+  let score = 50; // baseline
+
+  // Source quality: structured formats score higher
+  const ext = rawPath.split('.').pop()?.toLowerCase() ?? '';
+  const structuredExts = ['json', 'yaml', 'yml', 'csv', 'xlsx', 'tsv'];
+  const richExts = ['md', 'html', 'htm', 'tex'];
+  if (structuredExts.includes(ext)) score += 10;
+  else if (richExts.includes(ext)) score += 8;
+  else if (ext === 'pdf') score += 5;
+  else if (['txt', 'log'].includes(ext)) score += 2;
+
+  // Content density: longer, more detailed content = higher confidence
+  const wordCount = (page.content || '').split(/\s+/).filter(Boolean).length;
+  if (wordCount > 300) score += 10;
+  else if (wordCount > 100) score += 5;
+  else if (wordCount < 30) score -= 10;
+
+  // Wikilink density: more cross-references = better integration
+  const linkCount = (page.content.match(/\[\[[^\]]+\]\]/g) ?? []).length;
+  if (linkCount >= 5) score += 8;
+  else if (linkCount >= 2) score += 4;
+  else if (linkCount === 0) score -= 5;
+
+  // Summary present
+  if (page.summary && page.summary.trim().length > 20) score += 5;
+
+  // Model tier bonus
+  const modelLower = model.toLowerCase();
+  if (modelLower.includes('opus') || modelLower.includes('gpt-4') || modelLower.includes('sonnet')) score += 7;
+  else if (modelLower.includes('haiku') || modelLower.includes('gpt-3') || modelLower.includes('mini')) score -= 3;
+
+  return Math.max(0, Math.min(100, score));
 }
 
 function buildIngestPrompt(

@@ -18,7 +18,11 @@ export async function processPdf(filePath: string): Promise<PdfResult> {
   const buffer = readFileSync(filePath);
 
   try {
-    const pdfParseModule = await import('pdf-parse');
+    // Import from lib/ directly to avoid pdf-parse's index.js self-test bug
+    // (index.js tries to open ./test/data/05-versions-space.pdf on import)
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error — pdf-parse/lib has no type declarations
+    const pdfParseModule = await import('pdf-parse/lib/pdf-parse.js');
     const pdfParse = (pdfParseModule.default ?? pdfParseModule) as (buf: Buffer) => Promise<{ text: string; numpages: number; info: Record<string, unknown> }>;
     const data = await pdfParse(buffer);
     const content = data.text.trim();

@@ -81,6 +81,91 @@ export function writeWikiPage(
   writeFileSync(filePath, output, 'utf-8');
 }
 
+/** Version entry stored in .wikimem/versions/<slug>.versions.json */
+export interface PageVersion {
+  version: number;
+  timestamp: string;
+  content: string;
+  frontmatter: Record<string, unknown>;
+  source?: string;
+  actor?: string;
+}
+
+/**
+ * Write a wiki page with temporal versioning (COMP-MP-002 + COMP-MP-005).
+ * - Adds `learned_at`, `fact_version`, `ingest_session` to frontmatter
+ * - If the page already exists, archives the previous version to .wikimem/versions/
+ * - Maintains `previous_versions` count in frontmatter
+ */
+export function writeWikiPageVersioned(
+  filePath: string,
+  content: string,
+  frontmatter: Record<string, unknown>,
+  vaultRoot: string,
+  options?: { source?: string; actor?: string; sessionId?: string },
+): void {
+  const now = new Date().toISOString();
+  const slug = basename(filePath, extname(filePath));
+  const versionsDir = join(vaultRoot, '.wikimem', 'versions');
+  const versionsFile = join(versionsDir, `${slug}.versions.json`);
+
+  // Load existing versions
+  let versions: PageVersion[] = [];
+  if (existsSync(versionsFile)) {
+    try {
+      versions = JSON.parse(readFileSync(versionsFile, 'utf-8')) as PageVersion[];
+    } catch { /* corrupted file — start fresh */ }
+  }
+
+  // If the page already exists, archive the current content as a version
+  if (existsSync(filePath)) {
+    try {
+      const existing = readWikiPage(filePath);
+      versions.push({
+        version: versions.length + 1,
+        timestamp: (existing.frontmatter['updated'] as string) ?? (existing.frontmatter['learned_at'] as string) ?? now,
+        content: existing.content,
+        frontmatter: existing.frontmatter,
+        source: (existing.frontmatter['sources'] as string[])?.[0],
+        actor: (existing.frontmatter['added_by'] as string) ?? 'unknown',
+      });
+    } catch { /* file exists but unreadable — skip archival */ }
+  }
+
+  const newVersion = versions.length + 1;
+
+  // Enrich frontmatter with temporal fields
+  frontmatter['learned_at'] = now;
+  frontmatter['fact_version'] = newVersion;
+  frontmatter['previous_versions'] = versions.length;
+  if (options?.sessionId) {
+    frontmatter['ingest_session'] = options.sessionId;
+  }
+  if (options?.actor) {
+    frontmatter['added_by'] = options.actor;
+  }
+
+  // Write the page
+  writeWikiPage(filePath, content, frontmatter);
+
+  // Persist version history
+  if (!existsSync(versionsDir)) {
+    mkdirSync(versionsDir, { recursive: true });
+  }
+  writeFileSync(versionsFile, JSON.stringify(versions, null, 2), 'utf-8');
+}
+
+/** Read version history for a page */
+export function readPageVersions(vaultRoot: string, slug: string): PageVersion[] {
+  const versionsFile = join(vaultRoot, '.wikimem', 'versions', `${slug}.versions.json`);
+  if (!existsSync(versionsFile)) return [];
+  try {
+    return JSON.parse(readFileSync(versionsFile, 'utf-8')) as PageVersion[];
+  } catch {
+    return [];
+  }
+}
+
 export function listWikiPages(wikiDir: string): string[] {
   if (!existsSync(wikiDir)) return [];
   const pages: string[] = [];

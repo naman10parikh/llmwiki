@@ -22,7 +22,7 @@ function simpleGlobMatch(filename: string, pattern: string): boolean {
   return regex.test(filename);
 }
 
-export type ConnectorType = 'folder' | 'git-repo' | 'github' | 'slack' | 'linear' | 'jira' | 'gmail' | 'gdrive';
+export type ConnectorType = 'folder' | 'git-repo' | 'github' | 'slack' | 'linear' | 'jira' | 'gmail' | 'gdrive' | 'notion' | 'rss';
 
 export interface ConnectorConfig {
   id: string;

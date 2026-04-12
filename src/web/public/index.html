@@ -368,13 +368,17 @@
     .tree-chevron.open { transform: rotate(90deg); }
 
     .tree-icon {
-      width: 18px;
-      min-width: 18px;
-      text-align: center;
-      font-size: 11px;
+      width: 16px;
+      min-width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       color: var(--text-muted);
-      margin-right: 4px;
+      margin-right: 5px;
+      flex-shrink: 0;
     }
+    .tree-icon svg { width: 14px; height: 14px; }
     .tree-item.active .tree-icon { color: var(--accent); }
 
     .tree-label {
@@ -548,6 +552,9 @@
     }
     .tab:hover .tab-close, .tab.active .tab-close { opacity: 1; }
     .tab-close:hover { background: var(--bg-hover); color: var(--text); }
+    .tab-drag-over { background: var(--accent-dim); border-left: 2px solid var(--accent); }
+    .tab[draggable] { cursor: grab; }
+    .tab[draggable]:active { cursor: grabbing; }
 
     #tab-new {
       width: 28px; height: 28px;
@@ -685,6 +692,62 @@
       transition: border-color 0.2s;
     }
     .stat-card:hover { border-color: var(--border); }
+
+    /* Health badges */
+    .health-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: var(--radius-md);
+      background: var(--bg-card); border: 1px solid var(--border);
+      font-size: 12px; color: var(--text-secondary); transition: border-color 0.15s;
+    }
+    .health-badge:hover { border-color: var(--accent); }
+    .health-badge-icon { font-size: 14px; }
+    .health-badge-count { font-weight: 600; color: var(--text-bright); }
+    .health-badge-label { color: var(--text-dim); }
+    .health-badge.warning { border-color: rgba(215,186,125,0.3); background: rgba(215,186,125,0.06); }
+    .health-badge.danger { border-color: rgba(241,76,76,0.3); background: rgba(241,76,76,0.06); }
+
+    /* Conflict card */
+    .conflict-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 14px; margin-bottom: 10px;
+    }
+    .conflict-card-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px;
+    }
+    .conflict-reason {
+      font-size: 11px; color: var(--amber); font-style: italic; margin-bottom: 10px;
+    }
+    .conflict-sides {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;
+    }
+    .conflict-side {
+      background: var(--bg-surface); border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm); padding: 10px; font-size: 12px;
+    }
+    .conflict-side-title {
+      font-weight: 600; color: var(--text-bright); margin-bottom: 6px;
+      cursor: pointer;
+    }
+    .conflict-side-title:hover { color: var(--accent); }
+    .conflict-side-summary { color: var(--text-secondary); line-height: 1.5; }
+    .conflict-side-snippet {
+      margin-top: 6px; font-size: 11px; color: var(--text-dim);
+      border-top: 1px solid var(--border-subtle); padding-top: 6px;
+      max-height: 80px; overflow: hidden;
+    }
+    .conflict-actions {
+      display: flex; gap: 6px; flex-wrap: wrap;
+    }
+    .conflict-btn {
+      padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+      background: var(--bg-surface); color: var(--text-secondary);
+      font-size: 11px; cursor: pointer; transition: all 0.15s;
+    }
+    .conflict-btn:hover { border-color: var(--accent); color: var(--text-bright); }
+    .conflict-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .conflict-btn.primary:hover { opacity: 0.9; }
     .stat-value {
       font-size: 22px;
       font-weight: 600;
@@ -768,6 +831,29 @@
       color: var(--text-bright);
       text-wrap: balance;
     }
+
+    /* ── Fact Timeline (COMP-MP-002 temporal reasoning) ── */
+    #page-fact-timeline { margin: 12px 0 18px; }
+    .fact-timeline-toggle { display:flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-muted); font-size:12px; user-select:none; padding:4px 0; }
+    .fact-timeline-toggle:hover { color:var(--text-primary); }
+    .fact-timeline-toggle .ft-chevron { transition:transform 0.15s; font-size:10px; }
+    .fact-timeline-toggle .ft-chevron.open { transform:rotate(90deg); }
+    .fact-timeline-body { overflow:hidden; max-height:0; transition:max-height 0.25s ease; }
+    .fact-timeline-body.open { max-height:600px; overflow-y:auto; }
+    .ft-entries { position:relative; padding-left:20px; margin:8px 0 0; }
+    .ft-entries::before { content:''; position:absolute; left:6px; top:0; bottom:0; width:2px; background:var(--border-subtle); border-radius:1px; }
+    .ft-entry { position:relative; padding:6px 0 6px 12px; font-size:12px; line-height:1.5; }
+    .ft-entry::before { content:''; position:absolute; left:-17px; top:12px; width:8px; height:8px; border-radius:50%; border:2px solid var(--accent); background:var(--bg-surface); }
+    .ft-entry.ft-current::before { background:var(--accent); }
+    .ft-entry-header { display:flex; align-items:center; gap:8px; }
+    .ft-version-badge { background:var(--accent); color:#fff; font-size:10px; padding:1px 6px; border-radius:8px; font-weight:600; }
+    .ft-version-badge.ft-old { background:var(--border-subtle); color:var(--text-muted); }
+    .ft-timestamp { color:var(--text-muted); font-size:11px; }
+    .ft-actor { color:var(--text-muted); font-size:11px; font-style:italic; }
+    .ft-source { color:var(--text-muted); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:300px; }
+    .ft-diff-btn { font-size:11px; color:var(--accent); background:none; border:1px solid var(--border-subtle); border-radius:4px; padding:1px 6px; cursor:pointer; margin-left:auto; }
+    .ft-diff-btn:hover { border-color:var(--accent); }
+    .ft-diff-preview { background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:6px; padding:8px 10px; margin:4px 0; font-size:11px; color:var(--text-muted); max-height:120px; overflow-y:auto; white-space:pre-wrap; word-break:break-word; }
 
     /* ── Metadata Properties Panel (Obsidian-style) ── */
     #page-meta {
@@ -1067,6 +1153,21 @@
     .st-btn code { font-size: 11px; font-family: inherit; }
     .st-divider { width: 1px; height: 18px; background: var(--border-subtle, var(--border)); margin: 0 2px; }
 
+    /* ── @Mention Autocomplete (ENT-002) ── */
+    #mention-popup {
+      position: fixed; z-index: 9998; display: none;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.35); max-height: 200px; overflow-y: auto;
+      min-width: 200px; max-width: 320px; padding: 4px;
+    }
+    #mention-popup.visible { display: block; }
+    .mention-item {
+      padding: 6px 12px; font-size: 12px; color: var(--text-secondary); cursor: pointer;
+      border-radius: 5px; transition: background 0.08s; display: flex; align-items: center; gap: 8px;
+    }
+    .mention-item:hover, .mention-item.active { background: var(--bg-hover); color: var(--text-bright); }
+    .mention-item-type { font-size: 9px; padding: 1px 6px; border-radius: 3px; background: var(--accent-dim); color: var(--accent); font-weight: 600; text-transform: uppercase; }
+
     /* ── Entity / concept profile (UX-031) ── */
     #page-entity-profile:empty { display: none; }
     #page-entity-profile:not(:empty) { margin: 0 0 8px; }
@@ -1294,6 +1395,23 @@
     .wiki-source-link:hover { text-decoration: underline; text-underline-offset: 2px; color: var(--wiki-link-hover); }
     .wiki-see-also-list { margin: 0; padding-left: 1.25em; list-style: disc; color: var(--text-secondary); font-size: 14px; }
     .wiki-see-also-list li { margin: 5px 0; }
+    /* Similar Pages section */
+    .similar-pages-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .similar-page-card { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius); cursor: pointer; font-size: 13px; color: var(--text-secondary); transition: border-color 0.15s, background 0.15s; max-width: 280px; }
+    .similar-page-card:hover { border-color: var(--accent); background: var(--accent-dim); color: var(--text-bright); }
+    .similar-page-card .sim-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+    .similar-page-card .sim-score { font-size: 11px; color: var(--text-muted); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .similar-page-card .sim-tags { display: flex; gap: 3px; flex-shrink: 0; }
+    .similar-page-card .sim-tag { font-size: 10px; padding: 1px 5px; border-radius: 3px; background: var(--accent-dim); color: var(--accent); }
+    /* Search filters */
+    .search-filters { display: flex; gap: 6px; padding: 4px 12px 6px; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--border-subtle); }
+    .search-filter-chip { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-secondary); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .search-filter-chip:hover { border-color: var(--accent); color: var(--text-bright); }
+    .search-filter-chip.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+    .search-filter-select { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-secondary); outline: none; }
+    .search-filter-select:focus { border-color: var(--accent); }
+    /* Search snippet highlight */
+    #search-results mark, .search-result mark { background: rgba(79,158,255,0.2); color: var(--text-bright); border-radius: 2px; padding: 0 1px; }
     .page-article-footer {
       margin-top: 32px;
       padding-top: 14px;
@@ -1337,6 +1455,36 @@
     #page-title-row { display: flex; align-items: flex-start; gap: 12px; }
     #page-title-row #page-title { flex: 1; min-width: 0; }
     #page-edit-btn { display: none !important; }
+
+    /* ── Confidence Badge ── */
+    .confidence-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 500; padding: 2px 8px;
+      border-radius: 10px; white-space: nowrap; flex-shrink: 0;
+      margin-top: 8px; line-height: 1;
+    }
+    .confidence-badge.high { background: var(--green-dim); color: var(--green); }
+    .confidence-badge.medium { background: rgba(215,186,125,0.12); color: var(--amber); }
+    .confidence-badge.low { background: var(--red-dim); color: var(--red); }
+    .confidence-badge svg { width: 10px; height: 10px; }
+
+    /* ── Validation Controls ── */
+    .validation-bar {
+      display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap;
+    }
+    .validation-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; padding: 3px 10px; border-radius: 4px;
+      border: 1px solid var(--border-subtle); background: transparent;
+      color: var(--text-dim); cursor: pointer; transition: all 0.12s;
+    }
+    .validation-btn:hover { background: var(--bg-hover); color: var(--text); border-color: var(--border); }
+    .validation-btn.active-verified { background: var(--green-dim); color: var(--green); border-color: var(--green); }
+    .validation-btn.active-outdated { background: rgba(215,186,125,0.12); color: var(--amber); border-color: var(--amber); }
+    .validation-btn.active-wrong { background: var(--red-dim); color: var(--red); border-color: var(--red); }
+    .validation-status-label {
+      font-size: 10px; color: var(--text-muted); margin-left: 4px;
+    }
 
     /* ── WYSIWYG Inline Editor (Obsidian-style) ── */
     #page-editor { display: none; } /* kept for compatibility but not used */
@@ -2132,6 +2280,63 @@
     .conn-modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
     .btn-danger:hover { background:var(--red-dim)!important; color:var(--red)!important; }
 
+    /* ── OAuth Connector Cards (v2 — clean one-click) ── */
+    .oauth-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    @media (max-width:600px) { .oauth-grid { grid-template-columns:1fr; } }
+    .oauth-card { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:12px; transition:border-color 0.2s, box-shadow 0.2s; }
+    .oauth-card:hover { border-color:rgba(79,158,255,0.3); }
+    .oauth-card.oauth-connected { border-color:rgba(78,201,176,0.25); }
+    .oauth-card-top { display:flex; align-items:center; gap:10px; }
+    .oauth-card-icon { width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .oauth-card-icon.github { background:rgba(255,255,255,0.08); color:#e0e0e0; }
+    .oauth-card-icon.slack { background:rgba(74,21,75,0.15); color:#e0e0e0; }
+    .oauth-card-icon.google { background:rgba(66,133,244,0.1); }
+    .oauth-card-icon.linear { background:rgba(99,91,255,0.1); color:#635BFF; }
+    .oauth-card-icon.jira { background:rgba(0,82,204,0.1); color:#0052CC; }
+    .oauth-card-info { flex:1; min-width:0; }
+    .oauth-card-name { font-size:13px; font-weight:600; color:var(--text-bright); }
+    .oauth-card-desc { font-size:11px; color:var(--text-muted); margin-top:1px; line-height:1.3; }
+    .oauth-card-badge { font-size:10px; padding:2px 8px; border-radius:10px; font-weight:600; flex-shrink:0; letter-spacing:0.2px; }
+    .oauth-card-badge.connected { background:rgba(78,201,176,0.12); color:#4ec9b0; }
+    .oauth-card-badge.ready { background:rgba(79,158,255,0.12); color:#4f9eff; }
+    .oauth-card-actions { display:flex; gap:8px; align-items:center; }
+    .oauth-connect-btn { flex:1; padding:8px 16px; border:none; border-radius:var(--radius-md); font-family:var(--font); font-size:12px; font-weight:600; cursor:pointer; transition:opacity 0.15s, transform 0.1s; text-align:center; }
+    .oauth-connect-btn:hover { opacity:0.9; }
+    .oauth-connect-btn:active { transform:scale(0.98); }
+    .oauth-connect-btn.primary { background:var(--accent); color:var(--bg-deep); }
+    .oauth-connect-btn.secondary { background:var(--bg-surface); color:var(--text); border:1px solid var(--border); }
+    .oauth-connect-btn.danger { background:transparent; color:var(--red); border:1px solid rgba(241,76,76,0.25); font-weight:500; flex:0; padding:8px 12px; }
+    .oauth-connect-btn.danger:hover { background:rgba(241,76,76,0.08); }
+    .oauth-connect-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+    .oauth-connected-meta { font-size:11px; color:var(--text-muted); }
+    .oauth-info-tip { font-size:11px; color:var(--text-muted); line-height:1.4; padding:8px 10px; background:var(--bg-surface); border-radius:var(--radius); }
+    .oauth-info-tip a { color:var(--accent); text-decoration:none; }
+    .oauth-info-tip a:hover { text-decoration:underline; }
+    /* Device flow UI */
+    .device-flow-box { background:var(--bg-surface); border:1px solid var(--border); border-radius:8px; padding:14px; text-align:center; }
+    .device-flow-code { font-family:var(--font-mono); font-size:22px; font-weight:700; color:var(--text-bright); letter-spacing:3px; padding:8px 0; user-select:all; }
+    .device-flow-steps { font-size:12px; color:var(--text-secondary); line-height:1.6; }
+    .device-flow-steps a { color:var(--accent); text-decoration:none; font-weight:500; }
+    .device-flow-steps a:hover { text-decoration:underline; }
+    .device-flow-status { font-size:11px; color:var(--text-muted); margin-top:8px; display:flex; align-items:center; justify-content:center; gap:6px; }
+    .device-flow-spinner { width:12px; height:12px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:df-spin 0.8s linear infinite; display:inline-block; }
+    @keyframes df-spin { to { transform:rotate(360deg); } }
+    /* Advanced setup collapsible */
+    .oauth-advanced-toggle { display:flex; align-items:center; gap:6px; padding:10px 0 6px; cursor:pointer; font-size:12px; color:var(--text-muted); font-weight:500; border:none; background:none; font-family:var(--font); }
+    .oauth-advanced-toggle:hover { color:var(--text-secondary); }
+    .oauth-advanced-toggle svg { transition:transform 0.2s; }
+    .oauth-advanced-toggle.open svg { transform:rotate(90deg); }
+    .oauth-advanced-body { display:none; padding:12px 0; }
+    .oauth-advanced-body.open { display:block; }
+    .oauth-setup-steps { margin:8px 0; padding:0; list-style:none; counter-reset:step; }
+    .oauth-setup-steps li { position:relative; padding:6px 0 6px 28px; font-size:11px; color:var(--text-secondary); line-height:1.5; }
+    .oauth-setup-steps li::before { counter-increment:step; content:counter(step); position:absolute; left:0; top:6px; width:20px; height:20px; border-radius:50%; background:var(--bg); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:600; color:var(--text-muted); }
+    .oauth-setup-steps code { background:var(--bg); border:1px solid var(--border); border-radius:3px; padding:1px 4px; font-size:10px; color:var(--accent); }
+    .oauth-input-row { display:flex; gap:8px; margin-top:8px; }
+    .oauth-input-row .settings-input { flex:1; font-size:12px; }
+    .oauth-actions { display:flex; gap:8px; margin-top:10px; align-items:center; }
+    .oauth-actions .settings-status { font-size:11px; }
+
     .pipe-history h3 { font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px; }
     .pipe-run-item { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin-bottom:8px; cursor:pointer; transition:border-color .15s, background .15s; }
     .pipe-run-item:hover { border-color:var(--accent); background:var(--bg-hover); }
@@ -2337,6 +2542,21 @@
     .btn-secondary { background:var(--bg-card); border:1px solid var(--border); color:var(--text); padding:7px 16px; border-radius:var(--radius-md); font-size:13px; cursor:pointer; }
     .btn-secondary:hover { background:var(--bg-hover); border-color:var(--accent); }
 
+    /* ── Contradiction compare (Observer / SUP-004) ── */
+    .cx-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:210; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(2px); }
+    .cx-modal { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-lg); width:min(960px,96vw); max-height:88vh; display:flex; flex-direction:column; box-shadow:0 16px 48px rgba(0,0,0,0.55); }
+    .cx-modal-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border); }
+    .cx-modal-header h3 { font-size:14px; font-weight:600; margin:0; line-height:1.35; }
+    .cx-modal-reason { font-size:12px; color:var(--text-secondary); margin-top:6px; line-height:1.45; }
+    .cx-modal-body { display:flex; flex:1; min-height:0; gap:0; }
+    .cx-col { flex:1; min-width:0; display:flex; flex-direction:column; border-right:1px solid var(--border); }
+    .cx-col:last-child { border-right:none; }
+    .cx-col-head { font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim); padding:8px 12px; background:var(--bg-surface); border-bottom:1px solid var(--border); }
+    .cx-col-body { padding:12px; overflow:auto; flex:1; font-family:var(--font-mono); font-size:11px; line-height:1.5; color:var(--text-secondary); white-space:pre-wrap; word-break:break-word; }
+    .cx-row { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; padding:8px 0; border-bottom:1px solid var(--border-subtle); font-size:12px; }
+    .cx-row:last-child { border-bottom:none; }
+    .cx-row-reason { color:var(--text-muted); flex:1; line-height:1.4; }
+
     /* ── History toolbar additions ── */
     .history-toolbar-right { display:flex; gap:8px; margin-left:auto; }
     .btn-accent-outline { background:transparent; border:1px solid var(--accent); color:var(--accent); padding:5px 14px; border-radius:var(--radius-md); cursor:pointer; font-size:12px; font-weight:500; }
@@ -2492,6 +2712,9 @@
             <button class="sidebar-action-btn" id="sa-new-note" title="New Note">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
             </button>
+            <button class="sidebar-action-btn" id="sa-new-folder" title="New Folder">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+            </button>
             <button class="sidebar-action-btn" id="sa-collapse" title="Collapse All">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
             </button>
@@ -2613,7 +2836,21 @@
               </div>
               <div id="url-result" style="margin-top:8px;font-size:12px;color:var(--text-dim);display:none"></div>
             </div>
+            <!-- Connect Sources (prominent on home page per Chairman Prompt #76) -->
+            <div id="home-connectors" style="margin-bottom:16px">
+              <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:8px">Connect Sources</div>
+              <div id="home-oauth-cards" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+            </div>
+
             <div id="home-god-nodes" class="recent-list" style="display:none;margin-bottom:16px"></div>
+
+            <!-- Wiki Health -->
+            <div id="home-health" style="display:none;margin-bottom:16px">
+              <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:8px">Wiki Health</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap" id="health-badges"></div>
+              <div id="conflicts-panel" style="display:none;margin-top:12px"></div>
+            </div>
+
             <div class="home-section-title">Recent pages</div>
             <div class="recent-list" id="home-recent"></div>
             </div><!-- /home-dashboard -->
@@ -2624,13 +2861,16 @@
               <div id="page-breadcrumbs"></div>
               <div id="page-title-row">
                 <h1 id="page-title"></h1>
+                <span id="page-confidence-badge" class="confidence-badge" style="display:none"></span>
                 <button id="page-edit-btn" onclick="toggleEditMode()" title="Edit page (Ctrl+E)">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
               </div>
+              <div id="page-validation-bar" class="validation-bar" style="display:none"></div>
               <div id="page-meta"></div>
               <div id="page-entity-profile" class="page-entity-profile"></div>
               <div id="page-toc"></div>
+              <div id="page-fact-timeline" style="display:none"></div>
               <div id="page-body" class="md"></div>
               <div id="page-encyclopedia-chrome"></div>
               <div id="wysiwyg-bar">
@@ -2697,8 +2937,8 @@
                 <div class="graph-settings-section">
                   <span class="graph-settings-label">Labels</span>
                   <div class="graph-settings-radios">
-                    <label><input type="radio" name="graph-labels" value="hubs" checked /> Hubs only</label>
-                    <label><input type="radio" name="graph-labels" value="all" /> All</label>
+                    <label><input type="radio" name="graph-labels" value="hubs" /> Hubs only</label>
+                    <label><input type="radio" name="graph-labels" value="all" checked /> All</label>
                     <label><input type="radio" name="graph-labels" value="none" /> None</label>
                   </div>
                 </div>
@@ -2769,7 +3009,7 @@
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
                 </button>
               </div>
-              <div id="voice-recording-status" style="display:none;margin-top:6px;font-size:11px;color:var(--red);display:flex;align-items:center;gap:6px">
+              <div id="voice-recording-status" style="display:none;margin-top:6px;font-size:11px;color:var(--red);align-items:center;gap:6px">
                 <span style="width:6px;height:6px;background:var(--red);border-radius:50%;display:inline-block;animation:voicePulse 1.2s infinite"></span>
                 Recording… <span id="voice-timer">0:00</span>
               </div>
@@ -3009,6 +3249,29 @@
     </div>
   </div>
 
+  <!-- Contradiction compare (Observer heuristic pairs) -->
+  <div id="cx-modal-overlay" class="cx-modal-overlay" style="display:none">
+    <div class="cx-modal" role="dialog" aria-modal="true" aria-labelledby="cx-modal-title">
+      <div class="cx-modal-header">
+        <div>
+          <h3 id="cx-modal-title">Compare pages</h3>
+          <div id="cx-modal-reason" class="cx-modal-reason"></div>
+        </div>
+        <button type="button" class="diff-modal-close" id="cx-modal-close" title="Close">&times;</button>
+      </div>
+      <div class="cx-modal-body">
+        <div class="cx-col">
+          <div class="cx-col-head" id="cx-head-a">Page A</div>
+          <div class="cx-col-body" id="cx-body-a"></div>
+        </div>
+        <div class="cx-col">
+          <div class="cx-col-head" id="cx-head-b">Page B</div>
+          <div class="cx-col-body" id="cx-body-b"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Command Palette (Cmd+P) -->
   <div id="palette-overlay">
     <div id="palette-box">
@@ -3035,6 +3298,9 @@
   </div>
 
   <input type="file" id="file-input" multiple accept=".md,.txt,.pdf,.docx,.xlsx,.pptx,.csv,.json,.yaml,.yml,.html,.htm" />
+
+  <!-- @Mention Autocomplete Popup -->
+  <div id="mention-popup"></div>
 
   <!-- Floating Selection Toolbar (Notion-style) -->
   <div id="selection-toolbar" class="selection-toolbar">
@@ -3067,9 +3333,9 @@
       editTabType: null,
     };
 
-    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
     function formatBytes(b) { if(b<1024) return b+' B'; if(b<1048576) return (b/1024).toFixed(1)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
-    async function api(path) { const r=await fetch(path); return r.json(); }
+    async function api(path) { const r=await fetch(path); if(!r.ok) throw new Error(`HTTP ${r.status} — ${path}`); return r.json(); }
 
     const BOOKMARKS_STORAGE_KEY = 'wikimem-bookmarks';
     function getBookmarks() {
@@ -3120,16 +3386,35 @@
       return 'cat-page';
     }
 
+    const SVG_ICONS = {
+      folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+      markdown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+      pdf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M10 12h1.5a1.5 1.5 0 0 1 0 3H10v-3z"/><path d="M7 18v-6h1a2 2 0 0 1 0 4H7"/></svg>',
+      image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+      video: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><path d="M10 8l6 4-6 4V8z"/></svg>',
+      audio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+      spreadsheet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="12" y1="9" x2="12" y2="21"/></svg>',
+      code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+      text: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+      wiki: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+      file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+    };
     function fileIcon(type, name) {
-      if(type==='dir') return '📁';
+      if(type==='dir') return SVG_ICONS.folder;
       if(type==='raw') {
         const ext = (name||'').split('.').pop().toLowerCase();
-        if(['pdf'].includes(ext)) return '📄';
-        if(['jpg','jpeg','png','gif','webp','svg'].includes(ext)) return '🖼';
-        if(['mp3','wav','m4a'].includes(ext)) return '🎵';
-        return '📎';
+        if(['pdf'].includes(ext)) return SVG_ICONS.pdf;
+        if(['jpg','jpeg','png','gif','webp','svg','ico'].includes(ext)) return SVG_ICONS.image;
+        if(['mp4','webm','mov','avi','mkv'].includes(ext)) return SVG_ICONS.video;
+        if(['mp3','wav','m4a','ogg','flac','aac','webm'].includes(ext)) return SVG_ICONS.audio;
+        if(['csv','xlsx','xls','tsv'].includes(ext)) return SVG_ICONS.spreadsheet;
+        if(['js','ts','jsx','tsx','py','go','rs','c','cpp','java','rb','sh','bash','zsh'].includes(ext)) return SVG_ICONS.code;
+        if(['md','markdown'].includes(ext)) return SVG_ICONS.markdown;
+        if(['txt','log','ini','cfg','conf'].includes(ext)) return SVG_ICONS.text;
+        if(['json','yaml','yml','xml','toml','html','htm','css'].includes(ext)) return SVG_ICONS.code;
+        return SVG_ICONS.file;
       }
-      return '◇';
+      return SVG_ICONS.wiki;
     }
 
     const chevronSvg = '<svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>';
@@ -3185,16 +3470,44 @@
       });
     }
 
+    /** Add Wikipedia-style [1][2] citation markers linking to sources (TREND-001) */
+    function addSourceCitations(container, page) {
+      const fm = page?.frontmatter ?? {};
+      const sources = Array.isArray(fm.sources) ? fm.sources : [];
+      if (sources.length === 0) return;
+
+      // Build references section
+      const refsHtml = sources.map((src, i) => {
+        const label = String(src).replace(/^raw\//, '').replace(/^.*\//, '');
+        return `<li id="cite-${i+1}"><a href="#" class="wiki-source-link" onclick="event.preventDefault();openRawFile('${esc(String(src))}')">${esc(label)}</a></li>`;
+      }).join('');
+
+      // Add citation superscripts after the first paragraph
+      const firstP = container.querySelector('p');
+      if (firstP && sources.length > 0) {
+        const citeLinks = sources.map((_, i) =>
+          `<a href="#cite-${i+1}" class="citation-ref" title="Source ${i+1}"><sup>[${i+1}]</sup></a>`
+        ).join('');
+        firstP.insertAdjacentHTML('beforeend', ' ' + citeLinks);
+      }
+
+      // Append references section after content
+      const refsSection = document.createElement('section');
+      refsSection.className = 'page-references-section';
+      refsSection.innerHTML = `<h2 class="page-encyclopedia-heading">References</h2><ol class="page-references-list">${refsHtml}</ol>`;
+      container.appendChild(refsSection);
+    }
+
     // ── Views ──
     function showView(mode) {
       state.viewMode = mode;
-      document.getElementById('home-view').classList.toggle('active', mode==='home');
-      document.getElementById('page-view').classList.toggle('active', mode==='page');
-      document.getElementById('graph-view').classList.toggle('active', mode==='graph');
-      document.getElementById('settings-view').classList.toggle('active', mode==='settings');
-      document.getElementById('history-view').classList.toggle('active', mode==='history');
-      document.getElementById('pipeline-view').classList.toggle('active', mode==='pipeline');
-      document.getElementById('timelapse-view').classList.toggle('active', mode==='timelapse');
+      document.getElementById('home-view')?.classList.toggle('active', mode==='home');
+      document.getElementById('page-view')?.classList.toggle('active', mode==='page');
+      document.getElementById('graph-view')?.classList.toggle('active', mode==='graph');
+      document.getElementById('settings-view')?.classList.toggle('active', mode==='settings');
+      document.getElementById('history-view')?.classList.toggle('active', mode==='history');
+      document.getElementById('pipeline-view')?.classList.toggle('active', mode==='pipeline');
+      document.getElementById('timelapse-view')?.classList.toggle('active', mode==='timelapse');
 
       document.getElementById('rail-files').classList.toggle('active', mode==='home'||mode==='page');
       document.getElementById('rail-graph').classList.toggle('active', mode==='graph');
@@ -3400,11 +3713,17 @@
 
     function renderTabs() {
       const bar = document.getElementById('tab-bar');
-      const tabsHtml = state.tabs.map(t => {
+      const tabsHtml = state.tabs.map((t, idx) => {
         const active = t.id === state.activeTabId ? ' active' : '';
         const icon = tabIcon(t);
         const dirtyDot = t.dirty ? '<span class="tab-dirty-dot"></span>' : '';
-        return `<div class="tab${active}" onclick="activateTab('${esc(t.id)}')">
+        return `<div class="tab${active}" data-tab-idx="${idx}" draggable="true" onclick="activateTab('${esc(t.id)}')"
+          ondragstart="event.dataTransfer.setData('tab-idx','${idx}');event.dataTransfer.effectAllowed='move';this.style.opacity='0.4'"
+          ondragend="this.style.opacity='1'"
+          ondragover="event.preventDefault();this.classList.add('tab-drag-over')"
+          ondragleave="this.classList.remove('tab-drag-over')"
+          ondrop="event.preventDefault();this.classList.remove('tab-drag-over');reorderTab(+event.dataTransfer.getData('tab-idx'),${idx})"
+          oncontextmenu="event.preventDefault();showTabContextMenu(event,'${esc(t.id)}',${idx})">
           <span class="tab-icon">${icon}</span>
           <span class="tab-label">${esc(t.title)}</span>${dirtyDot}
           <button class="tab-close" onclick="event.stopPropagation();closeTab('${esc(t.id)}')">&times;</button>
@@ -3415,6 +3734,44 @@
         `<button id="tab-new" onclick="showView('home');state.activeTabId=null;renderTabs()" title="Home tab">+</button>` +
         `<div class="tab-bar-spacer"></div>` +
         `<div id="tab-bar-right"><div class="status-dot"></div><span id="status-text">${document.getElementById('status-text')?.textContent || 'Loading...'}</span></div>`;
+    }
+
+    function reorderTab(fromIdx, toIdx) {
+      if (fromIdx === toIdx) return;
+      const [moved] = state.tabs.splice(fromIdx, 1);
+      state.tabs.splice(toIdx, 0, moved);
+      renderTabs();
+    }
+
+    function showTabContextMenu(e, tabId, idx) {
+      let menu = document.getElementById('tab-ctx-menu');
+      if (!menu) {
+        menu = document.createElement('div');
+        menu.id = 'tab-ctx-menu';
+        menu.className = 'ctx-menu';
+        document.body.appendChild(menu);
+      }
+      menu.innerHTML = '';
+      const items = [
+        { label: 'Close Tab', action: () => closeTab(tabId) },
+        { label: 'Close Other Tabs', action: () => { state.tabs = state.tabs.filter(t => t.id === tabId); state.activeTabId = tabId; renderTabs(); } },
+        { label: 'Close Tabs to the Right', action: () => { state.tabs = state.tabs.slice(0, idx + 1); if (!state.tabs.find(t => t.id === state.activeTabId)) { activateTab(tabId); } renderTabs(); } },
+        { label: 'Duplicate Tab', action: () => { const t = state.tabs[idx]; openTab(t.id + '-dup-' + Date.now(), t.title, t.type); } },
+      ];
+      items.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'ctx-menu-item';
+        el.textContent = item.label;
+        el.addEventListener('click', () => { menu.style.display = 'none'; item.action(); });
+        menu.appendChild(el);
+      });
+      menu.style.display = 'block';
+      menu.style.left = e.clientX + 'px';
+      menu.style.top = e.clientY + 'px';
+      setTimeout(() => {
+        const close = (ev) => { if (!menu.contains(ev.target)) { menu.style.display = 'none'; document.removeEventListener('click', close); } };
+        document.addEventListener('click', close);
+      }, 0);
     }
 
     function estimateReadingMinutes(wordCount) {
@@ -3452,6 +3809,9 @@
         ).join('');
         parts.push(`<section class="page-encyclopedia-section page-see-also-block" aria-labelledby="wiki-see-also-heading"><h2 id="wiki-see-also-heading" class="page-encyclopedia-heading">See also</h2><ul class="wiki-see-also-list">${items}</ul></section>`);
       }
+
+      // Similar Pages placeholder (loaded async)
+      parts.push(`<section class="page-encyclopedia-section page-similar-block" id="similar-pages-section" style="display:none" aria-labelledby="wiki-similar-heading"><h2 id="wiki-similar-heading" class="page-encyclopedia-heading">Similar pages</h2><div id="similar-pages-list" class="similar-pages-grid"></div></section>`);
 
       const updated = fm.updated || fm.created;
       if (updated) {
@@ -3592,6 +3952,11 @@
         document.getElementById('page-breadcrumbs').innerHTML = breadcrumbs;
 
         const fm = page.frontmatter || {};
+
+        // Confidence badge + validation bar
+        renderConfidenceBadge(fm);
+        renderValidationBar(page.title, fm);
+
         const tags = (fm.tags || []).map(t =>
           `<span class="meta-tag-chip">${esc(t)}<button class="chip-remove" onclick="event.stopPropagation();removePageTag('${esc(page.title)}','${esc(t)}')" title="Remove tag">&times;</button></span>`
         ).join('');
@@ -3665,9 +4030,13 @@
         body.innerHTML = rendered;
         body.classList.add('fade-in');
         addCopyButtons(body);
+        addSourceCitations(body, page);
         setTimeout(() => body.classList.remove('fade-in'), 250);
 
         buildToc(body);
+
+        // Fetch and render fact timeline (COMP-MP-002)
+        renderFactTimeline(page.title, fm);
 
         renderEncyclopediaChrome(page);
 
@@ -3684,6 +4053,9 @@
         highlightActiveTreeItem(title);
         document.getElementById('sb-path').textContent = relPath || title;
         document.getElementById('content').scrollTop = 0;
+
+        // Async: load similar pages
+        loadSimilarPages(page.title);
       } catch(err) {
         console.error('Failed to open page:', err);
       }
@@ -3721,6 +4093,8 @@
         showView('page');
 
         document.getElementById('page-edit-btn').style.display = 'none';
+        document.getElementById('page-confidence-badge').style.display = 'none';
+        document.getElementById('page-validation-bar').style.display = 'none';
         document.getElementById('page-title').textContent = filename;
         const rawParts = filepath.split('/').filter(Boolean);
         let rawBc = `<span onclick="showView('home')" style="cursor:pointer">home</span><span class="breadcrumb-sep">›</span><span>raw</span>`;
@@ -3882,8 +4256,8 @@
       });
     }
 
-    // Click on page body → activate WYSIWYG edit
-    document.getElementById('page-body').addEventListener('click', (e) => {
+    // Double-click on page body → activate WYSIWYG edit (single-click reserved for link navigation)
+    document.getElementById('page-body').addEventListener('dblclick', (e) => {
       if (state.editing || state.editTabType !== 'wiki') return;
       if (e.target.closest('a[href]')) return; // let normal links work
       activateWysiwyg();
@@ -3897,10 +4271,16 @@
       let rawMd = '';
       let pageSlug = title;
       try {
-        const data = await fetch('/api/pages/' + encodeURIComponent(title) + '/raw').then(r => r.json());
+        const r = await fetch('/api/pages/' + encodeURIComponent(title) + '/raw');
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const data = await r.json();
         rawMd = data.raw || '';
         pageSlug = data.slug || title;
-      } catch {}
+      } catch (err) {
+        console.warn('Could not load page source for editing:', err);
+        if (typeof showToast === 'function') showToast('Could not load source — edit cancelled');
+        return;
+      }
 
       state.editing = true;
       state.editOriginal = rawMd;
@@ -4149,8 +4529,12 @@
 
       for (const item of items) {
         if (item.sep) { menu.innerHTML += '<div class="ctx-menu-sep"></div>'; continue; }
-        const cls = item.danger ? ' style="color:var(--red)"' : '';
-        menu.innerHTML += `<div class="ctx-menu-item"${cls} onclick="this.parentElement.remove();(${item.action.toString()})()">${item.icon || ''} ${item.label}</div>`;
+        const el = document.createElement('div');
+        el.className = 'ctx-menu-item';
+        if (item.danger) el.style.color = 'var(--red)';
+        el.innerHTML = `${item.icon || ''} ${item.label}`;
+        el.addEventListener('click', (e) => { e.stopPropagation(); menu.remove(); item.action(); });
+        menu.appendChild(el);
       }
 
       document.body.appendChild(menu);
@@ -4163,6 +4547,9 @@
       document.getElementById('tree-ctx-menu')?.remove();
     }
     document.addEventListener('click', closeTreeContextMenu);
+    document.addEventListener('contextmenu', (e) => {
+      if (e.target.closest?.('.tree-item')) { e.preventDefault(); }
+    });
 
     async function renameFile(title, path, type) {
       const newName = prompt('New name:', title);
@@ -4397,6 +4784,62 @@
         loadHome();
         await openPage(newTitle, true);
       } catch(e) { el.textContent = originalTitle; showToast('Failed to rename'); }
+    }
+
+    // ── Confidence & Validation System ──
+    function renderConfidenceBadge(fm) {
+      const el = document.getElementById('page-confidence-badge');
+      if (!el) return;
+      const val = typeof fm.confidence === 'number' ? fm.confidence : null;
+      if (val === null) { el.style.display = 'none'; return; }
+      const tier = val > 80 ? 'high' : val >= 50 ? 'medium' : 'low';
+      const icons = {
+        high: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+        medium: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+        low: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      };
+      el.className = `confidence-badge ${tier}`;
+      el.innerHTML = `${icons[tier]} ${val}%`;
+      el.title = `Confidence: ${val}% (${tier})`;
+      el.style.display = '';
+    }
+
+    function renderValidationBar(title, fm) {
+      const el = document.getElementById('page-validation-bar');
+      if (!el) return;
+      const vs = fm.validation_status || 'unreviewed';
+      const validatedAt = fm.validated_at ? ` · ${fm.validated_at}` : '';
+      el.innerHTML = `
+        <button class="validation-btn${vs === 'verified' ? ' active-verified' : ''}" onclick="setPageValidation('${esc(title)}','verified')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Verified
+        </button>
+        <button class="validation-btn${vs === 'outdated' ? ' active-outdated' : ''}" onclick="setPageValidation('${esc(title)}','outdated')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Outdated
+        </button>
+        <button class="validation-btn${vs === 'wrong' ? ' active-wrong' : ''}" onclick="setPageValidation('${esc(title)}','wrong')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Wrong
+        </button>
+        ${vs !== 'unreviewed' ? `<span class="validation-status-label">${vs}${validatedAt}</span>` : ''}`;
+      el.style.display = 'flex';
+    }
+
+    async function setPageValidation(title, status) {
+      try {
+        const res = await fetch('/api/pages/' + encodeURIComponent(title) + '/validate', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ validation_status: status }),
+        });
+        const data = await res.json();
+        if (data.error) { showToast('Validation failed: ' + data.error); return; }
+        showToast(`✓ Marked as ${status}`);
+        // Re-render with updated frontmatter
+        const fm = data.page?.frontmatter || {};
+        renderConfidenceBadge(fm);
+        renderValidationBar(title, fm);
+      } catch (err) {
+        showToast('Validation failed');
+      }
     }
 
     async function removePageTag(title, tag) {
@@ -4771,11 +5214,25 @@
     let auditActorFilter = 'all';
 
     function inferActor(entry) {
-      const msg = (entry.message || '').toLowerCase();
+      const msg = (entry.message || '');
+      const msgLower = msg.toLowerCase();
       const author = (entry.author || '').toLowerCase();
-      if(msg.startsWith('observer:') || msg.includes('[observer]') || author.includes('observer')) return 'observer';
-      if(msg.startsWith('webhook:') || msg.includes('[webhook]') || author.includes('webhook')) return 'webhook';
-      if(msg.startsWith('agent:') || msg.startsWith('auto:') || msg.includes('[agent]') || author.includes('bot') || author.includes('agent')) return 'agent';
+
+      // Check conventional commit format: wiki: feat(observe), wiki: feat(ingest), wiki: feat(scrape)
+      if(/^wiki:\s*feat\(observe\)/i.test(msg)) return 'observer';
+      if(/^wiki:\s*feat\(ingest\)/i.test(msg) || /^wiki:\s*feat\(scrape\)/i.test(msg)) return 'agent';
+
+      // Check explicit prefixes and tags
+      if(msgLower.startsWith('observer:') || msgLower.includes('[observer]') || author.includes('observer')) return 'observer';
+      if(msgLower.startsWith('webhook:') || msgLower.includes('[webhook]') || author.includes('webhook')) return 'webhook';
+      if(msgLower.startsWith('agent:') || msgLower.startsWith('auto:') || msgLower.includes('[agent]') || author.includes('bot') || author.includes('agent')) return 'agent';
+
+      // wiki: feat(manual) or plain wiki: commits from the CLI are human
+      if(/^wiki:\s*feat\(manual\)/i.test(msg)) return 'human';
+
+      // Any other wiki: commit without a known scope — check author for hints
+      if(/^wiki:/i.test(msg) && (author.includes('wikimem') || author === 'wikimem-cli')) return 'agent';
+
       return 'human';
     }
 
@@ -4818,8 +5275,18 @@
 
       checkMigrationBanner();
 
+      // Show loading state immediately
+      timeline.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)"><div class="spinner" style="margin:0 auto 8px"></div>Loading audit trail…</div>';
+
       try {
-        const status = await api('/api/git/status');
+        const wikiOnly = wikiOnlyEl?.checked ?? true;
+        const search = searchEl?.value?.trim() || '';
+        let url = `/api/git/log?limit=50&wikiOnly=${wikiOnly}`;
+        if(search) url += `&search=${encodeURIComponent(search)}`;
+
+        // Fetch status and log in parallel
+        const [status, log] = await Promise.all([api('/api/git/status'), api(url)]);
+
         if(!status.initialized) {
           branchInfo.textContent = 'Not a git repository';
           initBtn.style.display = 'inline-block';
@@ -4829,12 +5296,6 @@
 
         initBtn.style.display = 'none';
         branchInfo.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg> ${esc(status.branch)}`;
-
-        const wikiOnly = wikiOnlyEl?.checked ?? true;
-        const search = searchEl?.value?.trim() || '';
-        let url = `/api/git/log?limit=50&wikiOnly=${wikiOnly}`;
-        if(search) url += `&search=${encodeURIComponent(search)}`;
-        const log = await api(url);
 
         if(!log.length) {
           const msg = wikiOnly
@@ -5258,19 +5719,21 @@
         return community;
       }
 
-      // ── Compute in-degree for god nodes ────────────────────────────────
+      // ── Compute in-degree for hub nodes ─────────────────────────────────
       const inDegree = new Map(data.nodes.map(n => [n.id, 0]));
       for(const l of data.links) {
         const t = typeof l.target==='object' ? l.target.id : l.target;
         inDegree.set(t, (inDegree.get(t)||0)+1);
       }
-      const maxDeg = Math.max(1, ...[...inDegree.values()]);
-      const isGodNode = id => (inDegree.get(id)||0) >= Math.max(3, maxDeg * 0.4);
+      const totalNodes = data.nodes.length;
+      const isGodNode = id => (inDegree.get(id)||0) >= Math.max(5, Math.ceil(totalNodes * 0.06));
+      // Node radius: matches timelapse formula (based on inbound link count)
+      const nR = id => { const li = inDegree.get(id)||0; return Math.max(4, Math.min(18, 4 + Math.sqrt(li) * 3)); };
 
       const communityMap = detectCommunities(data.nodes, data.links);
       const communityIds = [...new Set(communityMap.values())];
-      const communityColors = ['#4f9eff','#4ec9b0','#d7ba7d','#c586c0','#9cdcfe','#dcdcaa','#ce9178','#608b4e','#b5cea8'];
-      const communityColor = id => communityColors[communityIds.indexOf(communityMap.get(id)||id) % communityColors.length];
+      const GRAPH_COLORS = ['#4f9eff','#4ec9b0','#d7ba7d','#c586c0','#9cdcfe','#dcdcaa','#ce9178','#608b4e','#b5cea8'];
+      const communityColor = id => GRAPH_COLORS[communityIds.indexOf(communityMap.get(id)||id) % GRAPH_COLORS.length];
 
       const svg = d3.select('#graph-svg');
       const tooltip = document.getElementById('tooltip');
@@ -5308,17 +5771,17 @@
       const link = g.append('g').selectAll('line').data(data.links).join('line')
         .attr('stroke',cs('--border-subtle')).attr('stroke-width',0.8).attr('stroke-opacity',0.4);
 
-      // God node outer ring
+      // Hub node outer ring (gold, matching timelapse)
       g.append('g').selectAll('circle.god-ring').data(data.nodes.filter(d=>isGodNode(d.id))).join('circle')
         .attr('class','god-ring')
-        .attr('r', d => Math.max(7,Math.min(22,Math.sqrt(d.wordCount/50)))+5)
-        .attr('fill','none').attr('stroke',cs('--accent')).attr('stroke-width',1.5)
-        .attr('opacity',0.35);
+        .attr('r', d => nR(d.id)+5)
+        .attr('fill','none').attr('stroke','#d4a843').attr('stroke-width',1.5)
+        .attr('opacity',0.5);
 
       const node = g.append('g').selectAll('circle').data(data.nodes).join('circle')
-        .attr('r', d => isGodNode(d.id) ? Math.max(7,Math.min(22,Math.sqrt(d.wordCount/50))) : Math.max(4,Math.min(16,Math.sqrt(d.wordCount/70))))
+        .attr('r', d => nR(d.id))
         .attr('fill', d => communityColor(d.id))
-        .attr('stroke', d => isGodNode(d.id) ? cs('--accent') : cs('--bg'))
+        .attr('stroke', d => isGodNode(d.id) ? '#d4a843' : cs('--bg'))
         .attr('stroke-width', d => isGodNode(d.id) ? 2 : 1.5)
         .attr('cursor','pointer')
         .call(d3.drag()
@@ -5390,6 +5853,70 @@
         godRing.attr('cx', d => { const n = data.nodes.find(n=>n.id===d.id); return n?.x||0; })
                .attr('cy', d => { const n = data.nodes.find(n=>n.id===d.id); return n?.y||0; });
         label.attr('x',d=>d.x).attr('y',d=>d.y);
+      });
+
+      // ── Graph settings panel toggle ──
+      const panelToggle = document.getElementById('graph-panel-toggle');
+      const settingsPanel = document.getElementById('graph-settings-panel');
+      if(panelToggle && settingsPanel) {
+        panelToggle.addEventListener('click', () => {
+          const open = settingsPanel.classList.toggle('collapsed');
+          panelToggle.setAttribute('aria-expanded', String(!settingsPanel.classList.contains('collapsed')));
+          settingsPanel.setAttribute('aria-hidden', String(settingsPanel.classList.contains('collapsed')));
+        });
+      }
+
+      // ── Graph labels radio handler ──
+      function applyLabelMode(mode) {
+        if(mode === 'all') label.attr('display', 'block');
+        else if(mode === 'none') label.attr('display', 'none');
+        else label.attr('display', d => isGodNode(d.id) ? 'block' : 'none');
+      }
+      document.querySelectorAll('input[name="graph-labels"]').forEach(r => {
+        r.addEventListener('change', e => applyLabelMode(e.target.value));
+      });
+
+      // ── Graph force strength slider ──
+      const forceRange = document.getElementById('graph-force-range');
+      const forceValue = document.getElementById('graph-force-value');
+      if(forceRange) {
+        forceRange.addEventListener('input', e => {
+          const v = parseInt(e.target.value, 10);
+          sim.force('charge', d3.forceManyBody().strength(v));
+          sim.alpha(0.3).restart();
+          if(forceValue) forceValue.textContent = v < 0 ? `\u2212${Math.abs(v)}` : String(v);
+        });
+      }
+
+      // ── Graph link distance slider ──
+      const linkDistRange = document.getElementById('graph-link-dist-range');
+      const linkDistValue = document.getElementById('graph-link-dist-value');
+      if(linkDistRange) {
+        linkDistRange.addEventListener('input', e => {
+          const v = parseInt(e.target.value, 10);
+          sim.force('link').distance(v);
+          sim.alpha(0.3).restart();
+          if(linkDistValue) linkDistValue.textContent = String(v);
+        });
+      }
+
+      // ── Graph node size radio ──
+      document.querySelectorAll('input[name="graph-node-size"]').forEach(r => {
+        r.addEventListener('change', e => {
+          const mode = e.target.value;
+          if(mode === 'uniform') {
+            node.attr('r', 8);
+          } else if(mode === 'wordcount') {
+            node.attr('r', d => Math.max(4, Math.min(22, Math.sqrt(d.wordCount / 50))));
+          } else {
+            node.attr('r', d => isGodNode(d.id) ? Math.max(7, Math.min(22, Math.sqrt(d.wordCount/50))) : Math.max(4, Math.min(16, Math.sqrt(d.wordCount/70))));
+          }
+          sim.force('collision', d3.forceCollide().radius(d => {
+            const r = parseFloat(node.filter(n => n.id === d.id).attr('r')) || 8;
+            return r + 4;
+          }));
+          sim.alpha(0.3).restart();
+        });
       });
     }
 
@@ -5553,21 +6080,80 @@
           <div id="connectors-list">
             <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:32px 0">Loading sources…</div>
           </div>
+
+          <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--border-subtle)">
+            <div class="settings-section-title" style="margin-bottom:4px">Platform Integrations</div>
+            <div class="settings-section-desc">Connect platforms to auto-sync data into your wiki.</div>
+            <div id="oauth-integrations">
+              <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:24px 0">Loading integrations…</div>
+            </div>
+          </div>
+
           <div id="connector-modal" class="connector-modal" style="display:none"></div>
         `;
         loadConnectors();
+        renderOAuthIntegrations();
       } else if(section === 'appearance') {
+        const prefs = loadAppearancePrefs();
         el.innerHTML = `
           <div class="settings-section-title">Appearance</div>
-          <div class="settings-section-desc">Customize how wikimem looks.</div>
+          <div class="settings-section-desc">Customize how wikimem looks and feels.</div>
+
           <div class="settings-group">
             <label class="settings-label">Theme</label>
-            <select class="settings-select"><option>Dark (default)</option><option disabled>Light (coming soon)</option></select>
+            <div style="display:flex;gap:8px">
+              <button class="settings-btn ${prefs.theme==='dark'?'settings-btn-primary':''}" onclick="setAppearance('theme','dark')">🌙 Dark</button>
+              <button class="settings-btn ${prefs.theme==='light'?'settings-btn-primary':''}" onclick="setAppearance('theme','light')">☀️ Light</button>
+            </div>
           </div>
+
           <div class="settings-group">
-            <label class="settings-label">Font Size</label>
-            <select class="settings-select"><option>13px (default)</option><option>14px</option><option>15px</option></select>
-          </div>`;
+            <label class="settings-label">Font Size <span style="color:var(--text-muted);font-weight:400">${prefs.fontSize}px</span></label>
+            <input type="range" min="12" max="18" step="1" value="${prefs.fontSize}" class="tl-slider" style="max-width:240px;height:4px"
+              oninput="document.querySelector('[data-fs-val]').textContent=this.value+'px';setAppearance('fontSize',+this.value)">
+            <span data-fs-val style="display:none">${prefs.fontSize}px</span>
+          </div>
+
+          <div class="settings-group">
+            <label class="settings-label">Content Width</label>
+            <select class="settings-select" onchange="setAppearance('contentWidth',this.value)">
+              <option value="680" ${prefs.contentWidth===680?'selected':''}>Narrow (680px)</option>
+              <option value="860" ${prefs.contentWidth===860?'selected':''}>Default (860px)</option>
+              <option value="1100" ${prefs.contentWidth===1100?'selected':''}>Wide (1100px)</option>
+              <option value="100%" ${prefs.contentWidth==='100%'?'selected':''}>Full width</option>
+            </select>
+          </div>
+
+          <div class="settings-group">
+            <label class="settings-label">Interface Density</label>
+            <select class="settings-select" onchange="setAppearance('density',this.value)">
+              <option value="compact" ${prefs.density==='compact'?'selected':''}>Compact</option>
+              <option value="comfortable" ${prefs.density==='comfortable'?'selected':''}>Comfortable (default)</option>
+              <option value="spacious" ${prefs.density==='spacious'?'selected':''}>Spacious</option>
+            </select>
+          </div>
+
+          <div class="settings-group">
+            <label class="settings-label">Accent Color</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              ${['#4f9eff','#8b5cf6','#10b981','#f59e0b','#ef4444','#ec4899','#06b6d4'].map(c =>
+                `<button style="width:28px;height:28px;border-radius:50%;background:${c};border:2px solid ${c===prefs.accent?'var(--text-bright)':'transparent'};cursor:pointer;transition:border 0.1s" onclick="setAppearance('accent','${c}')"></button>`
+              ).join('')}
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <label class="settings-label">Code Block Line Numbers</label>
+            <label class="auto-toggle" title="Show line numbers in code blocks">
+              <input type="checkbox" ${prefs.codeLineNumbers?'checked':''} onchange="setAppearance('codeLineNumbers',this.checked)">
+              <span class="auto-toggle-track"></span>
+            </label>
+          </div>
+
+          <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border-subtle)">
+            <button class="settings-btn" onclick="resetAppearance()">Reset to defaults</button>
+          </div>
+        `;
       } else if(section === 'automations') {
         el.innerHTML = `
           <div class="settings-section-title">Automations</div>
@@ -5641,13 +6227,41 @@
                   <option value="manual">Manual only</option>
                 </select>
               </div>
+              <div class="settings-group" style="margin-bottom:14px">
+                <label class="settings-label">Auto-Improve Weak Pages</label>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <label class="auto-toggle" title="Use LLM to fix weak pages">
+                    <input type="checkbox" id="auto-observer-improve" onchange="saveAutoSetting('observer','autoImprove',this.checked)">
+                    <span class="auto-toggle-track"></span>
+                  </label>
+                  <span style="font-size:11px;color:var(--text-muted)">LLM rewrites pages scoring below 50% (up to 3 per run)</span>
+                </div>
+              </div>
+              <div class="settings-group" style="margin-bottom:14px">
+                <label class="settings-label">Model for Observer</label>
+                <select class="settings-select" id="auto-observer-model" onchange="saveAutoSetting('observer','model',this.value)">
+                  <option value="" selected>Use default (from Provider settings)</option>
+                  <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
+                  <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+                  <option value="gpt-4o">GPT-4o</option>
+                  <option value="gpt-4o-mini">GPT-4o mini</option>
+                  <option value="ollama/llama3.1">Ollama — Llama 3.1</option>
+                  <option value="ollama/qwen2.5">Ollama — Qwen 2.5</option>
+                </select>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Choose which model scores and improves pages</div>
+              </div>
               <div class="settings-group" style="margin-bottom:0">
-                <label class="settings-label">Last Report</label>
-                <div id="auto-observer-last-report" style="font-size:12px;color:var(--text-muted);padding:4px 0">No reports yet</div>
+                <label class="settings-label">Quality report</label>
+                <div id="auto-observer-last-report" style="font-size:12px;color:var(--text-muted);padding:4px 0">Loading…</div>
+                <div id="observer-report-detail" style="margin-top:8px;display:none"></div>
+                <div id="observer-cx-list" style="margin-top:10px;max-height:220px;overflow-y:auto"></div>
               </div>
               <div class="auto-card-footer">
                 <span class="auto-last-run" id="auto-observer-last">Last run: never</span>
-                <button class="settings-btn settings-btn-primary auto-run-btn" onclick="runAutomation('observer')">Run Now</button>
+                <div style="display:flex;gap:6px">
+                  <button class="settings-btn auto-run-btn" onclick="runAutomation('observer')">Scan Only</button>
+                  <button class="settings-btn settings-btn-primary auto-run-btn" onclick="runObserverWithImprove()">Scan & Improve</button>
+                </div>
               </div>
             </div>
           </div>
@@ -5737,9 +6351,9 @@
           <div class="settings-section-title">About</div>
           <div class="settings-section-desc">wikimem — self-improving knowledge bases with LLMs</div>
           <div style="color:var(--text-dim);font-size:13px;line-height:1.8">
-            <p><strong style="color:var(--text)">Version:</strong> 0.4.0</p>
+            <p><strong style="color:var(--text)">Version:</strong> 0.8.0</p>
             <p><strong style="color:var(--text)">Author:</strong> Naman Parikh</p>
-            <p><strong style="color:var(--text)">GitHub:</strong> <a href="https://github.com/naman10parikh/llmwiki" style="color:var(--accent)" target="_blank">naman10parikh/llmwiki</a></p>
+            <p><strong style="color:var(--text)">GitHub:</strong> <a href="https://github.com/naman10parikh/wikimem" style="color:var(--accent)" target="_blank">naman10parikh/wikimem</a></p>
             <p><strong style="color:var(--text)">npm:</strong> <a href="https://www.npmjs.com/package/wikimem" style="color:var(--accent)" target="_blank">wikimem</a></p>
             <p><strong style="color:var(--text)">License:</strong> MIT</p>
           </div>`;
@@ -5764,6 +6378,91 @@
 
     // ── Automations Settings ──────────────────────────────────────────────
     let autoSources = [];
+    let _cxPairs = [];
+
+    function stripFrontmatter(md) {
+      if (typeof md !== 'string') return '';
+      const t = md.trim();
+      if (t.startsWith('---')) {
+        const end = t.indexOf('\n---', 3);
+        if (end !== -1) return t.slice(end + 4).trim();
+      }
+      return t;
+    }
+
+    function closeCxModal() {
+      const o = document.getElementById('cx-modal-overlay');
+      if (o) o.style.display = 'none';
+    }
+
+    async function openContradictionCompare(idx) {
+      const c = _cxPairs[idx];
+      if (!c) return;
+      const titleA = c.titleA || '';
+      const titleB = c.titleB || '';
+      document.getElementById('cx-modal-title').textContent = 'Potential contradiction';
+      document.getElementById('cx-modal-reason').textContent = c.reason || '';
+      document.getElementById('cx-head-a').textContent = titleA;
+      document.getElementById('cx-head-b').textContent = titleB;
+      document.getElementById('cx-body-a').textContent = 'Loading…';
+      document.getElementById('cx-body-b').textContent = 'Loading…';
+      const overlay = document.getElementById('cx-modal-overlay');
+      if (overlay) overlay.style.display = 'flex';
+      try {
+        const [ra, rb] = await Promise.all([
+          fetch('/api/pages/' + encodeURIComponent(titleA) + '/raw').then((r) => r.json()),
+          fetch('/api/pages/' + encodeURIComponent(titleB) + '/raw').then((r) => r.json()),
+        ]);
+        document.getElementById('cx-body-a').textContent = stripFrontmatter(ra.raw || '');
+        document.getElementById('cx-body-b').textContent = stripFrontmatter(rb.raw || '');
+      } catch (e) {
+        document.getElementById('cx-body-a').textContent = 'Could not load page A.';
+        document.getElementById('cx-body-b').textContent = 'Could not load page B.';
+      }
+    }
+
+    function renderContradictionRows(contradictions) {
+      const container = document.getElementById('observer-cx-list');
+      if (!container) return;
+      if (!contradictions || contradictions.length === 0) {
+        container.innerHTML = '<div style="font-size:11px;color:var(--text-muted)">No potential contradictions in the latest scan.</div>';
+        return;
+      }
+      _cxPairs = contradictions;
+      container.innerHTML = contradictions.slice(0, 14).map((c, i) => `
+        <div class="cx-row">
+          <div class="cx-row-reason">${esc(c.reason || '')}</div>
+          <button type="button" class="settings-btn" style="font-size:11px;padding:3px 10px;flex-shrink:0" onclick="openContradictionCompare(${i})">Compare</button>
+        </div>`).join('');
+    }
+
+    async function refreshObserverReportPanel(partial) {
+      const summaryEl = document.getElementById('auto-observer-last-report');
+      if (!summaryEl) return;
+      try {
+        let report = partial;
+        if (!report || !report.date) {
+          const list = await api('/api/observer/reports');
+          if (!list.reports || list.reports.length === 0) {
+            summaryEl.innerHTML = 'No reports yet — run <strong>Scan Only</strong> or <strong>Scan &amp; Improve</strong>.';
+            renderContradictionRows([]);
+            return;
+          }
+          const date = list.reports[0];
+          report = await api('/api/observer/reports/' + encodeURIComponent(date));
+        }
+        const avg = report.averageScore != null ? report.averageScore : '—';
+        const maxS = report.maxScore != null ? report.maxScore : '14';
+        const orphans = report.orphanCount != null ? report.orphanCount : (report.orphans ? report.orphans.length : 0);
+        const gaps = report.gapCount != null ? report.gapCount : (report.gaps ? report.gaps.length : 0);
+        const cx = report.contradictionCount != null ? report.contradictionCount : (report.contradictions ? report.contradictions.length : 0);
+        summaryEl.innerHTML = `Latest <span style="color:var(--text-secondary)">${esc(report.date || '')}</span> — avg score <strong>${avg}/${maxS}</strong>, ${orphans} orphans, ${gaps} gaps, <strong style="color:var(--amber)">${cx}</strong> contradiction flags`;
+        renderContradictionRows(report.contradictions || []);
+      } catch (e) {
+        summaryEl.textContent = 'Could not load observer reports.';
+        renderContradictionRows([]);
+      }
+    }
 
     async function loadAutoSettings() {
       try {
@@ -5790,7 +6489,7 @@
           el('auto-observer-last').textContent = 'Last run: ' + formatTimeAgo(observer.lastRun);
 
         if(el('auto-observer-last-report') && observer.lastReportPath) {
-          el('auto-observer-last-report').innerHTML = `<a href="#" onclick="event.preventDefault();openPage('${esc(observer.lastReportPath)}')" style="color:var(--accent)">View last report →</a>`;
+          el('auto-observer-last-report').innerHTML = `<span style="color:var(--text-muted)">Report file: </span><span style="font-family:var(--font-mono);font-size:11px">${esc(observer.lastReportPath)}</span>`;
         }
 
         if(el('auto-webhook-count') && webhook.count != null)
@@ -5802,6 +6501,8 @@
         // Render sources list
         autoSources = sourcing.sources || [];
         renderAutoSources();
+
+        await refreshObserverReportPanel(null);
       } catch(e) { /* settings endpoint may not exist yet */ }
     }
 
@@ -5844,6 +6545,58 @@
       navigator.clipboard.writeText(url).then(() => showToast('✓ Webhook URL copied'));
     }
 
+    // ── Appearance Preferences ──
+    const APPEARANCE_DEFAULTS = { theme:'dark', fontSize:14, contentWidth:860, density:'comfortable', accent:'#4f9eff', codeLineNumbers:false };
+    function loadAppearancePrefs() {
+      try { return { ...APPEARANCE_DEFAULTS, ...JSON.parse(localStorage.getItem('wikimem-appearance')||'{}') }; }
+      catch { return { ...APPEARANCE_DEFAULTS }; }
+    }
+    function saveAppearancePrefs(prefs) { localStorage.setItem('wikimem-appearance', JSON.stringify(prefs)); }
+    function setAppearance(key, value) {
+      const prefs = loadAppearancePrefs();
+      prefs[key] = value;
+      saveAppearancePrefs(prefs);
+      applyAppearance(prefs);
+      if(state.settingsSection === 'appearance') renderSettingsSection('appearance');
+    }
+    function resetAppearance() {
+      localStorage.removeItem('wikimem-appearance');
+      applyAppearance(APPEARANCE_DEFAULTS);
+      renderSettingsSection('appearance');
+      showToast('✓ Appearance reset');
+    }
+    function applyAppearance(prefs) {
+      const r = document.documentElement;
+      if(prefs.theme === 'light') {
+        r.style.setProperty('--bg-deep','#f0f0f0'); r.style.setProperty('--bg-inset','#e8e8e8');
+        r.style.setProperty('--bg','#ffffff'); r.style.setProperty('--bg-surface','#f5f5f5');
+        r.style.setProperty('--bg-card','#eeeeee'); r.style.setProperty('--bg-hover','#e0e0e0');
+        r.style.setProperty('--bg-active','#d5d5d5');
+        r.style.setProperty('--text','#1e1e1e'); r.style.setProperty('--text-secondary','#555');
+        r.style.setProperty('--text-bright','#000'); r.style.setProperty('--text-dim','#888');
+        r.style.setProperty('--text-muted','#999');
+        r.style.setProperty('--border','#d0d0d0'); r.style.setProperty('--border-subtle','#e0e0e0');
+      } else {
+        r.style.removeProperty('--bg-deep'); r.style.removeProperty('--bg-inset');
+        r.style.removeProperty('--bg'); r.style.removeProperty('--bg-surface');
+        r.style.removeProperty('--bg-card'); r.style.removeProperty('--bg-hover');
+        r.style.removeProperty('--bg-active');
+        r.style.removeProperty('--text'); r.style.removeProperty('--text-secondary');
+        r.style.removeProperty('--text-bright'); r.style.removeProperty('--text-dim');
+        r.style.removeProperty('--text-muted');
+        r.style.removeProperty('--border'); r.style.removeProperty('--border-subtle');
+      }
+      r.style.setProperty('--font-size-base', prefs.fontSize + 'px');
+      r.style.setProperty('--accent', prefs.accent);
+      r.style.setProperty('--accent-dim', prefs.accent + '22');
+      document.querySelectorAll('.page-layout').forEach(el => {
+        el.style.maxWidth = typeof prefs.contentWidth === 'number' ? prefs.contentWidth + 'px' : prefs.contentWidth;
+      });
+      const densityPad = prefs.density === 'compact' ? '2px' : prefs.density === 'spacious' ? '6px' : '4px';
+      r.style.setProperty('--density-pad', densityPad);
+    }
+    applyAppearance(loadAppearancePrefs());
+
     async function saveAutoSetting(automation, key, value) {
       try {
         await fetch('/api/automations/settings', {
@@ -5863,13 +6616,96 @@
       const lastEl = document.getElementById(`auto-${type}-last`);
       if(lastEl) { lastEl.textContent = '⟳ Running…'; }
       try {
-        await api(endpoint, { method: 'POST' });
+        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        const result = await res.json();
         if(lastEl) { lastEl.textContent = 'Last run: just now'; }
         const s = document.getElementById('automations-status');
-        if(s) { s.className='settings-status ok'; s.textContent='✓ Started'; setTimeout(()=>s.textContent='', 3000); }
+        if(s) { s.className='settings-status ok'; s.textContent='✓ Complete'; setTimeout(()=>s.textContent='', 3000); }
+        if(type === 'observer') {
+          const cx = result.contradictionCount != null ? result.contradictionCount : 0;
+          showToast(`Observer: ${result.pagesReviewed} pages, avg ${result.averageScore}/${result.maxScore}, ${result.orphanCount} orphans, ${cx} contradiction flags`);
+          refreshObserverReportPanel(result);
+          renderObserverDetailPanel(result);
+        }
       } catch(e) {
         if(lastEl) { lastEl.textContent = '✗ Failed to start'; }
       }
+    }
+
+    async function runObserverWithImprove() {
+      const lastEl = document.getElementById('auto-observer-last');
+      if(lastEl) { lastEl.textContent = '⟳ Scanning & improving…'; }
+      try {
+        const modelSel = document.getElementById('auto-observer-model');
+        const model = modelSel ? modelSel.value : '';
+        const body = { autoImprove: true, maxImprovements: 3 };
+        if (model) body.model = model;
+        const res = await fetch('/api/observer/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const result = await res.json();
+        if(lastEl) { lastEl.textContent = 'Last run: just now'; }
+        const improved = result.improvementCount || 0;
+        showToast(`Observer: ${result.pagesReviewed} pages scanned, ${improved} pages improved, avg score ${result.averageScore}/${result.maxScore}`);
+        refreshObserverReportPanel(result);
+        renderObserverDetailPanel(result);
+        if(improved > 0) { loadTree(); loadHome(); }
+      } catch(e) {
+        if(lastEl) { lastEl.textContent = '✗ Failed'; }
+        showToast('Observer run failed: ' + (e.message || e));
+      }
+    }
+
+    function renderObserverDetailPanel(result) {
+      const panel = document.getElementById('observer-report-detail');
+      if (!panel) return;
+      let html = '';
+      const pct = result.maxScore > 0 ? Math.round((result.averageScore / result.maxScore) * 100) : 0;
+      const barColor = pct >= 80 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+      html += '<div style="margin-bottom:12px">'
+        + '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">'
+        + '<span style="color:var(--text-secondary)">Average Quality</span>'
+        + '<span style="color:' + barColor + ';font-weight:600">' + result.averageScore + '/' + result.maxScore + ' (' + pct + '%)</span></div>'
+        + '<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">'
+        + '<div style="height:100%;width:' + pct + '%;background:' + barColor + ';border-radius:3px;transition:width 0.5s"></div></div></div>';
+      html += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">'
+        + '<span style="font-size:11px;padding:3px 7px;background:var(--bg-surface);border-radius:var(--radius-sm);border:1px solid var(--border)">📊 ' + result.totalPages + ' pages</span>'
+        + '<span style="font-size:11px;padding:3px 7px;background:var(--bg-surface);border-radius:var(--radius-sm);border:1px solid var(--border)">🔗 ' + result.orphanCount + ' orphans</span>'
+        + '<span style="font-size:11px;padding:3px 7px;background:var(--bg-surface);border-radius:var(--radius-sm);border:1px solid var(--border)">🕳️ ' + result.gapCount + ' gaps</span>'
+        + '<span style="font-size:11px;padding:3px 7px;background:var(--bg-surface);border-radius:var(--radius-sm);border:1px solid var(--border)">⚡ ' + result.contradictionCount + ' contradictions</span></div>';
+      if (result.improvements && result.improvements.length > 0) {
+        html += '<div style="margin-bottom:12px"><div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;font-weight:500">Improvements</div>';
+        for (const imp of result.improvements) {
+          const icon = imp.improved ? '✅' : '❌';
+          const sc = imp.newScore != null ? (imp.originalScore + ' → ' + imp.newScore) : ('was ' + imp.originalScore);
+          const bg = imp.improved ? 'var(--green-dim)' : 'var(--red-dim)';
+          html += '<div style="font-size:11px;padding:5px 8px;margin-bottom:3px;background:' + bg + ';border-radius:var(--radius-sm)">'
+            + icon + ' <strong>' + esc(imp.title) + '</strong> <span style="color:var(--text-muted)">(' + sc + '/' + result.maxScore + ')</span>'
+            + '<div style="color:var(--text-dim);margin-top:2px;font-size:10px">' + esc(imp.action) + '</div></div>';
+        }
+        html += '</div>';
+      }
+      if (result.weakestPages && result.weakestPages.length > 0) {
+        html += '<div style="margin-bottom:8px"><div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;font-weight:500">Weakest Pages</div>';
+        for (const p of result.weakestPages) {
+          html += '<div style="font-size:11px;padding:3px 8px;margin-bottom:2px;display:flex;justify-content:space-between;background:var(--bg-surface);border-radius:var(--radius-sm);border:1px solid var(--border)">'
+            + '<span>' + esc(p.title) + '</span>'
+            + '<span style="color:var(--amber);font-weight:500">' + p.score + '/' + p.maxScore + '</span></div>';
+        }
+        html += '</div>';
+      }
+      if (result.topIssues && result.topIssues.length > 0) {
+        html += '<div><div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;font-weight:500">Top Issues</div>';
+        for (const iss of result.topIssues.slice(0, 5)) {
+          html += '<div style="font-size:11px;padding:2px 0;color:var(--text-dim)">'
+            + '<span style="color:var(--amber);font-weight:500">' + iss.count + '×</span> ' + esc(iss.issue) + '</div>';
+        }
+        html += '</div>';
+      }
+      panel.innerHTML = html;
+      panel.style.display = 'block';
     }
 
     // ── Pipeline Configuration ───────────────────────────────────────────
@@ -6402,6 +7238,7 @@
       }
       onboardEl.style.display = 'none';
       dashEl.style.display = '';
+      renderHomeConnectors();
 
       const statusText = `${stats.pageCount} pages · ${stats.wordCount.toLocaleString()} words`;
       document.querySelectorAll('#status-text').forEach(el => el.textContent = statusText);
@@ -6515,6 +7352,12 @@
         container.innerHTML = q
           ? `<div id="search-empty">No results for "${esc(q)}"</div>`
           : `<div id="search-empty">Type to search across all pages, content, and metadata</div>`;
+        return;
+      }
+      // Check if we can just update selection classes (avoids DOM destruction on hover)
+      const existingItems = container.querySelectorAll('.search-result');
+      if (existingItems.length === state.searchResults.length && existingItems.length > 0) {
+        existingItems.forEach((el, i) => el.classList.toggle('selected', i === state.searchIndex));
         return;
       }
       container.innerHTML = state.searchResults.map((r,i) => {
@@ -6785,6 +7628,22 @@
       if((e.metaKey||e.ctrlKey) && e.key==='g') { e.preventDefault(); railGraphClick(); }
       if((e.metaKey||e.ctrlKey) && e.key===',') { e.preventDefault(); railSettingsClick(); }
       if((e.metaKey||e.ctrlKey) && e.key==='w') { e.preventDefault(); if(state.activeTabId) closeTab(state.activeTabId); }
+      // Cmd+N — new note
+      if((e.metaKey||e.ctrlKey) && e.key==='n') {
+        e.preventDefault();
+        document.getElementById('sa-new-note')?.click();
+      }
+      // Cmd+Tab / Ctrl+Tab — next tab
+      if((e.ctrlKey || e.metaKey) && e.key==='Tab') {
+        e.preventDefault();
+        if(state.tabs.length > 1) {
+          const idx = state.tabs.findIndex(t => t.id === state.activeTabId);
+          const next = e.shiftKey
+            ? (idx - 1 + state.tabs.length) % state.tabs.length
+            : (idx + 1) % state.tabs.length;
+          activateTab(state.tabs[next].id);
+        }
+      }
       if(e.key==='Escape') { closeSearch(); closePalette(); }
     });
 
@@ -7272,14 +8131,251 @@
       loadTree(); loadHome();
     }
 
+    // ── Open Settings to a specific section ──
+    function openSettings(section) {
+      showView('settings');
+      // showView triggers loadSettings() which renders the default section;
+      // after config loads, switch to the requested section
+      const waitForSettings = () => {
+        if (document.getElementById('settings-content')) {
+          renderSettingsSection(section || 'sources');
+          // Highlight the matching nav item
+          document.querySelectorAll('.settings-nav-item').forEach(el => {
+            el.classList.toggle('active', el.dataset.section === (section || 'sources'));
+          });
+        } else {
+          requestAnimationFrame(waitForSettings);
+        }
+      };
+      requestAnimationFrame(waitForSettings);
+    }
+
     // ── OAuth Connect ──
     async function startOAuthConnect(provider) {
       try {
         const res = await fetch('/api/auth/start/' + encodeURIComponent(provider));
         const data = await res.json();
-        if (data.error) { showToast('OAuth: ' + data.error); return; }
-        if (data.url) window.open(data.url, '_blank', 'width=600,height=700');
+        if (data.error === 'no_credentials') {
+          // GitHub: try device flow (no client_secret needed — just needs client_id)
+          if (provider === 'github') {
+            showPipelineDeviceFlow();
+            return;
+          }
+          // Show inline credential setup modal — don't redirect to Settings
+          showCredentialSetupModal(provider);
+          return;
+        }
+        if (data.error) { showToast('OAuth: ' + (data.message || data.error)); return; }
+        if (data.url) {
+          const popup = window.open(data.url, '_blank', 'width=600,height=700');
+          // Poll for completion — when the popup closes, refresh status
+          if (popup) {
+            const poll = setInterval(() => {
+              if (popup.closed) { clearInterval(poll); loadOAuthStatus(); renderOAuthIntegrations(); }
+            }, 1000);
+          }
+        }
       } catch (err) { showToast('OAuth failed: ' + (err.message || 'unknown')); }
+    }
+
+    // Listen for OAuth completion postMessage from callback popup
+    window.addEventListener('message', function(event) {
+      if (event.data && event.data.type === 'wikimem-oauth-connected' && event.data.provider) {
+        showToast(event.data.provider.charAt(0).toUpperCase() + event.data.provider.slice(1) + ' connected — syncing data...');
+        loadOAuthStatus();
+        renderOAuthIntegrations();
+        renderHomeConnectors();
+        loadSidebarConnectors();
+        syncOAuthProvider(event.data.provider);
+      }
+    });
+
+    // Pipeline-page device flow modal for GitHub (no client_secret needed)
+    async function showPipelineDeviceFlow() {
+      // Create modal overlay
+      let modal = document.getElementById('device-flow-modal');
+      if (modal) modal.remove();
+      modal = document.createElement('div');
+      modal.id = 'device-flow-modal';
+      modal.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)';
+      modal.innerHTML = `<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h3 style="margin:0;font-size:15px;color:var(--text-bright)">Connect GitHub</h3>
+          <button onclick="document.getElementById('device-flow-modal').remove()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px">&times;</button>
+        </div>
+        <p style="color:var(--text-secondary);font-size:12px;margin:0 0 16px">No app registration needed — uses GitHub Device Flow.</p>
+        <div id="pipeline-device-flow-content" style="text-align:center;padding:8px 0">
+          <div class="device-flow-spinner" style="margin:0 auto"></div>
+          <div style="margin-top:8px;color:var(--text-muted);font-size:12px">Starting device flow...</div>
+        </div>
+      </div>`;
+      document.body.appendChild(modal);
+      modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+
+      // Start device flow
+      try {
+        const res = await fetch('/api/auth/device-flow/start', { method: 'POST' });
+        const data = await res.json();
+        const content = document.getElementById('pipeline-device-flow-content');
+        if (!content) return;
+
+        if (data.error === 'no_client_id') {
+          content.innerHTML = `<div style="text-align:left">
+            <p style="color:var(--text-secondary);font-size:12px;margin:0 0 12px">Device flow requires a GitHub OAuth App client ID. Set the env var or enter credentials:</p>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <input class="settings-input" id="pipeline-gh-id" type="text" placeholder="GitHub Client ID" style="width:100%;box-sizing:border-box" />
+              <input class="settings-input" id="pipeline-gh-secret" type="password" placeholder="GitHub Client Secret" style="width:100%;box-sizing:border-box" />
+              <button class="settings-btn settings-btn-primary" onclick="savePipelineGitHubCreds()" style="font-size:12px;padding:6px 16px;align-self:flex-end">Save & Connect</button>
+            </div>
+          </div>`;
+          return;
+        }
+
+        if (data.error) {
+          content.innerHTML = '<div style="color:var(--red);font-size:12px">' + (data.message || data.error) + '</div>';
+          return;
+        }
+
+        // Show device code
+        content.innerHTML = `<div style="text-align:left">
+          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">
+            1. Go to <a href="${data.verification_uri}" target="_blank" style="color:var(--accent)">${data.verification_uri}</a><br/>
+            2. Enter this code:
+          </div>
+          <div style="font-size:28px;font-weight:700;letter-spacing:4px;text-align:center;padding:12px;background:var(--bg-secondary);border-radius:8px;color:var(--text-bright);font-family:monospace;margin-bottom:8px">${data.user_code}</div>
+          <div style="text-align:center;margin-bottom:12px">
+            <button class="settings-btn" onclick="navigator.clipboard.writeText('${data.user_code}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy Code',1500)" style="font-size:11px;padding:4px 12px">Copy Code</button>
+          </div>
+          <div id="pipeline-device-status" style="text-align:center;font-size:12px;color:var(--text-muted)">
+            <span class="device-flow-spinner" style="display:inline-block;width:12px;height:12px;border-width:2px;vertical-align:middle;margin-right:6px"></span>
+            Waiting for authorization...
+          </div>
+        </div>`;
+
+        // Poll for completion
+        pollPipelineDeviceFlow(data.device_code, data.interval || 5);
+      } catch (err) {
+        const content = document.getElementById('pipeline-device-flow-content');
+        if (content) content.innerHTML = '<div style="color:var(--red);font-size:12px">Failed to start: ' + (err.message || 'unknown') + '</div>';
+      }
+    }
+
+    function pollPipelineDeviceFlow(deviceCode, interval) {
+      const pollMs = Math.max((interval || 5) * 1000, 5000);
+      const timer = setInterval(async () => {
+        try {
+          const res = await fetch('/api/auth/device-flow/poll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_code: deviceCode }),
+          });
+          const data = await res.json();
+          const statusEl = document.getElementById('pipeline-device-status');
+
+          if (data.status === 'complete') {
+            clearInterval(timer);
+            if (statusEl) statusEl.innerHTML = '<span style="color:var(--green);font-weight:600">Connected! Syncing your data...</span>';
+            showToast('GitHub connected — syncing data...');
+            loadOAuthStatus();
+            syncOAuthProvider('github');
+            // Close modal after brief delay
+            setTimeout(() => { const m = document.getElementById('device-flow-modal'); if (m) m.remove(); }, 2500);
+          } else if (data.status === 'expired') {
+            clearInterval(timer);
+            if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">Code expired. </span><a href="#" onclick="event.preventDefault();document.getElementById(\'device-flow-modal\').remove();showPipelineDeviceFlow()" style="color:var(--accent)">Try again</a>';
+          }
+        } catch { /* network error — keep trying */ }
+      }, pollMs);
+    }
+
+    async function savePipelineGitHubCreds() {
+      const idInput = document.getElementById('pipeline-gh-id');
+      const secretInput = document.getElementById('pipeline-gh-secret');
+      if (!idInput || !secretInput) return;
+      const clientId = idInput.value.trim();
+      const clientSecret = secretInput.value.trim();
+      if (!clientId || !clientSecret) { showToast('Enter both Client ID and Secret'); return; }
+      try {
+        const res = await fetch('/api/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ github_client_id: clientId, github_client_secret: clientSecret }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        showToast('GitHub credentials saved — connecting...');
+        const modal = document.getElementById('device-flow-modal');
+        if (modal) modal.remove();
+        startOAuthConnect('github');
+      } catch (err) { showToast('Save failed: ' + (err.message || 'unknown')); }
+    }
+
+    // ── Credential Setup Modal (shown when user clicks Connect but no credentials exist) ──
+    function showCredentialSetupModal(provider) {
+      const meta = OAUTH_PROVIDER_META[provider];
+      if (!meta) return;
+      const port = location.port || '3456';
+      const callbackUrl = `http://localhost:${port}/api/auth/callback`;
+      const stepsHtml = meta.steps.map(s =>
+        `<li>${s.replace(/CALLBACK/g, '<code style="font-size:11px;color:var(--accent)">' + esc(callbackUrl) + '</code>').replace(/PORT/g, port)}</li>`
+      ).join('');
+
+      let modal = document.getElementById('cred-setup-modal');
+      if (modal) modal.remove();
+      modal = document.createElement('div');
+      modal.id = 'cred-setup-modal';
+      modal.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)';
+      modal.innerHTML = `<div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.4);max-height:80vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h3 style="margin:0;font-size:15px;color:var(--text-bright)">Connect ${meta.name}</h3>
+          <button onclick="document.getElementById('cred-setup-modal').remove()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px">&times;</button>
+        </div>
+        <p style="color:var(--text-secondary);font-size:12px;margin:0 0 16px;line-height:1.5">
+          Enter your ${meta.name} OAuth credentials to connect. You can set them as environment variables or enter them below.
+        </p>
+        <div style="background:var(--bg-surface);border-radius:8px;padding:12px;margin-bottom:16px">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Environment variables</div>
+          <code style="font-size:11px;color:var(--accent);word-break:break-all">WIKIMEM_${provider.toUpperCase()}_CLIENT_ID</code><br/>
+          <code style="font-size:11px;color:var(--accent);word-break:break-all">WIKIMEM_${provider.toUpperCase()}_CLIENT_SECRET</code>
+        </div>
+        <details style="margin-bottom:16px">
+          <summary style="font-size:12px;color:var(--text-muted);cursor:pointer;font-weight:500">How to register a ${meta.name} OAuth app</summary>
+          <ol class="oauth-setup-steps" style="margin-top:8px">${stepsHtml}</ol>
+        </details>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <input class="settings-input" id="cred-modal-id" type="text" placeholder="Client ID" style="width:100%;box-sizing:border-box" />
+          <input class="settings-input" id="cred-modal-secret" type="password" placeholder="Client Secret" style="width:100%;box-sizing:border-box" />
+          <button class="settings-btn settings-btn-primary" onclick="saveCredModalAndConnect('${provider}')" style="font-size:12px;padding:8px 16px;align-self:flex-end">Save & Connect</button>
+        </div>
+      </div>`;
+      document.body.appendChild(modal);
+      modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+    }
+
+    async function saveCredModalAndConnect(provider) {
+      const meta = OAUTH_PROVIDER_META[provider];
+      const idInput = document.getElementById('cred-modal-id');
+      const secretInput = document.getElementById('cred-modal-secret');
+      if (!idInput || !secretInput) return;
+      const clientId = idInput.value.trim();
+      const clientSecret = secretInput.value.trim();
+      if (!clientId || !clientSecret) { showToast('Enter both Client ID and Secret'); return; }
+      try {
+        const body = {};
+        body[meta.idKey] = clientId;
+        body[meta.secretKey] = clientSecret;
+        const res = await fetch('/api/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        showToast(`${meta.name} credentials saved — connecting...`);
+        const modal = document.getElementById('cred-setup-modal');
+        if (modal) modal.remove();
+        startOAuthConnect(provider);
+      } catch (err) { showToast('Save failed: ' + (err.message || 'unknown')); }
     }
 
     async function loadOAuthStatus() {
@@ -7290,16 +8386,377 @@
           if (!badge) continue;
           if (info.connected) {
             badge.innerHTML = '<span class="connected-badge">Connected</span>';
+          } else if (info.hasCredentials || info.hasDeviceFlow) {
+            badge.innerHTML = '<button class="connect-btn" onclick="event.stopPropagation();startOAuthConnect(\'' + provider + '\')">Connect</button>';
           } else {
             badge.innerHTML = '<button class="connect-btn" onclick="event.stopPropagation();startOAuthConnect(\'' + provider + '\')">Connect</button>';
           }
         }
         // Gmail mirrors google token
         const gmailBadge = document.getElementById('oauth-badge-gmail');
-        if (gmailBadge && data.google?.connected) {
-          gmailBadge.innerHTML = '<span class="connected-badge">Connected</span>';
+        if (gmailBadge && data.google) {
+          if (data.google.connected) {
+            gmailBadge.innerHTML = '<span class="connected-badge">Connected</span>';
+          } else {
+            gmailBadge.innerHTML = '<button class="connect-btn" onclick="event.stopPropagation();startOAuthConnect(\'google\')">Connect</button>';
+          }
         }
       } catch {}
+    }
+
+    async function renderHomeConnectors() {
+      const container = document.getElementById('home-oauth-cards');
+      if (!container) return;
+      const providers = ['github', 'slack', 'google', 'linear', 'jira'];
+      let tokenData = {};
+      try { tokenData = await fetch('/api/auth/tokens').then(r => r.json()); } catch {}
+      container.innerHTML = providers.map(p => {
+        const meta = OAUTH_PROVIDER_META[p];
+        if (!meta) return '';
+        const info = tokenData[p] || {};
+        const connected = !!info.connected;
+        const btnHtml = connected
+          ? '<span style="font-size:10px;color:#34d399;font-weight:600">Connected</span>'
+          : `<button class="connect-btn" onclick="event.stopPropagation();startOAuthConnect('${p}')" style="font-size:10px;padding:2px 8px">Connect</button>`;
+        return `<div style="display:flex;align-items:center;gap:8px;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;min-width:140px;cursor:pointer" onclick="showView('settings');setTimeout(()=>{const t=document.querySelector('.settings-nav-item[data-section=sources]');if(t)t.click()},100)">
+          <span style="color:var(--text-secondary);flex-shrink:0">${meta.icon}</span>
+          <span style="font-size:12px;color:var(--text-bright);font-weight:500;flex:1">${meta.name}</span>
+          ${btnHtml}
+        </div>`;
+      }).join('');
+    }
+
+    // ── OAuth Setup Wizard ──
+    const OAUTH_PROVIDER_META = {
+      github: {
+        name: 'GitHub',
+        icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>',
+        desc: 'Repos, issues, PRs, and starred projects',
+        idKey: 'github_client_id', secretKey: 'github_client_secret',
+        steps: [
+          'Go to <a href="https://github.com/settings/developers" target="_blank" style="color:var(--accent)">GitHub → Settings → Developer Settings → OAuth Apps</a>',
+          'Click <strong>New OAuth App</strong>',
+          'Set <strong>Homepage URL</strong> to <code>http://localhost:PORT</code>',
+          'Set <strong>Authorization callback URL</strong> to <code>CALLBACK</code>',
+          'Copy the <strong>Client ID</strong> and generate a <strong>Client Secret</strong>',
+          'Paste both values below and click <strong>Save Credentials</strong>',
+        ],
+      },
+      slack: {
+        name: 'Slack',
+        icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.271 0a2.528 2.528 0 0 1-2.521 2.521 2.528 2.528 0 0 1-2.521-2.521V2.522A2.528 2.528 0 0 1 15.164 0a2.528 2.528 0 0 1 2.521 2.522v6.312zM15.164 18.956a2.528 2.528 0 0 1 2.521 2.522A2.528 2.528 0 0 1 15.164 24a2.528 2.528 0 0 1-2.521-2.522v-2.522h2.521zm0-1.271a2.528 2.528 0 0 1-2.521-2.521 2.528 2.528 0 0 1 2.521-2.521h6.314A2.528 2.528 0 0 1 24 15.164a2.528 2.528 0 0 1-2.522 2.521h-6.314z"/></svg>',
+        desc: 'Channels, messages, and threads',
+        idKey: 'slack_client_id', secretKey: 'slack_client_secret',
+        steps: [
+          'Go to <a href="https://api.slack.com/apps" target="_blank" style="color:var(--accent)">api.slack.com/apps</a> and click <strong>Create New App → From scratch</strong>',
+          'Name it (e.g. "WikiMem") and select your workspace',
+          'Go to <strong>OAuth & Permissions</strong> → add <code>channels:history</code>, <code>channels:read</code>, <code>users:read</code> scopes',
+          'Under <strong>Redirect URLs</strong>, add <code>CALLBACK</code>',
+          'Go to <strong>Basic Information</strong> → copy <strong>Client ID</strong> and <strong>Client Secret</strong>',
+          'Paste both values below and click <strong>Save Credentials</strong>',
+        ],
+      },
+      google: {
+        name: 'Google',
+        icon: '<svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>',
+        desc: 'Gmail messages and Google Drive files',
+        idKey: 'google_client_id', secretKey: 'google_client_secret',
+        steps: [
+          'Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent)">Google Cloud Console → Credentials</a>',
+          'Click <strong>Create Credentials → OAuth client ID</strong> (create consent screen first if prompted)',
+          'Application type: <strong>Web application</strong>',
+          'Add <code>CALLBACK</code> under <strong>Authorized redirect URIs</strong>',
+          'Copy the <strong>Client ID</strong> and <strong>Client Secret</strong>',
+          'Enable <strong>Gmail API</strong> and <strong>Google Drive API</strong> in the API Library',
+          'Paste both values below and click <strong>Save Credentials</strong>',
+        ],
+      },
+      linear: {
+        name: 'Linear',
+        icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="#635BFF"><path d="M2.513 12.833l8.654 8.654a10.478 10.478 0 0 1-8.654-8.654zm-.362-2.584a10.478 10.478 0 0 1 3.388-5.725l10.937 10.937a10.478 10.478 0 0 1-5.725 3.388L2.151 10.249zm4.858-6.707a10.478 10.478 0 0 1 3.624-1.391l10.216 10.216a10.48 10.48 0 0 1-1.391 3.624L7.009 3.542zm5.088-1.735a10.478 10.478 0 0 1 4.37.117l6.571 6.571a10.478 10.478 0 0 1 .117 4.37L12.097 1.807zm5.845.904a10.444 10.444 0 0 1 3.37 2.924l-1.237-1.237.092-.092a10.478 10.478 0 0 0-2.924-2.294l.699.699z"/></svg>',
+        desc: 'Issues, projects, and team activity',
+        idKey: 'linear_client_id', secretKey: 'linear_client_secret',
+        steps: [
+          'Go to <a href="https://linear.app/settings/api" target="_blank" style="color:var(--accent)">Linear → Settings → API → OAuth Applications</a>',
+          'Click <strong>Create new</strong>',
+          'Set <strong>Callback URL</strong> to <code>CALLBACK</code>',
+          'Copy the <strong>Client ID</strong> and <strong>Client Secret</strong>',
+          'Paste both values below and click <strong>Save Credentials</strong>',
+        ],
+      },
+      jira: {
+        name: 'Jira',
+        icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="#0052CC"><path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.593 24V12.518a1.005 1.005 0 0 0-1.022-1.005zM6.348 6.294H17.87a5.218 5.218 0 0 1-5.231 5.214h-2.13V13.565A5.215 5.215 0 0 1 5.277 8.35V6.294h1.071zM12.798.042H1.276a5.218 5.218 0 0 0 5.232 5.214h2.13V7.313a5.215 5.215 0 0 0 5.231 5.215V1.047A1.005 1.005 0 0 0 12.798.042z"/></svg>',
+        desc: 'Issues, boards, and project tracking',
+        idKey: 'jira_client_id', secretKey: 'jira_client_secret',
+        steps: [
+          'Go to <a href="https://developer.atlassian.com/console/myapps/" target="_blank" style="color:var(--accent)">Atlassian Developer Console</a>',
+          'Click <strong>Create → OAuth 2.0 integration</strong>',
+          'Under <strong>Authorization</strong>, add callback URL: <code>CALLBACK</code>',
+          'Add scopes: <code>read:jira-work</code>, <code>read:jira-user</code>, <code>offline_access</code>',
+          'Copy the <strong>Client ID</strong> and <strong>Secret</strong>',
+          'Paste both values below and click <strong>Save Credentials</strong>',
+        ],
+      },
+    };
+
+    // ── Active device flow polling state ──
+    let _deviceFlowPollTimer = null;
+
+    async function renderOAuthIntegrations() {
+      const container = document.getElementById('oauth-integrations');
+      if (!container) return;
+      const port = location.port || '3456';
+      const callbackUrl = `http://localhost:${port}/api/auth/callback`;
+
+      let tokenStatus = {};
+      let configData = {};
+      try {
+        [tokenStatus, configData] = await Promise.all([
+          fetch('/api/auth/tokens').then(r => r.json()),
+          fetch('/api/config').then(r => r.json()),
+        ]);
+      } catch { container.innerHTML = '<div style="color:var(--red);font-size:13px;padding:16px 0">Failed to load integration status</div>'; return; }
+
+      let cards = '';
+      for (const [provider, meta] of Object.entries(OAUTH_PROVIDER_META)) {
+        const token = tokenStatus[provider];
+        const isConnected = token?.connected;
+        const hasCredentials = !!token?.hasCredentials;
+
+        // Badge (only shown when connected or has credentials)
+        let badgeHtml = '';
+        if (isConnected) badgeHtml = '<span class="oauth-card-badge connected">Connected</span>';
+        else if (hasCredentials) badgeHtml = '<span class="oauth-card-badge ready">Ready</span>';
+
+        // Action area
+        let actionHtml = '';
+        if (isConnected) {
+          const connDate = token.connectedAt ? new Date(token.connectedAt).toLocaleDateString() : '';
+          actionHtml = `
+            <div class="oauth-connected-meta">Connected ${connDate}</div>
+            <div class="oauth-card-actions">
+              <button class="oauth-connect-btn secondary" onclick="syncOAuthProvider('${provider}')">Sync Now</button>
+              <button class="oauth-connect-btn danger" onclick="disconnectOAuth('${provider}')">Disconnect</button>
+            </div>`;
+        } else if (hasCredentials) {
+          actionHtml = `
+            <div class="oauth-card-actions">
+              <button class="oauth-connect-btn primary" onclick="startOAuthConnect('${provider}')">Connect</button>
+            </div>`;
+        } else if (provider === 'github') {
+          // GitHub: one-click Device Flow (no credentials needed)
+          actionHtml = `
+            <div class="oauth-card-actions">
+              <button class="oauth-connect-btn primary" id="gh-device-btn" onclick="startGitHubDeviceFlow()">Connect with GitHub</button>
+            </div>
+            <div id="gh-device-flow-ui"></div>`;
+        } else {
+          // Other providers without credentials: show Connect button (credentials resolved at connect time)
+          actionHtml = `
+            <div class="oauth-card-actions">
+              <button class="oauth-connect-btn primary" onclick="startOAuthConnect('${provider}')" id="oauth-connect-${provider}">Connect</button>
+            </div>`;
+        }
+
+        // Advanced setup (collapsible, for non-connected providers without credentials)
+        let advancedHtml = '';
+        if (!isConnected && !hasCredentials && provider !== 'github') {
+          const stepsHtml = meta.steps.map(s =>
+            `<li>${s.replace(/CALLBACK/g, '<code>' + esc(callbackUrl) + '</code>').replace(/PORT/g, port)}</li>`
+          ).join('');
+          const hasId = !!configData[meta.idKey];
+          const hasSecret = !!configData[meta.secretKey];
+          advancedHtml = `
+            <div class="oauth-advanced-body" id="oauth-adv-${provider}">
+              <ol class="oauth-setup-steps">${stepsHtml}</ol>
+              <div class="oauth-input-row">
+                <input class="settings-input" id="oauth-id-${provider}" type="text" placeholder="Client ID" value="${hasId ? '••••••••' : ''}" ${hasId ? 'data-saved="true"' : ''} onfocus="if(this.dataset.saved){this.value='';this.dataset.saved=''}" />
+                <input class="settings-input" id="oauth-secret-${provider}" type="password" placeholder="Client Secret" value="${hasSecret ? '••••••••' : ''}" ${hasSecret ? 'data-saved="true"' : ''} onfocus="if(this.dataset.saved){this.value='';this.dataset.saved=''}" />
+              </div>
+              <div class="oauth-actions">
+                <button class="settings-btn settings-btn-primary" onclick="saveOAuthCredentials('${provider}')" style="font-size:12px;padding:5px 14px">Save & Connect</button>
+                <span class="settings-status" id="oauth-save-status-${provider}"></span>
+              </div>
+            </div>`;
+        }
+
+        cards += `<div class="oauth-card${isConnected ? ' oauth-connected' : ''}" id="oauth-card-${provider}">
+          <div class="oauth-card-top">
+            <div class="oauth-card-icon ${provider}">${meta.icon}</div>
+            <div class="oauth-card-info">
+              <div class="oauth-card-name">${meta.name}</div>
+              <div class="oauth-card-desc">${meta.desc}</div>
+            </div>
+            ${badgeHtml}
+          </div>
+          ${actionHtml}
+          ${advancedHtml}
+        </div>`;
+      }
+      container.innerHTML = `<div class="oauth-grid">${cards}</div>`;
+    }
+
+    function toggleAdvancedSetup(provider) {
+      const body = document.getElementById('oauth-adv-' + provider);
+      if (!body) return;
+      body.classList.toggle('open');
+    }
+
+    // ── GitHub Device Flow ──
+    async function startGitHubDeviceFlow() {
+      const btn = document.getElementById('gh-device-btn');
+      const ui = document.getElementById('gh-device-flow-ui');
+      if (!ui) return;
+      if (btn) { btn.disabled = true; btn.textContent = 'Starting...'; }
+
+      try {
+        const res = await fetch('/api/auth/device-flow/start', { method: 'POST' });
+        const data = await res.json();
+
+        if (data.error === 'no_client_id') {
+          // No device client ID configured — fall back to credential setup
+          if (btn) { btn.disabled = false; btn.textContent = 'Connect with GitHub'; }
+          ui.innerHTML = `<div class="oauth-info-tip" style="margin-top:4px">
+            Device flow requires a GitHub OAuth App client ID.<br/>
+            Set <code style="font-size:10px;color:var(--accent)">WIKIMEM_GITHUB_CLIENT_ID</code> env var, or <a href="https://github.com/settings/developers" target="_blank">create an OAuth App</a> and enter credentials below.
+          </div>
+          <div class="oauth-advanced-body open" style="padding-top:8px">
+            <div class="oauth-input-row">
+              <input class="settings-input" id="oauth-id-github" type="text" placeholder="Client ID" />
+              <input class="settings-input" id="oauth-secret-github" type="password" placeholder="Client Secret" />
+            </div>
+            <div class="oauth-actions">
+              <button class="settings-btn settings-btn-primary" onclick="saveOAuthCredentials('github')" style="font-size:12px;padding:5px 14px">Save & Connect</button>
+              <span class="settings-status" id="oauth-save-status-github"></span>
+            </div>
+          </div>`;
+          return;
+        }
+
+        if (data.error) {
+          if (btn) { btn.disabled = false; btn.textContent = 'Connect with GitHub'; }
+          showToast('Device flow error: ' + (data.message || data.error));
+          return;
+        }
+
+        // Show the device code UI
+        if (btn) btn.style.display = 'none';
+        ui.innerHTML = `<div class="device-flow-box">
+          <div class="device-flow-steps">
+            1. Go to <a href="${data.verification_uri}" target="_blank">${data.verification_uri}</a><br/>
+            2. Enter this code:
+          </div>
+          <div class="device-flow-code">${data.user_code}</div>
+          <div style="margin-top:4px">
+            <button class="oauth-connect-btn secondary" style="flex:0;padding:5px 14px;font-size:11px" onclick="navigator.clipboard.writeText('${data.user_code}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy Code',1500)">Copy Code</button>
+          </div>
+          <div class="device-flow-status" id="gh-device-status">
+            <span class="device-flow-spinner"></span>
+            Waiting for authorization...
+          </div>
+        </div>`;
+
+        // Start polling
+        pollGitHubDeviceFlow(data.device_code, data.interval || 5);
+      } catch (err) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Connect with GitHub'; }
+        showToast('Device flow failed: ' + (err.message || 'unknown'));
+      }
+    }
+
+    function pollGitHubDeviceFlow(deviceCode, interval) {
+      if (_deviceFlowPollTimer) clearInterval(_deviceFlowPollTimer);
+      const pollMs = Math.max((interval || 5) * 1000, 5000);
+
+      _deviceFlowPollTimer = setInterval(async () => {
+        try {
+          const res = await fetch('/api/auth/device-flow/poll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_code: deviceCode }),
+          });
+          const data = await res.json();
+          const statusEl = document.getElementById('gh-device-status');
+
+          if (data.status === 'complete') {
+            clearInterval(_deviceFlowPollTimer);
+            _deviceFlowPollTimer = null;
+            if (statusEl) statusEl.innerHTML = '<span style="color:var(--green);font-weight:600">Connected! Syncing...</span>';
+            showToast('GitHub connected — syncing data...');
+            setTimeout(() => renderOAuthIntegrations(), 1000);
+            loadOAuthStatus();
+            syncOAuthProvider('github');
+          } else if (data.status === 'expired') {
+            clearInterval(_deviceFlowPollTimer);
+            _deviceFlowPollTimer = null;
+            if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">Code expired. </span><a href="#" onclick="event.preventDefault();startGitHubDeviceFlow()" style="color:var(--accent)">Try again</a>';
+          } else if (data.status === 'slow_down') {
+            // GitHub asked us to slow down — we'll just wait for next interval
+          }
+          // 'pending' — keep polling
+        } catch {
+          // Network error — keep trying
+        }
+      }, pollMs);
+    }
+
+    async function saveOAuthCredentials(provider) {
+      const meta = OAUTH_PROVIDER_META[provider];
+      if (!meta) return;
+      const idInput = document.getElementById('oauth-id-' + provider);
+      const secretInput = document.getElementById('oauth-secret-' + provider);
+      const statusEl = document.getElementById('oauth-save-status-' + provider);
+      if (!idInput || !secretInput) return;
+
+      const clientId = idInput.value.trim();
+      const clientSecret = secretInput.value.trim();
+
+      if (idInput.dataset.saved && !clientId) { showToast('Client ID is empty — clear field and enter new value'); return; }
+      if (secretInput.dataset.saved && !clientSecret) { showToast('Client Secret is empty — clear field and enter new value'); return; }
+
+      const updates = {};
+      if (clientId && clientId !== '••••••••') updates[meta.idKey] = clientId;
+      if (clientSecret && clientSecret !== '••••••••') updates[meta.secretKey] = clientSecret;
+
+      if (Object.keys(updates).length === 0) { showToast('Enter Client ID and Secret first'); return; }
+
+      if (statusEl) { statusEl.textContent = 'Saving…'; statusEl.style.color = 'var(--text-muted)'; }
+
+      try {
+        const res = await fetch('/api/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        if (statusEl) { statusEl.textContent = 'Saved'; statusEl.style.color = 'var(--green)'; }
+        showToast(`${meta.name} credentials saved`);
+        setTimeout(() => renderOAuthIntegrations(), 800);
+      } catch (err) {
+        if (statusEl) { statusEl.textContent = 'Failed: ' + (err.message || 'unknown'); statusEl.style.color = 'var(--red)'; }
+      }
+    }
+
+    async function disconnectOAuth(provider) {
+      const meta = OAUTH_PROVIDER_META[provider];
+      try {
+        await fetch('/api/auth/tokens/' + encodeURIComponent(provider), { method: 'DELETE' });
+        showToast(`${meta?.name || provider} disconnected`);
+        renderOAuthIntegrations();
+      } catch (err) { showToast('Disconnect failed: ' + (err.message || 'unknown')); }
+    }
+
+    async function syncOAuthProvider(provider) {
+      const meta = OAUTH_PROVIDER_META[provider];
+      showToast(`Syncing ${meta?.name || provider}…`);
+      try {
+        const res = await fetch('/api/sync/' + encodeURIComponent(provider), { method: 'POST' });
+        const data = await res.json();
+        if (data.error || data.errors?.length) {
+          showToast(`Sync error: ${data.errors?.[0] || data.error}`);
+        } else {
+          showToast(`✓ ${meta?.name || provider}: ${data.filesWritten || 0} files synced in ${((data.duration || 0) / 1000).toFixed(1)}s`);
+          loadTree();
+        }
+      } catch (err) { showToast('Sync failed: ' + (err.message || 'unknown')); }
     }
 
     function showStageDetail(stepId) {
@@ -7437,6 +8894,9 @@
       _tlGraphLastHash: null,
       _tlSliderRaf: null,
       _tlSliderPendingIdx: null,
+      _tlPlayRaf: null,
+      _tlDragging: false,
+      _tlRenderDebounce: null,
     };
 
     function railTimelapseClick() {
@@ -7560,10 +9020,13 @@
       const commit = tlState.commits[idx];
       if(!commit) return;
 
-      const slider = document.getElementById('tl-slider');
-      slider.value = String(idx);
-      const max = parseInt(slider.max) || 1;
-      slider.style.setProperty('--slider-pct', `${(idx / max) * 100}%`);
+      // Don't overwrite slider position while user is actively dragging
+      if(!tlState._tlDragging) {
+        const slider = document.getElementById('tl-slider');
+        slider.value = String(idx);
+        const max = parseInt(slider.max) || 1;
+        slider.style.setProperty('--slider-pct', `${(idx / max) * 100}%`);
+      }
 
       const date = new Date(commit.date);
       const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
@@ -7934,7 +9397,8 @@
       const cs = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
       const COLORS = ['#4f9eff','#4ec9b0','#d7ba7d','#c586c0','#9cdcfe','#dcdcaa','#ce9178','#608b4e','#b5cea8'];
       const cColor = c => COLORS[(c||0) % COLORS.length];
-      const isHub = d => (d.linksIn||0) >= 3;
+      const totalNodes = data.nodes.length;
+      const isHub = d => (d.linksIn||0) >= Math.max(5, Math.ceil(totalNodes * 0.06));
       const nR = d => Math.max(4, Math.min(18, 4 + Math.sqrt(d.linksIn||0) * 3));
       const linkKey = d => `${d.source?.id??d.source}\u2192${d.target?.id??d.target}`;
 
@@ -7970,11 +9434,8 @@
         svg.call(d3.zoom().scaleExtent([0.15,5]).on('zoom', e => g.attr('transform', e.transform)));
       }
 
-      if(crossfade && tlState._tlGraphLastHash) {
-        g.interrupt().style('opacity', 0.48);
-      } else {
-        g.style('opacity', 1);
-      }
+      // No opacity flash — let D3 data joins handle smooth transitions
+      g.style('opacity', 1);
 
       let tip = container.querySelector('.tl-tip');
       if(!tip) { tip = document.createElement('div'); tip.className = 'tl-tip'; container.appendChild(tip); }
@@ -8008,7 +9469,7 @@
         sim.force('charge', d3.forceManyBody().strength(-220));
         sim.force('center', d3.forceCenter(width/2, height/2));
         sim.force('collision', d3.forceCollide().radius(d => isHub(d)?26:18));
-        sim.alpha(0.3).restart();
+        sim.alpha(tlState.playing ? 0.15 : 0.3).restart();
       } else {
         if(tlState._tlGraphSim) {
           tlState._tlGraphSim.stop();
@@ -8108,9 +9569,6 @@
       });
 
       tlState._tlGraphLastHash = commit.hash;
-      if(crossfade) {
-        g.transition().duration(280).style('opacity', 1);
-      }
 
       if(typeof idx === 'number') {
         const lo = Math.max(0,idx-5), hi = Math.min(tlState.commits.length-1,idx+5);
@@ -8129,14 +9587,47 @@
       document.getElementById('tl-play').textContent = '⏸';
       document.getElementById('tl-play').classList.add('playing');
       const speed = parseInt(document.getElementById('tl-speed').value) || 2000;
-      tlState.interval = setInterval(() => {
-        if(tlState.currentIdx >= tlState.commits.length - 1) { tlPause(); return; }
-        renderTimelapseAt(tlState.currentIdx + 1, { crossfade: true });
-      }, speed);
+      const slider = document.getElementById('tl-slider');
+      const max = tlState.commits.length - 1;
+      if(max <= 0) { tlPause(); return; }
+
+      let lastTime = null;
+      let fractionalIdx = tlState.currentIdx;
+
+      function animate(ts) {
+        if(!tlState.playing || tlState._tlDragging) return;
+        if(lastTime === null) { lastTime = ts; tlState._tlPlayRaf = requestAnimationFrame(animate); return; }
+        const dt = ts - lastTime;
+        lastTime = ts;
+
+        // Advance fractional index smoothly based on speed setting
+        // speed = ms per commit, so rate = 1/speed commits per ms
+        fractionalIdx += dt / speed;
+
+        // Smoothly update slider position (continuous, not integer-locked)
+        const pct = Math.min(fractionalIdx / max, 1) * 100;
+        slider.style.setProperty('--slider-pct', `${pct}%`);
+        slider.value = String(Math.min(Math.round(fractionalIdx), max));
+
+        // Only render at integer commit boundaries
+        const targetIdx = Math.floor(fractionalIdx);
+        if(targetIdx > tlState.currentIdx && targetIdx <= max) {
+          renderTimelapseAt(targetIdx, { crossfade: false });
+        }
+
+        if(fractionalIdx >= max) {
+          renderTimelapseAt(max, { crossfade: false });
+          tlPause();
+          return;
+        }
+        tlState._tlPlayRaf = requestAnimationFrame(animate);
+      }
+      tlState._tlPlayRaf = requestAnimationFrame(animate);
     }
 
     function tlPause() {
       tlState.playing = false;
+      if(tlState._tlPlayRaf) { cancelAnimationFrame(tlState._tlPlayRaf); tlState._tlPlayRaf = null; }
       clearInterval(tlState.interval);
       document.getElementById('tl-play').textContent = '▶';
       document.getElementById('tl-play').classList.remove('playing');
@@ -8186,6 +9677,11 @@
       if(e.target === e.currentTarget) closePRModal();
     });
 
+    const cxClose = document.getElementById('cx-modal-close');
+    if (cxClose) cxClose.addEventListener('click', closeCxModal);
+    const cxOv = document.getElementById('cx-modal-overlay');
+    if (cxOv) cxOv.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeCxModal(); });
+
     // Settings nav
     document.querySelectorAll('.settings-nav-item').forEach(el => {
       el.addEventListener('click', () => renderSettingsSection(el.dataset.section));
@@ -8218,32 +9714,72 @@
         alert('Failed to create page');
       }
     });
+    document.getElementById('sa-new-folder').addEventListener('click', () => createSubfolder('', 'wiki'));
     document.getElementById('sa-collapse').addEventListener('click', collapseAllFolders);
     document.getElementById('sa-refresh').addEventListener('click', () => { loadTree(); loadHome(); });
     document.getElementById('git-status-badge').addEventListener('click', toggleGitDropdown);
 
-    document.getElementById('tl-slider').addEventListener('input', e => {
-      const val = parseInt(e.target.value, 10);
-      const max = parseInt(e.target.max, 10) || 1;
-      e.target.style.setProperty('--slider-pct', `${(val / max) * 100}%`);
-      tlState._tlSliderPendingIdx = val;
-      if(tlState._tlSliderRaf != null) return;
-      tlState._tlSliderRaf = requestAnimationFrame(() => {
-        tlState._tlSliderRaf = null;
-        renderTimelapseAt(tlState._tlSliderPendingIdx);
-      });
+    // Drag detection: pointerdown sets dragging flag and pauses playback immediately
+    document.getElementById('tl-slider').addEventListener('pointerdown', () => {
+      tlState._tlDragging = true;
+      if(tlState.playing) tlPause();
     });
-    document.getElementById('tl-slider').addEventListener('change', e => {
-      const val = parseInt(e.target.value, 10);
+    // pointerup clears dragging flag (also on document in case pointer leaves slider)
+    function tlSliderPointerUp() {
+      if(!tlState._tlDragging) return;
+      tlState._tlDragging = false;
+      // Flush any pending debounced render at the final position
+      if(tlState._tlRenderDebounce != null) {
+        clearTimeout(tlState._tlRenderDebounce);
+        tlState._tlRenderDebounce = null;
+      }
       if(tlState._tlSliderRaf != null) {
         cancelAnimationFrame(tlState._tlSliderRaf);
         tlState._tlSliderRaf = null;
       }
-      renderTimelapseAt(val);
+      renderTimelapseAt(tlState._tlSliderPendingIdx != null ? tlState._tlSliderPendingIdx : tlState.currentIdx, { crossfade: true });
+    }
+    document.getElementById('tl-slider').addEventListener('pointerup', tlSliderPointerUp);
+    document.addEventListener('pointerup', tlSliderPointerUp);
+
+    // input: fires continuously during drag — keep slider visual responsive, debounce heavy render
+    document.getElementById('tl-slider').addEventListener('input', e => {
+      const val = parseInt(e.target.value, 10);
+      const max = parseInt(e.target.max, 10) || 1;
+      // Always update the slider track fill immediately (cheap CSS-only)
+      e.target.style.setProperty('--slider-pct', `${(val / max) * 100}%`);
+      tlState._tlSliderPendingIdx = val;
+
+      // Update commit info label immediately (lightweight DOM update)
+      const commit = tlState.commits[val];
+      if(commit) {
+        document.getElementById('tl-label-current').textContent = `${val + 1} / ${tlState.commits.length}`;
+      }
+
+      // Debounce the expensive tree/graph render (80ms) to avoid blocking the UI thread
+      if(tlState._tlRenderDebounce != null) clearTimeout(tlState._tlRenderDebounce);
+      tlState._tlRenderDebounce = setTimeout(() => {
+        tlState._tlRenderDebounce = null;
+        renderTimelapseAt(val, { crossfade: false });
+      }, 80);
+    });
+
+    // change: fires once on slider release (mouse up / touch end) — final authoritative render
+    document.getElementById('tl-slider').addEventListener('change', e => {
+      const val = parseInt(e.target.value, 10);
+      if(tlState._tlRenderDebounce != null) {
+        clearTimeout(tlState._tlRenderDebounce);
+        tlState._tlRenderDebounce = null;
+      }
+      if(tlState._tlSliderRaf != null) {
+        cancelAnimationFrame(tlState._tlSliderRaf);
+        tlState._tlSliderRaf = null;
+      }
+      renderTimelapseAt(val, { crossfade: true });
     });
     document.getElementById('tl-play').addEventListener('click', tlPlay);
-    document.getElementById('tl-prev').addEventListener('click', () => { if(tlState.currentIdx > 0) renderTimelapseAt(tlState.currentIdx - 1); });
-    document.getElementById('tl-next').addEventListener('click', () => { if(tlState.currentIdx < tlState.commits.length - 1) renderTimelapseAt(tlState.currentIdx + 1); });
+    document.getElementById('tl-prev').addEventListener('click', () => { if(tlState.currentIdx > 0) renderTimelapseAt(tlState.currentIdx - 1, { crossfade: true }); });
+    document.getElementById('tl-next').addEventListener('click', () => { if(tlState.currentIdx < tlState.commits.length - 1) renderTimelapseAt(tlState.currentIdx + 1, { crossfade: true }); });
     document.getElementById('tl-speed').addEventListener('change', () => { if(tlState.playing) { tlPause(); tlPlay(); } });
     document.getElementById('tl-mode-tree').addEventListener('click', () => {
       tlState.mode = 'tree';
@@ -8320,14 +9856,18 @@
       setTimeout(positionSelToolbar, 10);
     });
     document.addEventListener('mousedown', (e) => {
-      if (!_selToolbar.contains(e.target)) hideSelToolbar();
+      if (!_selToolbar.contains(e.target) && !_selPreventHide) hideSelToolbar();
     });
 
-    _selToolbar.addEventListener('click', (e) => {
+    let _selPreventHide = false;
+    _selToolbar.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      _selPreventHide = true;
       const btn = e.target.closest('.st-btn');
       if (!btn) return;
-      e.preventDefault();
       const cmd = btn.dataset.cmd;
+      const body = document.getElementById('page-body');
+      body.focus();
       if (cmd === 'bold') {
         document.execCommand('bold');
       } else if (cmd === 'italic') {
@@ -8335,23 +9875,165 @@
       } else if (cmd === 'code') {
         const sel = window.getSelection();
         if (sel && sel.rangeCount) {
+          let node = sel.anchorNode;
+          while (node && node !== body) {
+            if (node.nodeType === 1 && node.tagName === 'CODE') {
+              const text = document.createTextNode(node.textContent);
+              node.parentNode.replaceChild(text, node);
+              const r = document.createRange(); r.selectNodeContents(text);
+              sel.removeAllRanges(); sel.addRange(r);
+              markDirty(); setTimeout(positionSelToolbar, 10);
+              setTimeout(() => { _selPreventHide = false; }, 100);
+              return;
+            }
+            node = node.parentNode;
+          }
           const range = sel.getRangeAt(0);
           const code = document.createElement('code');
-          code.appendChild(range.extractContents());
-          range.insertNode(code);
-          sel.collapseToEnd();
+          try { range.surroundContents(code); } catch { code.appendChild(range.extractContents()); range.insertNode(code); }
+          const nr = document.createRange(); nr.selectNodeContents(code);
+          sel.removeAllRanges(); sel.addRange(nr);
         }
       } else if (cmd === 'link') {
         const sel = window.getSelection();
         if (!sel || sel.isCollapsed) return;
+        let linkNode = sel.anchorNode;
+        while (linkNode && linkNode !== body) {
+          if (linkNode.nodeType === 1 && linkNode.tagName === 'A') {
+            document.execCommand('unlink'); markDirty();
+            setTimeout(() => { _selPreventHide = false; }, 100);
+            return;
+          }
+          linkNode = linkNode.parentNode;
+        }
         const url = prompt('Enter URL:');
-        if (!url) return;
+        if (!url) { setTimeout(() => { _selPreventHide = false; }, 100); return; }
         document.execCommand('createLink', false, url);
       } else if (cmd === 'h2' || cmd === 'h3') {
         document.execCommand('formatBlock', false, cmd);
       }
       markDirty();
       setTimeout(positionSelToolbar, 10);
+      setTimeout(() => { _selPreventHide = false; }, 100);
+    });
+
+    // ── @Mention Autocomplete (ENT-002) ──
+    const _mentionPopup = document.getElementById('mention-popup');
+    let _mentionActive = false, _mentionQuery = '', _mentionItems = [], _mentionIdx = 0;
+
+    function getCaretCoords() {
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return null;
+      const range = sel.getRangeAt(0).cloneRange();
+      range.collapse(true);
+      const rect = range.getBoundingClientRect();
+      return { left: rect.left, top: rect.bottom + 4 };
+    }
+
+    function showMentionPopup(query) {
+      if (!state.allPages || !state.allPages.length) { hideMentionPopup(); return; }
+      const q = query.toLowerCase();
+      _mentionItems = state.allPages
+        .filter(p => p.title.toLowerCase().includes(q) || (p.slug || '').toLowerCase().includes(q))
+        .slice(0, 8);
+      if (!_mentionItems.length) { hideMentionPopup(); return; }
+      _mentionIdx = 0;
+      _mentionPopup.innerHTML = _mentionItems.map((p, i) => {
+        const typeLabel = (p.frontmatter?.type || 'page').toLowerCase();
+        return `<div class="mention-item${i === 0 ? ' active' : ''}" data-idx="${i}">
+          <span class="mention-item-type">${esc(typeLabel)}</span>
+          <span>${esc(p.title)}</span>
+        </div>`;
+      }).join('');
+      const coords = getCaretCoords();
+      if (coords) {
+        _mentionPopup.style.left = Math.min(coords.left, window.innerWidth - 330) + 'px';
+        _mentionPopup.style.top = coords.top + 'px';
+      }
+      _mentionPopup.classList.add('visible');
+      _mentionActive = true;
+      _mentionPopup.querySelectorAll('.mention-item').forEach(el => {
+        el.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          insertMention(_mentionItems[+el.dataset.idx]);
+        });
+      });
+    }
+
+    function hideMentionPopup() {
+      _mentionPopup.classList.remove('visible');
+      _mentionPopup.innerHTML = '';
+      _mentionActive = false;
+      _mentionQuery = '';
+      _mentionItems = [];
+    }
+
+    function insertMention(page) {
+      if (!page) return;
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      const textNode = range.startContainer;
+      if (textNode.nodeType !== Node.TEXT_NODE) { hideMentionPopup(); return; }
+      const text = textNode.textContent;
+      const caretPos = range.startOffset;
+      const atIdx = text.lastIndexOf('@', caretPos - 1);
+      if (atIdx === -1) { hideMentionPopup(); return; }
+      const before = text.substring(0, atIdx);
+      const after = text.substring(caretPos);
+      textNode.textContent = before + after;
+      const link = document.createElement('a');
+      link.className = 'wikilink';
+      link.href = '#';
+      link.dataset.wikilink = page.title;
+      link.textContent = page.title;
+      link.onclick = (e) => { e.preventDefault(); if (!state.editing) openPage(page.title); };
+      const afterNode = textNode.splitText(before.length);
+      textNode.parentNode.insertBefore(link, afterNode);
+      const space = document.createTextNode(' ');
+      link.parentNode.insertBefore(space, afterNode);
+      const r = document.createRange();
+      r.setStartAfter(space);
+      r.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(r);
+      hideMentionPopup();
+      markDirty();
+    }
+
+    document.getElementById('page-body').addEventListener('input', () => {
+      if (!state.editing) return;
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) { hideMentionPopup(); return; }
+      const range = sel.getRangeAt(0);
+      const textNode = range.startContainer;
+      if (textNode.nodeType !== Node.TEXT_NODE) { hideMentionPopup(); return; }
+      const text = textNode.textContent.substring(0, range.startOffset);
+      const atMatch = text.match(/@([a-zA-Z0-9 _-]{0,30})$/);
+      if (atMatch) {
+        _mentionQuery = atMatch[1];
+        showMentionPopup(_mentionQuery);
+      } else {
+        hideMentionPopup();
+      }
+    });
+
+    document.getElementById('page-body').addEventListener('keydown', (e) => {
+      if (!_mentionActive) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        _mentionIdx = Math.min(_mentionIdx + 1, _mentionItems.length - 1);
+        _mentionPopup.querySelectorAll('.mention-item').forEach((el, i) => el.classList.toggle('active', i === _mentionIdx));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        _mentionIdx = Math.max(_mentionIdx - 1, 0);
+        _mentionPopup.querySelectorAll('.mention-item').forEach((el, i) => el.classList.toggle('active', i === _mentionIdx));
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
+        if (_mentionItems[_mentionIdx]) { e.preventDefault(); insertMention(_mentionItems[_mentionIdx]); }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        hideMentionPopup();
+      }
     });
   </script>
 </body>

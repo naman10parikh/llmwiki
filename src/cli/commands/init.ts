@@ -1,6 +1,7 @@
 import { Command } from 'commander';
-import { existsSync, mkdirSync, writeFileSync, copyFileSync } from 'node:fs';
-import { join, resolve, basename } from 'node:path';
+import { existsSync, mkdirSync, writeFileSync, copyFileSync, readdirSync } from 'node:fs';
+import { join, resolve, basename, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
 import ora from 'ora';
 import { getDefaultAgentsMd } from '../../templates/agents-md.js';
@@ -8,19 +9,24 @@ import { getDefaultConfig } from '../../templates/config-yaml.js';
 import { setupObsidian } from '../../core/obsidian.js';
 import { scanFolder, formatScanSummary } from '../../core/folder-scanner.js';
 
+const INIT_DIR = dirname(fileURLToPath(import.meta.url));
+/** Packaged markdown starters for source pages (SUP-001) */
+const SOURCE_TYPE_TEMPLATES_DIR = join(INIT_DIR, '../../../templates/source-types');
+
 interface InitOptions {
   template?: string;
   force?: boolean;
   fromFolder?: string;
   fromRepo?: string;
+  interactive?: boolean;
 }
 
 function printBanner(): void {
   console.log();
-  console.log(chalk.hex('#6b21a8').bold(' ╦ ╦╦╦╔═╦╔╦╗╔═╗╔╦╗'));
-  console.log(chalk.hex('#6b21a8').bold(' ║║║║╠╩╗║║║║║╠═╝║║║'));
-  console.log(chalk.hex('#6b21a8').bold(' ╚╩╝╩╩ ╩╩╩ ╩╩╚═╝╩ ╩'));
-  console.log(chalk.dim(` self-improving knowledge bases`));
+  console.log(chalk.hex('#4f9eff').bold('  ╦ ╦╦╦╔═╦╔╦╗╔═╗╔╦╗'));
+  console.log(chalk.hex('#4f9eff').bold('  ║║║║╠╩╗║║║║║╠═╝║║║'));
+  console.log(chalk.hex('#4f9eff').bold('  ╚╩╝╩╩ ╩╩╩ ╩╩╚═╝╩ ╩'));
+  console.log(chalk.dim('  self-improving knowledge bases'));
   console.log();
 }
 
@@ -36,6 +42,16 @@ function scaffoldVault(root: string, template: string): void {
 
   for (const dir of dirs) {
     mkdirSync(dir, { recursive: true });
+  }
+
+  if (existsSync(SOURCE_TYPE_TEMPLATES_DIR)) {
+    const destDir = join(root, 'wiki', '_templates', 'sources');
+    mkdirSync(destDir, { recursive: true });
+    for (const f of readdirSync(SOURCE_TYPE_TEMPLATES_DIR)) {
+      if (f.endsWith('.md')) {
+        copyFileSync(join(SOURCE_TYPE_TEMPLATES_DIR, f), join(destDir, f));
+      }
+    }
   }
 
   writeFileSync(join(root, 'AGENTS.md'), getDefaultAgentsMd(template), 'utf-8');
@@ -105,11 +121,87 @@ export function registerInitCommand(program: Command): void {
     .description('Create a new wikimem vault')
     .option('-t, --template <template>', 'Domain template (personal, research, business, codebase)', 'personal')
     .option('-f, --force', 'Overwrite existing vault')
+    .option('-i, --interactive', 'Interactive template picker (TTY)')
     .option('--from-folder <path>', 'Create vault from existing folder (scan + batch ingest)')
     .option('--from-repo <path-or-url>', 'Create vault from a GitHub repo')
     .action(async (directory: string | undefined, options: InitOptions) => {
-      const root = directory ?? '.';
-      const template = options.template ?? 'personal';
+      let root = directory ?? '.';
+      let template = options.template ?? 'personal';
+
+      if (options.interactive && process.stdin.isTTY) {
+        const clack = await import('@clack/prompts');
+        clack.intro(chalk.hex('#4f9eff')('wikimem') + chalk.dim(' — interactive setup'));
+
+        // Step 1: Vault name / directory
+        if (!directory) {
+          const dirChoice = await clack.text({
+            message: 'Where should we create your vault?',
+            placeholder: './my-wiki',
+            defaultValue: '.',
+            validate: (v) => {
+              if (!v || !v.trim()) return 'Please enter a directory path';
+              return undefined;
+            },
+          });
+          if (clack.isCancel(dirChoice)) process.exit(0);
+          root = String(dirChoice);
+        }
+
+        // Step 2: Template selection
+        const choice = await clack.select({
+          message: 'Choose a vault template',
+          options: [
+            { value: 'personal', label: 'Personal', hint: 'Notes & life wiki' },
+            { value: 'research', label: 'Research', hint: 'Papers & citations' },
+            { value: 'business', label: 'Business', hint: 'Projects & decisions' },
+            { value: 'codebase', label: 'Codebase', hint: 'Docs & architecture' },
+          ],
+          initialValue: 'personal',
+        });
+        if (clack.isCancel(choice)) process.exit(0);
+        template = String(choice);
+
+        // Step 3: LLM Provider
+        const providerChoice = await clack.select({
+          message: 'Select your LLM provider',
+          options: [
+            { value: 'anthropic', label: 'Anthropic (Claude)', hint: 'Recommended' },
+            { value: 'openai', label: 'OpenAI (GPT-4)', hint: 'gpt-4o / gpt-4o-mini' },
+            { value: 'ollama', label: 'Ollama (Local)', hint: 'Free, runs locally' },
+            { value: 'skip', label: 'Skip for now', hint: 'Configure later in config.yaml' },
+          ],
+          initialValue: 'anthropic',
+        });
+        if (clack.isCancel(providerChoice)) process.exit(0);
+
+        // Step 4: API key (if not ollama/skip)
+        let apiKey: string | undefined;
+        if (providerChoice !== 'skip' && providerChoice !== 'ollama') {
+          const envVar = providerChoice === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY';
+          const existingKey = process.env[envVar];
+          if (existingKey) {
+            clack.log.success(`Found ${envVar} in environment`);
+          } else {
+            const keyInput = await clack.password({
+              message: `Enter your ${providerChoice === 'anthropic' ? 'Anthropic' : 'OpenAI'} API key`,
+              validate: (v) => {
+                if (!v || !v.trim()) return 'API key is required (or go back and choose "Skip")';
+                return undefined;
+              },
+            });
+            if (clack.isCancel(keyInput)) process.exit(0);
+            apiKey = String(keyInput);
+          }
+        }
+
+        clack.outro(chalk.green('Setting up your vault...'));
+
+        // Store provider/key preferences for config.yaml generation
+        if (apiKey || providerChoice === 'ollama') {
+          (options as Record<string, unknown>)._provider = String(providerChoice);
+          (options as Record<string, unknown>)._apiKey = apiKey;
+        }
+      }
 
       if (existsSync(join(root, 'AGENTS.md')) && !options.force) {
         console.error(chalk.red('Vault already exists. Use --force to overwrite.'));

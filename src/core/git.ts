@@ -89,7 +89,7 @@ export async function initGitRepo(config: VaultConfig): Promise<{ initialized: b
 
 export async function autoCommit(
   vaultRoot: string,
-  automation: 'ingest' | 'scrape' | 'improve' | 'manual' | 'restore' | 'observe',
+  automation: 'ingest' | 'scrape' | 'improve' | 'manual' | 'restore' | 'observe' | 'resolve',
   summary: string,
   details?: string,
 ): Promise<GitCommitResult | null> {

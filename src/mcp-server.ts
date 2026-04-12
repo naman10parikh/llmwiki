@@ -4,12 +4,17 @@
  * Implements the Model Context Protocol without the SDK dependency.
  * Reads newline-delimited JSON from stdin, writes responses to stdout.
  *
- * Tools exposed:
- *   wikimem_search  — BM25 keyword search over wiki pages
- *   wikimem_read    — Read a specific wiki page by title or filename
- *   wikimem_list    — List all wiki pages with metadata
- *   wikimem_status  — Vault statistics (page count, words, orphans, …)
- *   wikimem_ingest  — Ingest a file or URL into the vault (async)
+ * Tools exposed (10):
+ *   wikimem_search      — BM25 keyword search over wiki pages
+ *   wikimem_read        — Read a specific wiki page by title or filename
+ *   wikimem_list        — List all wiki pages with metadata
+ *   wikimem_status      — Vault statistics (page count, words, orphans, …)
+ *   wikimem_ingest      — Ingest a file or URL into the vault (async)
+ *   wikimem_observe     — Quality observer: scores, orphans, contradictions, gaps
+ *   wikimem_improve     — LLM-powered improvement suggestions for weak pages
+ *   wikimem_pipeline    — Pipeline status: recent runs, connector health
+ *   wikimem_scrape      — Scrape a URL and ingest into the vault
+ *   wikimem_connectors  — Manage data source connectors (list/add/remove/sync)
  */
 
 import { createInterface } from 'node:readline';
@@ -18,6 +23,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getVaultConfig, getVaultStats, listWikiPages, readWikiPage } from './core/vault.js';
 import { searchPages } from './search/index.js';
+import { handleObserve, handleImprove, handlePipeline, handleScrape, handleConnectors } from './mcp-tools-extended.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -94,6 +100,83 @@ const TOOLS = [
         source: { type: 'string', description: 'File path, directory path, or URL to ingest' },
       },
       required: ['source'],
+    },
+  },
+  {
+    name: 'wikimem_observe',
+    description: 'Run the quality observer on the vault. Scores every page for freshness, readability, cross-linking, and tags. Returns weak pages, orphans, contradictions, and knowledge gaps.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        page: { type: 'string', description: 'Score a single page by title (omit for vault-wide report)' },
+      },
+    },
+  },
+  {
+    name: 'wikimem_improve',
+    description: 'Trigger improvement suggestions for weak wiki pages. Returns proposed actions (reorganize, cross-link, add summaries) and optionally applies them.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        page: { type: 'string', description: 'Improve a specific page by title (omit for vault-wide improvement)' },
+        autoApply: { type: 'boolean', description: 'When true, automatically apply improvements instead of dry-run (default false)' },
+      },
+    },
+  },
+  {
+    name: 'wikimem_pipeline',
+    description: 'Get pipeline status: recent ingest runs, current run state, and connector sync health.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: { type: 'number', description: 'Maximum number of recent runs to return (default 10)' },
+      },
+    },
+  },
+  {
+    name: 'wikimem_scrape',
+    description: 'Scrape a URL and ingest its content into the wiki vault. Fetches the page, extracts text, and runs it through the ingest pipeline.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'URL to scrape and ingest' },
+        tags: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional tags to associate with the ingested content',
+        },
+      },
+      required: ['url'],
+    },
+  },
+  {
+    name: 'wikimem_connectors',
+    description: 'Manage data source connectors: list, add, remove, or sync folder/repo connectors that auto-ingest content into the wiki.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['list', 'add', 'remove', 'sync'],
+          description: 'Action to perform on connectors',
+        },
+        id: { type: 'string', description: 'Connector ID (required for remove and sync)' },
+        name: { type: 'string', description: 'Connector display name (required for add)' },
+        type: {
+          type: 'string',
+          enum: ['folder', 'git-repo'],
+          description: 'Connector type (required for add)',
+        },
+        path: { type: 'string', description: 'Local path to folder or repo (required for add)' },
+        url: { type: 'string', description: 'Remote URL for git-repo connectors (optional for add)' },
+        autoSync: { type: 'boolean', description: 'Enable auto-sync file watching (optional for add, default false)' },
+        includeGlobs: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'File patterns to include, e.g. ["*.md", "*.txt"] (optional for add)',
+        },
+      },
+      required: ['action'],
     },
   },
 ];
@@ -297,6 +380,21 @@ async function handleToolCall(name: string, args: Record<string, unknown>): Prom
           : `Ingest failed. See output for details.`,
       };
     }
+
+    case 'wikimem_observe':
+      return handleObserve(config, args);
+
+    case 'wikimem_improve':
+      return handleImprove(config, args);
+
+    case 'wikimem_pipeline':
+      return handlePipeline(vaultRoot, args);
+
+    case 'wikimem_scrape':
+      return handleScrape(vaultRoot, args);
+
+    case 'wikimem_connectors':
+      return handleConnectors(vaultRoot, args);
 
     default:
       throw { code: -32601, message: `Unknown tool: ${name}` };
