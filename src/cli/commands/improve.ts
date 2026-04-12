@@ -21,7 +21,7 @@ export function registerImproveCommand(program: Command): void {
     .description('Self-improve the wiki using LLM Council review (Automation 3)')
     .option('-v, --vault <path>', 'Vault root directory', '.')
     .option('-p, --provider <provider>', 'LLM provider')
-    .option('--threshold <score>', 'Quality threshold (0-100, default 80)', '80')
+    .option('--threshold <score>', 'Quality threshold (0-100, default from config or 80)')
     .option('--dry-run', 'Show what would be changed without modifying')
     .action(async (options: ImproveOptions) => {
       const vaultRoot = resolve(options.vault ?? '.');
@@ -36,7 +36,9 @@ export function registerImproveCommand(program: Command): void {
       const provider = createProviderFromUserConfig(userConfig, {
         providerOverride: options.provider,
       });
-      const threshold = parseInt(options.threshold ?? '80', 10);
+      const threshold = options.threshold
+        ? parseInt(options.threshold, 10)
+        : (userConfig.improve?.threshold ?? 80);
 
       const spinner = ora('Evaluating wiki quality...').start();
 

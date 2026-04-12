@@ -200,11 +200,23 @@ async function applyAction(
     case 'cross-link': {
       const orphanMatch = action.description.match(/orphan page: (.+)$/);
       if (orphanMatch?.[1]) {
-        const orphanTitle = orphanMatch[1];
+        const orphanPath = orphanMatch[1];
+        // Resolve page title from file — never write raw file paths as wikilinks
+        let linkTitle: string;
+        if (existsSync(orphanPath)) {
+          try {
+            const page = readWikiPage(orphanPath);
+            linkTitle = page.title;
+          } catch {
+            linkTitle = basename(orphanPath, extname(orphanPath));
+          }
+        } else {
+          linkTitle = basename(orphanPath, extname(orphanPath));
+        }
         if (existsSync(config.indexPath)) {
           const indexContent = readFileSync(config.indexPath, 'utf-8');
-          if (!indexContent.includes(`[[${orphanTitle}]]`)) {
-            const updatedIndex = indexContent + `\n- [[${orphanTitle}]]\n`;
+          if (!indexContent.includes(`[[${linkTitle}]]`)) {
+            const updatedIndex = indexContent + `\n- [[${linkTitle}]]\n`;
             writeFileSync(config.indexPath, updatedIndex, 'utf-8');
           }
         }
@@ -214,18 +226,33 @@ async function applyAction(
     case 'cleanup': {
       const pageMatch = action.description.match(/to: (.+)$/);
       if (pageMatch?.[1]) {
-        const targetTitle = pageMatch[1];
-        const pages = listWikiPages(config.wikiDir);
-        for (const pagePath of pages) {
+        const targetPath = pageMatch[1];
+        // If the description contains a file path, apply directly
+        if (existsSync(targetPath)) {
           try {
-            const page = readWikiPage(pagePath);
-            if (page.title === targetTitle && !page.frontmatter['summary']) {
+            const page = readWikiPage(targetPath);
+            if (!page.frontmatter['summary']) {
               const firstSentence = page.content.split(/[.!?]\s/)[0] ?? '';
               page.frontmatter['summary'] = firstSentence.substring(0, 120);
-              writeWikiPage(pagePath, page.content, page.frontmatter);
+              writeWikiPage(targetPath, page.content, page.frontmatter);
             }
           } catch {
             // Skip unreadable pages
+          }
+        } else {
+          // Fallback: match by title across all pages
+          const pages = listWikiPages(config.wikiDir);
+          for (const pagePath of pages) {
+            try {
+              const page = readWikiPage(pagePath);
+              if (page.title === targetPath && !page.frontmatter['summary']) {
+                const firstSentence = page.content.split(/[.!?]\s/)[0] ?? '';
+                page.frontmatter['summary'] = firstSentence.substring(0, 120);
+                writeWikiPage(pagePath, page.content, page.frontmatter);
+              }
+            } catch {
+              // Skip unreadable pages
+            }
           }
         }
       }
