@@ -44,7 +44,6 @@ export function getClaudeCodePath(): string | null {
 export async function runClaudeCode(
   systemPrompt: string,
   userPrompt: string,
-  options?: { maxTokens?: number },
 ): Promise<string> {
   const binary = findClaudeBinary();
   if (!binary) {
@@ -58,11 +57,8 @@ export async function runClaudeCode(
     '-p', userPrompt,
     '--output-format', 'text',
     '--system-prompt', systemPrompt,
+    '--max-turns', '1',
   ];
-
-  if (options?.maxTokens) {
-    args.push('--max-tokens', String(options.maxTokens));
-  }
 
   return new Promise<string>((resolve, reject) => {
     const proc = spawn(binary, args, {

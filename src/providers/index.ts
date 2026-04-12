@@ -29,9 +29,7 @@ export class ClaudeCodeProvider implements LLMProvider {
       .map((m) => m.content)
       .join('\n\n');
 
-    const text = await runClaudeCode(systemPrompt, userContent, {
-      maxTokens: options?.maxTokens,
-    });
+    const text = await runClaudeCode(systemPrompt, userContent);
 
     return {
       content: text,
@@ -158,13 +156,17 @@ export function createProvider(
     case 'ollama':
     case 'local':
       return new OllamaProvider(options?.model, options?.baseUrl);
+    case 'claude-code':
+    case 'cc':
+      return new ClaudeCodeProvider();
     default:
       throw new Error(
         `Unknown provider: "${name}".\n` +
           'Supported providers:\n' +
-          '  claude   — Anthropic (requires ANTHROPIC_API_KEY)\n' +
-          '  openai   — OpenAI (requires OPENAI_API_KEY)\n' +
-          '  ollama   — Local models (requires Ollama running)\n' +
+          '  claude       — Anthropic (requires ANTHROPIC_API_KEY)\n' +
+          '  openai       — OpenAI (requires OPENAI_API_KEY)\n' +
+          '  ollama       — Local models (requires Ollama running)\n' +
+          '  claude-code  — Claude Code CLI (uses your subscription)\n' +
           'Set in config.yaml:  provider: claude',
       );
   }
