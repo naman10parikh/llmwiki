@@ -2633,7 +2633,7 @@
     .tl-play-btn.playing { background:var(--accent); color:var(--bg-deep); border-color:var(--accent); }
     .tl-speed { background:var(--bg-card); border:1px solid var(--border); color:var(--text); padding:4px 6px; border-radius:var(--radius); font-size:11px; cursor:pointer; }
     .tl-slider-wrap { flex:1; display:flex; flex-direction:column; gap:2px; }
-    .tl-slider { width:100%; height:6px; -webkit-appearance:none; appearance:none; background:linear-gradient(to right, var(--accent) 0%, var(--accent) var(--slider-pct, 0%), var(--border) var(--slider-pct, 0%), var(--border) 100%); border-radius:3px; outline:none; cursor:pointer; transition:background 0.1s ease; }
+    .tl-slider { width:100%; height:6px; -webkit-appearance:none; appearance:none; background:linear-gradient(to right, var(--accent) 0%, var(--accent) var(--slider-pct, 0%), var(--border) var(--slider-pct, 0%), var(--border) 100%); border-radius:3px; outline:none; cursor:pointer; }
     .tl-slider::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--text-bright); cursor:grab; box-shadow:0 1px 6px rgba(0,0,0,0.4), 0 0 0 2px var(--accent); transition:transform 0.1s ease, box-shadow 0.15s ease; }
     .tl-slider::-webkit-slider-thumb:hover { transform:scale(1.2); box-shadow:0 1px 8px rgba(0,0,0,0.5), 0 0 0 3px var(--accent); }
     .tl-slider::-webkit-slider-thumb:active { cursor:grabbing; transform:scale(1.1); }
@@ -8897,6 +8897,7 @@
       _tlPlayRaf: null,
       _tlDragging: false,
       _tlRenderDebounce: null,
+      _tlJustScrubbed: false,
     };
 
     function railTimelapseClick() {
@@ -9454,8 +9455,8 @@
           if(o) {
             n.x = o.x;
             n.y = o.y;
-            n.vx = (o.vx || 0) * 0.32;
-            n.vy = (o.vy || 0) * 0.32;
+            n.vx = (o.vx || 0) * (tlState.playing ? 0.1 : 0.32);
+            n.vy = (o.vy || 0) * (tlState.playing ? 0.1 : 0.32);
           } else if(p) {
             n.x = p.x;
             n.y = p.y;
@@ -9469,7 +9470,10 @@
         sim.force('charge', d3.forceManyBody().strength(-220));
         sim.force('center', d3.forceCenter(width/2, height/2));
         sim.force('collision', d3.forceCollide().radius(d => isHub(d)?26:18));
-        sim.alpha(tlState.playing ? 0.15 : 0.3).restart();
+        const scrubAlpha = tlState.playing ? 0.08 : (tlState._tlJustScrubbed ? 0.15 : 0.3);
+        const scrubDecay = tlState.playing ? 0.04 : (tlState._tlJustScrubbed ? 0.035 : 0.0228);
+        sim.alpha(scrubAlpha).alphaDecay(scrubDecay).restart();
+        tlState._tlJustScrubbed = false;
       } else {
         if(tlState._tlGraphSim) {
           tlState._tlGraphSim.stop();
@@ -9486,13 +9490,16 @@
       }
 
       const soft = reuseSim;
+      const fast = tlState.playing; // ultra-fast transitions during playback
 
       const lk = g.select('g.tl-links').selectAll('line').data(data.links, linkKey);
-      lk.exit().transition().duration(soft ? 200 : 300).attr('stroke-opacity',0).remove();
+      lk.exit().transition().duration(fast ? 80 : soft ? 200 : 300).attr('stroke-opacity',0).remove();
       const lkE = lk.enter().append('line')
         .attr('stroke',cs('--border-subtle')).attr('stroke-width',0.8)
-        .attr('stroke-opacity', soft ? 0.2 : 0.4);
-      if(soft) {
+        .attr('stroke-opacity', fast ? 0.35 : soft ? 0.2 : 0.4);
+      if(fast) {
+        lkE.transition().duration(120).attr('stroke-opacity',0.4);
+      } else if(soft) {
         lkE.transition().duration(380).attr('stroke-opacity',0.4);
       } else {
         lkE.attr('stroke-dasharray','500').attr('stroke-dashoffset','500')
@@ -9500,26 +9507,27 @@
           .on('end', function(){ d3.select(this).attr('stroke-dasharray',null); });
       }
       const links = lkE.merge(lk);
-      lk.transition().duration(soft ? 320 : 300).attr('stroke-opacity',0.4);
+      lk.transition().duration(fast ? 100 : soft ? 320 : 300).attr('stroke-opacity',0.4);
 
       const rg = g.select('g.tl-rings').selectAll('circle').data(data.nodes.filter(isHub), d=>d.id);
-      rg.exit().transition().duration(soft ? 200 : 300).attr('opacity',0).remove();
+      rg.exit().transition().duration(fast ? 60 : soft ? 200 : 300).attr('opacity',0).remove();
       const rgE = rg.enter().append('circle')
-        .attr('r',d=>nR(d)+5).attr('fill','none').attr('stroke','#d4a843').attr('stroke-width',1.5).attr('opacity', soft ? 0.35 : 0);
-      rgE.transition().duration(soft ? 260 : 300).delay(soft ? 0 : 100).attr('opacity',0.5);
+        .attr('r',d=>nR(d)+5).attr('fill','none').attr('stroke','#d4a843').attr('stroke-width',1.5).attr('opacity', fast ? 0.4 : soft ? 0.35 : 0);
+      rgE.transition().duration(fast ? 100 : soft ? 260 : 300).delay(fast ? 0 : soft ? 0 : 100).attr('opacity',0.5);
       const rings = rgE.merge(rg);
-      rg.transition().duration(soft ? 300 : 300).attr('r',d=>nR(d)+5);
+      rg.transition().duration(fast ? 80 : soft ? 300 : 300).attr('r',d=>nR(d)+5);
 
       const nd = g.select('g.tl-nodes').selectAll('circle').data(data.nodes, d=>d.id);
-      nd.exit().transition().duration(soft ? 220 : 300).attr('opacity',0).attr('r',0).remove();
+      nd.exit().transition().duration(fast ? 60 : soft ? 220 : 300).attr('opacity',0).attr('r',0).remove();
       const ndE = nd.enter().append('circle')
-        .attr('r', soft ? d=>nR(d) : 0).attr('opacity', soft ? 0.75 : 0)
+        .attr('r', fast ? d=>nR(d)*0.7 : soft ? d=>nR(d) : 0)
+        .attr('opacity', fast ? 0.85 : soft ? 0.75 : 0)
         .attr('fill',d=>cColor(d.community))
         .attr('stroke',d=>isHub(d)?'#d4a843':cs('--bg'))
         .attr('stroke-width',d=>isHub(d)?2:1.5)
         .attr('cursor','pointer');
-      ndE.transition().duration(soft ? 420 : 300).attr('r',d=>nR(d)).attr('opacity',1);
-      nd.transition().duration(soft ? 450 : 300)
+      ndE.transition().duration(fast ? 100 : soft ? 420 : 300).attr('r',d=>nR(d)).attr('opacity',1);
+      nd.transition().duration(fast ? 120 : soft ? 450 : 300)
         .attr('r',d=>nR(d)).attr('fill',d=>cColor(d.community))
         .attr('stroke',d=>isHub(d)?'#d4a843':cs('--bg'));
       const nodes = ndE.merge(nd);
@@ -9539,7 +9547,7 @@
         .attr('fill',d=>isHub(d)?cs('--text-bright'):cs('--text-dim'))
         .attr('text-anchor','middle').attr('dy',d=>nR(d)+13)
         .attr('pointer-events','none').attr('opacity',0);
-      lbE.transition().duration(300).delay(soft ? 40 : 200).attr('opacity',d=>isHub(d)?1:0);
+      lbE.transition().duration(fast ? 80 : 300).delay(fast ? 0 : soft ? 40 : 200).attr('opacity',d=>isHub(d)?1:0);
       const labels = lbE.merge(lb);
       labels.text(d=>d.title.length>22?d.title.slice(0,20)+'\u2026':d.title);
 
@@ -9593,6 +9601,7 @@
 
       let lastTime = null;
       let fractionalIdx = tlState.currentIdx;
+      let rendering = false;
 
       function animate(ts) {
         if(!tlState.playing || tlState._tlDragging) return;
@@ -9609,14 +9618,16 @@
         slider.style.setProperty('--slider-pct', `${pct}%`);
         slider.value = String(Math.min(Math.round(fractionalIdx), max));
 
-        // Only render at integer commit boundaries
+        // Only render at integer commit boundaries — skip if prior render still in flight
         const targetIdx = Math.floor(fractionalIdx);
-        if(targetIdx > tlState.currentIdx && targetIdx <= max) {
-          renderTimelapseAt(targetIdx, { crossfade: false });
+        if(targetIdx > tlState.currentIdx && targetIdx <= max && !rendering) {
+          rendering = true;
+          renderTimelapseAt(targetIdx, { crossfade: false }).finally(() => { rendering = false; });
         }
 
         if(fractionalIdx >= max) {
-          renderTimelapseAt(max, { crossfade: false });
+          rendering = true;
+          renderTimelapseAt(max, { crossfade: false }).finally(() => { rendering = false; });
           tlPause();
           return;
         }
@@ -9737,6 +9748,7 @@
         cancelAnimationFrame(tlState._tlSliderRaf);
         tlState._tlSliderRaf = null;
       }
+      tlState._tlJustScrubbed = true;
       renderTimelapseAt(tlState._tlSliderPendingIdx != null ? tlState._tlSliderPendingIdx : tlState.currentIdx, { crossfade: true });
     }
     document.getElementById('tl-slider').addEventListener('pointerup', tlSliderPointerUp);
@@ -9750,18 +9762,26 @@
       e.target.style.setProperty('--slider-pct', `${(val / max) * 100}%`);
       tlState._tlSliderPendingIdx = val;
 
-      // Update commit info label immediately (lightweight DOM update)
+      // Update commit info + counter immediately (lightweight DOM updates, no debounce)
       const commit = tlState.commits[val];
       if(commit) {
         document.getElementById('tl-label-current').textContent = `${val + 1} / ${tlState.commits.length}`;
+        const date = new Date(commit.date);
+        const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+        const badge = commit.isWiki ? '<span class="commit-badge wiki">wiki</span>' : '<span class="commit-badge code">code</span>';
+        document.getElementById('tl-commit-info').innerHTML =
+          `<span class="tl-hash">${commit.hashShort}</span>${badge}<span>${esc(commit.message)}</span><span style="margin-left:auto;color:var(--text-muted)">${dateStr} · ${commit.author}</span>`;
       }
 
-      // Debounce the expensive tree/graph render (80ms) to avoid blocking the UI thread
+      // In graph mode, skip heavy renders during drag — only render on release
+      if(tlState.mode === 'graph') return;
+
+      // Debounce the expensive tree render (100ms) to avoid blocking the UI thread
       if(tlState._tlRenderDebounce != null) clearTimeout(tlState._tlRenderDebounce);
       tlState._tlRenderDebounce = setTimeout(() => {
         tlState._tlRenderDebounce = null;
         renderTimelapseAt(val, { crossfade: false });
-      }, 80);
+      }, 100);
     });
 
     // change: fires once on slider release (mouse up / touch end) — final authoritative render
