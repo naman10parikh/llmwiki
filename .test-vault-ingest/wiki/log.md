@@ -5,6 +5,6 @@ type: log
 
 # Wiki Log
 
-## [2026-04-12 04:06] ingest | log-test
+## [2026-04-12 04:06] ingest | similar-forced
 
-Processed /Users/naman/llmwiki/.test-vault-ingest/raw/log-test.md. Created/updated 2 pages.
+Processed /Users/naman/llmwiki/.test-vault-ingest/raw/similar-forced.md. Created/updated 2 pages.
