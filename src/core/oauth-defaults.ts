@@ -39,14 +39,15 @@ const BUNDLED: Record<string, ProviderDefaults> = {
     deviceFlowClientId: 'Ov23liPXlZFPixXov4vx',
   },
   google: {
-    // Google OAuth — "Desktop" application type
+    // Google OAuth — "WikiMem" app registered April 2026
     // Register: https://console.cloud.google.com/apis/credentials
-    // Application type: Desktop app (secret is non-confidential for desktop apps)
-    // Enable: Gmail API, Google Drive API
-    // credentials: {
-    //   clientId: '...apps.googleusercontent.com',
-    //   clientSecret: 'GOCSPX-...',
-    // },
+    // Application type: Web application
+    // Redirect URI: http://localhost:3456/api/auth/callback
+    // Enabled APIs: Gmail API, Google Drive API
+    credentials: {
+      clientId: '674720069928-2215v7sn3ptoiemlr6uumbs4hfho9i43.apps.googleusercontent.com',
+      clientSecret: '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',
+    },
   },
   slack: {
     // Slack App "WikiMem" (A0ASAV3KSUA) — registered April 2026

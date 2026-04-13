@@ -191,6 +191,9 @@ export async function syncSlack(
 
   // 4. Fetch and write history for each channel
   for (const ch of channels) {
+    // Auto-join channel if bot isn't a member (requires channels:join scope)
+    await slackApi('conversations.join', options.token, { channel: ch.id });
+
     const params: Record<string, string> = {
       channel: ch.id,
       limit: String(maxMessages),

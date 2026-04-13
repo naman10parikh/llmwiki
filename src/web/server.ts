@@ -1580,7 +1580,7 @@ export function createServer(vaultRoot: string, port: number): void {
     slack: {
       authorizeUrl: 'https://slack.com/oauth/v2/authorize',
       tokenUrl: 'https://slack.com/api/oauth.v2.access',
-      scopes: 'channels:history channels:read users:read',
+      scopes: 'channels:history channels:read channels:join users:read',
       clientIdKey: 'slack_client_id',
       clientSecretKey: 'slack_client_secret',
     },
