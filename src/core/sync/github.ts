@@ -5,6 +5,8 @@
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { SyncFilters, SyncPreviewResult, PreviewItem } from './sync-filters.js';
+import { estimateTokens, formatCostEstimate, isAfterSince } from './sync-filters.js';
 
 export interface GitHubSyncOptions {
   token: string;
@@ -13,6 +15,8 @@ export interface GitHubSyncOptions {
   maxRepos?: number;
   maxIssuesPerRepo?: number;
   maxPRsPerRepo?: number;
+  /** Sync filter overrides */
+  filters?: SyncFilters;
 }
 
 export interface PlatformSyncResult {
@@ -177,24 +181,17 @@ function buildReadmePage(repo: string, content: string, htmlUrl: string): string
   return `${fm}\n\n${content.slice(0, 10000)}\n`;
 }
 
-export async function syncGitHub(options: GitHubSyncOptions): Promise<PlatformSyncResult> {
-  const start = Date.now();
+/** Preview what GitHub data would be synced with the given filters */
+export async function previewGitHub(options: GitHubSyncOptions): Promise<SyncPreviewResult> {
   callCount = 0;
   const errors: string[] = [];
-  let filesWritten = 0;
+  const filters = options.filters ?? {};
+  const repoFilter = filters.repos ?? options.repos;
+  const maxRepos = filters.maxItems ?? options.maxRepos ?? 30;
 
-  const date = todayDate();
-  const outDir = join(options.vaultRoot, 'raw', date);
-  mkdirSync(outDir, { recursive: true });
-
-  const maxRepos = options.maxRepos ?? 30;
-  const maxIssues = options.maxIssuesPerRepo ?? 20;
-  const maxPRs = options.maxPRsPerRepo ?? 10;
-
-  // Step 1: Get repos
   let repos: GitHubRepo[] = [];
-  if (options.repos && options.repos.length > 0) {
-    for (const fullName of options.repos.slice(0, maxRepos)) {
+  if (repoFilter && repoFilter.length > 0) {
+    for (const fullName of repoFilter.slice(0, maxRepos)) {
       const { data, error } = await ghFetch<GitHubRepo>(`/repos/${fullName}`, options.token);
       if (error) { errors.push(error); continue; }
       if (data) repos.push(data);
@@ -206,6 +203,82 @@ export async function syncGitHub(options: GitHubSyncOptions): Promise<PlatformSy
     );
     if (error) errors.push(error);
     if (data) repos = data;
+  }
+
+  // Apply since filter
+  if (filters.since) {
+    repos = repos.filter((r) => isAfterSince(r.updated_at, filters.since));
+  }
+
+  const items: PreviewItem[] = repos.map((repo) => ({
+    id: repo.full_name,
+    title: repo.full_name,
+    date: repo.updated_at,
+    type: 'repository',
+    sizeEstimate: 2000 + (repo.open_issues_count * 500),
+    meta: {
+      language: repo.language ?? 'unknown',
+      stars: repo.stargazers_count,
+      openIssues: repo.open_issues_count,
+      private: repo.private,
+    },
+  }));
+
+  const totalChars = items.reduce((sum, i) => sum + i.sizeEstimate, 0);
+  const tokens = estimateTokens(totalChars, items.length);
+
+  return {
+    provider: 'github',
+    totalItems: items.length,
+    items,
+    estimatedTokens: tokens,
+    costEstimate: formatCostEstimate(tokens),
+    errors,
+  };
+}
+
+export async function syncGitHub(options: GitHubSyncOptions): Promise<PlatformSyncResult> {
+  const start = Date.now();
+  callCount = 0;
+  const errors: string[] = [];
+  let filesWritten = 0;
+  const filters = options.filters ?? {};
+
+  // Preview mode
+  if (filters.preview) {
+    const preview = await previewGitHub(options);
+    return { provider: 'github', filesWritten: 0, errors: preview.errors, duration: Date.now() - start };
+  }
+
+  const date = todayDate();
+  const outDir = join(options.vaultRoot, 'raw', date);
+  mkdirSync(outDir, { recursive: true });
+
+  const repoFilter = filters.repos ?? options.repos;
+  const maxRepos = filters.maxItems ?? options.maxRepos ?? 30;
+  const maxIssues = options.maxIssuesPerRepo ?? 20;
+  const maxPRs = options.maxPRsPerRepo ?? 10;
+
+  // Step 1: Get repos
+  let repos: GitHubRepo[] = [];
+  if (repoFilter && repoFilter.length > 0) {
+    for (const fullName of repoFilter.slice(0, maxRepos)) {
+      const { data, error } = await ghFetch<GitHubRepo>(`/repos/${fullName}`, options.token);
+      if (error) { errors.push(error); continue; }
+      if (data) repos.push(data);
+    }
+  } else {
+    const { data, error } = await ghFetch<GitHubRepo[]>(
+      `/user/repos?sort=updated&per_page=${maxRepos}&type=owner`,
+      options.token,
+    );
+    if (error) errors.push(error);
+    if (data) repos = data;
+  }
+
+  // Apply since filter
+  if (filters.since) {
+    repos = repos.filter((r) => isAfterSince(r.updated_at, filters.since));
   }
 
   // Step 2: Write repo summaries and fetch details

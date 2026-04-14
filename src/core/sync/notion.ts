@@ -4,6 +4,8 @@
  */
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { SyncFilters, SyncPreviewResult, PreviewItem } from './sync-filters.js';
+import { estimateTokens, formatCostEstimate, isAfterSince } from './sync-filters.js';
 
 const NOTION_API = 'https://api.notion.com/v1';
 const NOTION_VERSION = '2022-06-28';
@@ -13,6 +15,8 @@ export interface NotionSyncOptions {
   vaultRoot: string;
   maxPages?: number;
   databaseIds?: string[];
+  /** Sync filter overrides */
+  filters?: SyncFilters;
 }
 
 export interface PlatformSyncResult {
@@ -164,25 +168,74 @@ function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+/** Preview what Notion pages would be synced with the given filters */
+export async function previewNotion(options: NotionSyncOptions): Promise<SyncPreviewResult> {
+  const errors: string[] = [];
+  const filters = options.filters ?? {};
+  const max = filters.maxItems ?? options.maxPages ?? 50;
+
+  try {
+    let pages = await fetchPages(options.token, max);
+    if (filters.since) {
+      pages = pages.filter((p) => isAfterSince(p.last_edited_time, filters.since));
+    }
+
+    const items: PreviewItem[] = pages.map((page) => ({
+      id: page.id,
+      title: pageTitle(page),
+      date: page.last_edited_time,
+      type: 'page',
+      sizeEstimate: 2000,
+    }));
+
+    const totalChars = items.reduce((sum, i) => sum + i.sizeEstimate, 0);
+    const tokens = estimateTokens(totalChars, items.length);
+
+    return {
+      provider: 'notion',
+      totalItems: items.length,
+      items,
+      estimatedTokens: tokens,
+      costEstimate: formatCostEstimate(tokens),
+      errors,
+    };
+  } catch (err) {
+    errors.push(`Preview failed: ${errMsg(err)}`);
+    return { provider: 'notion', totalItems: 0, items: [], estimatedTokens: 0, costEstimate: '0 tokens', errors };
+  }
+}
+
 export async function syncNotion(options: NotionSyncOptions): Promise<PlatformSyncResult> {
   const start = Date.now();
   const errors: string[] = [];
   let filesWritten = 0;
-  const max = options.maxPages ?? 50;
+  const filters = options.filters ?? {};
+
+  // Preview mode
+  if (filters.preview) {
+    const preview = await previewNotion(options);
+    return { provider: 'notion', filesWritten: 0, errors: preview.errors, duration: Date.now() - start };
+  }
+
+  const max = filters.maxItems ?? options.maxPages ?? 50;
+  const dbIds = filters.databaseIds ?? options.databaseIds;
   const date = new Date().toISOString().slice(0, 10);
   const outDir = join(options.vaultRoot, 'raw', date);
   if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 
   try {
-    const pages = await fetchPages(options.token, max);
+    let pages = await fetchPages(options.token, max);
+    if (filters.since) {
+      pages = pages.filter((p) => isAfterSince(p.last_edited_time, filters.since));
+    }
     for (const page of pages) {
       try { await syncPage(page, outDir, options.token); filesWritten++; }
       catch (err) { errors.push(`Page ${page.id}: ${errMsg(err)}`); }
     }
   } catch (err) { errors.push(`Search pages: ${errMsg(err)}`); }
 
-  if (options.databaseIds?.length) {
-    for (const dbId of options.databaseIds) {
+  if (dbIds?.length) {
+    for (const dbId of dbIds) {
       try { const r = await syncDatabase(dbId, outDir, options.token); if (r) filesWritten++; }
       catch (err) { errors.push(`Database ${dbId}: ${errMsg(err)}`); }
     }

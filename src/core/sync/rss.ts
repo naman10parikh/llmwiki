@@ -6,6 +6,8 @@
 
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import type { SyncFilters, SyncPreviewResult, PreviewItem } from './sync-filters.js';
+import { estimateTokens, formatCostEstimate, isAfterSince } from './sync-filters.js';
 
 export interface RssSyncOptions {
   vaultRoot: string;
@@ -13,6 +15,8 @@ export interface RssSyncOptions {
   feedName: string;
   topics?: string[];   // keyword guardrails — items must match at least one
   maxItems?: number;    // default 20
+  /** Sync filter overrides */
+  filters?: SyncFilters;
 }
 
 export interface PlatformSyncResult {
@@ -122,8 +126,76 @@ async function fetchPageContent(url: string): Promise<string> {
 
 // ─── Sync Entry Point ───────────────────────────────────────────────────────
 
+/** Preview what RSS items would be synced with the given filters */
+export async function previewRss(options: RssSyncOptions): Promise<SyncPreviewResult> {
+  const { feedUrl, feedName } = options;
+  const filters = options.filters ?? {};
+  const topics = filters.topics ?? options.topics ?? [];
+  const maxItems = filters.maxItems ?? options.maxItems ?? 20;
+  const errors: string[] = [];
+
+  let xml: string;
+  try {
+    const res = await fetch(feedUrl, {
+      signal: AbortSignal.timeout(FEED_TIMEOUT_MS),
+      headers: { 'User-Agent': 'WikiMem-RSS-Sync/1.0' },
+    });
+    if (!res.ok) {
+      errors.push(`Feed fetch failed: HTTP ${res.status} from ${feedUrl}`);
+      return { provider: `rss:${feedName}`, totalItems: 0, items: [], estimatedTokens: 0, costEstimate: '0 tokens', errors };
+    }
+    xml = await res.text();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    errors.push(`Feed fetch error: ${msg}`);
+    return { provider: `rss:${feedName}`, totalItems: 0, items: [], estimatedTokens: 0, costEstimate: '0 tokens', errors };
+  }
+
+  const allItems = parseFeed(xml);
+  let filtered = allItems.filter((item) => passesGuardrails(item, topics));
+  if (filters.since) {
+    filtered = filtered.filter((item) => isAfterSince(item.pubDate, filters.since));
+  }
+  if (filters.query) {
+    const q = filters.query.toLowerCase();
+    filtered = filtered.filter((item) => `${item.title} ${item.description}`.toLowerCase().includes(q));
+  }
+  const capped = filtered.slice(0, maxItems);
+
+  const items: PreviewItem[] = capped.map((item, idx) => ({
+    id: item.link || String(idx),
+    title: item.title || 'Untitled',
+    date: item.pubDate || new Date().toISOString(),
+    type: 'article',
+    sizeEstimate: item.description.length + 500,
+    meta: { url: item.link },
+  }));
+
+  const totalChars = items.reduce((sum, i) => sum + i.sizeEstimate, 0);
+  const tokens = estimateTokens(totalChars, items.length);
+
+  return {
+    provider: `rss:${feedName}`,
+    totalItems: filtered.length,
+    items,
+    estimatedTokens: tokens,
+    costEstimate: formatCostEstimate(tokens),
+    errors,
+  };
+}
+
 export async function syncRss(options: RssSyncOptions): Promise<PlatformSyncResult> {
-  const { vaultRoot, feedUrl, feedName, topics = [], maxItems = 20 } = options;
+  const filters = options.filters ?? {};
+
+  // Preview mode
+  if (filters.preview) {
+    const preview = await previewRss(options);
+    return { provider: preview.provider, filesWritten: 0, errors: preview.errors, duration: 0 };
+  }
+
+  const { vaultRoot, feedUrl, feedName } = options;
+  const topics = filters.topics ?? options.topics ?? [];
+  const maxItems = filters.maxItems ?? options.maxItems ?? 20;
   const start = Date.now();
   const errors: string[] = [];
   let filesWritten = 0;
@@ -153,7 +225,14 @@ export async function syncRss(options: RssSyncOptions): Promise<PlatformSyncResu
 
   // Parse items
   const allItems = parseFeed(xml);
-  const filtered = allItems.filter((item) => passesGuardrails(item, topics));
+  let filtered = allItems.filter((item) => passesGuardrails(item, topics));
+  if (filters.since) {
+    filtered = filtered.filter((item) => isAfterSince(item.pubDate, filters.since));
+  }
+  if (filters.query) {
+    const q = filters.query.toLowerCase();
+    filtered = filtered.filter((item) => `${item.title} ${item.description}`.toLowerCase().includes(q));
+  }
   const items = filtered.slice(0, maxItems);
 
   // Process each item

@@ -4,6 +4,8 @@
  */
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import type { SyncFilters, SyncPreviewResult, PreviewItem } from './sync-filters.js';
+import { estimateTokens, formatCostEstimate, isAfterSince } from './sync-filters.js';
 
 export interface GmailSyncOptions {
   token: string;
@@ -11,6 +13,8 @@ export interface GmailSyncOptions {
   maxThreads?: number;
   query?: string;
   labelIds?: string[];
+  /** Sync filter overrides */
+  filters?: SyncFilters;
 }
 
 export interface PlatformSyncResult {
@@ -192,17 +196,85 @@ function threadToMarkdown(thread: GmailThread): { filename: string; content: str
   };
 }
 
+/** Preview what Gmail threads would be synced with the given filters */
+export async function previewGmail(options: GmailSyncOptions): Promise<SyncPreviewResult> {
+  const errors: string[] = [];
+  const filters = options.filters ?? {};
+  const maxThreads = filters.maxItems ?? options.maxThreads ?? 50;
+  const query = filters.query ?? options.query;
+  const labelIds = filters.labels ?? options.labelIds;
+
+  const { threads, errors: listErrors } = await listThreads(
+    options.token, maxThreads, query, labelIds,
+  );
+  errors.push(...listErrors);
+
+  const items: PreviewItem[] = [];
+  let totalChars = 0;
+
+  for (const stub of threads.slice(0, Math.min(25, maxThreads))) {
+    const { thread, error } = await getThread(options.token, stub.id);
+    if (error) { errors.push(error); continue; }
+    if (!thread || !thread.messages?.length) continue;
+
+    const firstMsg = thread.messages[0]!;
+    const headers = firstMsg.payload.headers;
+    const subject = getHeader(headers, 'Subject') || '(no subject)';
+    const from = getHeader(headers, 'From');
+    const date = formatDate(firstMsg.internalDate);
+
+    if (!isAfterSince(date, filters.since)) continue;
+
+    const bodyLen = thread.messages.reduce((sum, msg) => sum + extractBody(msg).length, 0);
+    totalChars += bodyLen;
+
+    items.push({
+      id: thread.id,
+      title: subject,
+      date,
+      type: 'thread',
+      sizeEstimate: bodyLen,
+      meta: { from, messageCount: thread.messages.length },
+    });
+  }
+
+  // If we only fetched 25 but there are more, extrapolate
+  const estimatedTotal = threads.length;
+  const avgChars = items.length > 0 ? totalChars / items.length : 500;
+  const fullEstimateChars = Math.round(avgChars * estimatedTotal);
+  const tokens = estimateTokens(fullEstimateChars, estimatedTotal);
+
+  return {
+    provider: 'gmail',
+    totalItems: estimatedTotal,
+    items,
+    estimatedTokens: tokens,
+    costEstimate: formatCostEstimate(tokens),
+    errors,
+  };
+}
+
 export async function syncGmail(options: GmailSyncOptions): Promise<PlatformSyncResult> {
   const start = Date.now();
   const errors: string[] = [];
   let filesWritten = 0;
-  const maxThreads = options.maxThreads ?? 50;
+  const filters = options.filters ?? {};
+
+  // Preview mode — return without writing
+  if (filters.preview) {
+    const preview = await previewGmail(options);
+    return { provider: 'gmail', filesWritten: 0, errors: preview.errors, duration: Date.now() - start };
+  }
+
+  const maxThreads = filters.maxItems ?? options.maxThreads ?? 50;
+  const query = filters.query ?? options.query;
+  const labelIds = filters.labels ?? options.labelIds;
   const outDir = join(options.vaultRoot, 'raw', todayStr());
 
   if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 
   const { threads, errors: listErrors } = await listThreads(
-    options.token, maxThreads, options.query, options.labelIds,
+    options.token, maxThreads, query, labelIds,
   );
   errors.push(...listErrors);
 
@@ -214,6 +286,12 @@ export async function syncGmail(options: GmailSyncOptions): Promise<PlatformSync
     const { thread, error } = await getThread(options.token, stub.id);
     if (error) { errors.push(error); continue; }
     if (!thread) continue;
+
+    // Apply since filter
+    if (filters.since && thread.messages?.length) {
+      const threadDate = formatDate(thread.messages[0]!.internalDate);
+      if (!isAfterSince(threadDate, filters.since)) continue;
+    }
 
     const { filename, content } = threadToMarkdown(thread);
     try {

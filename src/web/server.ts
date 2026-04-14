@@ -689,15 +689,14 @@ export function createServer(vaultRoot: string, port: number): void {
     try {
       const { loadConfig } = await import('../core/config.js');
       const userConfig = loadConfig(config.configPath);
-      const safeConfig = { ...userConfig };
-      if (safeConfig.api_key) safeConfig.api_key = safeConfig.api_key.slice(0, 8) + '…';
-      const sc = safeConfig as Record<string, unknown>;
-      if (sc['gemini_api_key']) {
-        sc['gemini_api_key'] = String(sc['gemini_api_key']).slice(0, 8) + '…';
+      const safeConfig = { name: 'My Wiki', ...userConfig } as Record<string, unknown>;
+      if (safeConfig['api_key']) safeConfig['api_key'] = String(safeConfig['api_key']).slice(0, 8) + '…';
+      if (safeConfig['gemini_api_key']) {
+        safeConfig['gemini_api_key'] = String(safeConfig['gemini_api_key']).slice(0, 8) + '…';
       }
       res.json(safeConfig);
     } catch {
-      res.json({});
+      res.json({ name: 'My Wiki' });
     }
   });
 
@@ -2902,6 +2901,137 @@ export function createServer(vaultRoot: string, port: number): void {
     }
   });
 
+  // ─── Automation Scheduler (central manager for all 3 automations) ────────
+
+  // Lazy-import the scheduler (createServer is sync, scheduler is async-loaded)
+  const schedulerMod = import('../core/scheduler.js');
+  let _scheduler: Awaited<typeof schedulerMod> | undefined;
+  let _automationScheduler: ReturnType<Awaited<typeof schedulerMod>['getAutomationScheduler']> | undefined;
+  const getScheduler = async () => {
+    if (!_scheduler) _scheduler = await schedulerMod;
+    if (!_automationScheduler) _automationScheduler = _scheduler.getAutomationScheduler(config);
+    return { mod: _scheduler, scheduler: _automationScheduler };
+  };
+  // Eagerly kick off the import
+  const schedulerReady = getScheduler();
+  // Convenience aliases used by routes below
+  type SchedulerType = ReturnType<Awaited<typeof schedulerMod>['getAutomationScheduler']>;
+  const automationScheduler = {
+    on: (...a: Parameters<SchedulerType['on']>) => { void schedulerReady.then(s => s.scheduler.on(...a)); },
+    off: (...a: Parameters<SchedulerType['off']>) => { void schedulerReady.then(s => s.scheduler.off(...a)); },
+    getAll: () => _automationScheduler?.getAll() ?? [],
+    getOne: (id: Parameters<SchedulerType['getOne']>[0]) => _automationScheduler?.getOne(id) ?? undefined,
+    update: (id: Parameters<SchedulerType['update']>[0], opts: Parameters<SchedulerType['update']>[1]) => _automationScheduler?.update(id, opts) ?? undefined,
+    triggerRun: async (id: Parameters<SchedulerType['triggerRun']>[0]) => { const s = await getScheduler(); return s.scheduler.triggerRun(id); },
+    getRunLogs: (id: Parameters<SchedulerType['getRunLogs']>[0], limit?: number) => _automationScheduler?.getRunLogs(id, limit) ?? [],
+    startAll: () => _automationScheduler?.startAll(),
+    stopAll: () => _automationScheduler?.stopAll(),
+  };
+  const isValidAutomationId = (id: string) => _scheduler?.isValidAutomationId(id) ?? false;
+
+  // SSE endpoint for automation status changes
+  app.get('/api/automations/events', (_req, res) => {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    });
+    res.write('data: {"type":"connected"}\n\n');
+
+    const onEvent = (event: unknown) => {
+      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    };
+    automationScheduler.on('automation-event', onEvent);
+    _req.on('close', () => automationScheduler.off('automation-event', onEvent));
+  });
+
+  // GET /api/automations — list all automations with status, schedule, last run
+  app.get('/api/automations', (_req, res) => {
+    try {
+      const automations = automationScheduler.getAll();
+      res.json({ automations });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `Failed to list automations: ${msg}` });
+    }
+  });
+
+  // GET /api/automations/:id — get one automation's state
+  app.get('/api/automations/:id', (req, res) => {
+    try {
+      const id = req.params['id'] ?? '';
+      if (!isValidAutomationId(id)) {
+        res.status(404).json({ error: `Unknown automation: ${id}` });
+        return;
+      }
+      const state = automationScheduler.getOne(id as import('../core/scheduler.js').AutomationId);
+      if (!state) { res.status(404).json({ error: 'Not found' }); return; }
+      res.json(state);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // PUT /api/automations/:id — update schedule, enable/disable
+  app.put('/api/automations/:id', (req, res) => {
+    try {
+      const id = req.params['id'] ?? '';
+      if (!isValidAutomationId(id)) {
+        res.status(404).json({ error: `Unknown automation: ${id}` });
+        return;
+      }
+      const { schedule, schedulePreset, enabled } = req.body as {
+        schedule?: string;
+        schedulePreset?: string;
+        enabled?: boolean;
+      };
+      const updated = automationScheduler.update(id as import('../core/scheduler.js').AutomationId, {
+        schedule,
+        schedulePreset: schedulePreset as import('../core/scheduler.js').SchedulePreset | undefined,
+        enabled,
+      });
+      if (!updated) { res.status(404).json({ error: 'Not found' }); return; }
+      res.json(updated);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // POST /api/automations/:id/run — trigger a manual run
+  app.post('/api/automations/:id/run', async (req, res) => {
+    try {
+      const id = req.params['id'] ?? '';
+      if (!isValidAutomationId(id)) {
+        res.status(404).json({ error: `Unknown automation: ${id}` });
+        return;
+      }
+      const log = await automationScheduler.triggerRun(id as import('../core/scheduler.js').AutomationId);
+      res.json(log);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // GET /api/automations/:id/log — get run history
+  app.get('/api/automations/:id/log', (req, res) => {
+    try {
+      const id = req.params['id'] ?? '';
+      if (!isValidAutomationId(id)) {
+        res.status(404).json({ error: `Unknown automation: ${id}` });
+        return;
+      }
+      const limit = parseInt(req.query['limit'] as string) || 50;
+      const logs = automationScheduler.getRunLogs(id as import('../core/scheduler.js').AutomationId, limit);
+      res.json({ logs });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: msg });
+    }
+  });
+
   // Start SyncScheduler for connected providers (reuses singleton from routes)
   getSyncScheduler().then((scheduler) => {
     scheduler.startFromConfig();
@@ -2933,50 +3063,8 @@ export function createServer(vaultRoot: string, port: number): void {
     mgr.startAllWatchers();
   })().catch(() => {});
 
-  // Start Observer nightly cron (3am)
-  import('../core/observer.js').then(({ startObserverCron }) => {
-    startObserverCron(config);
-  }).catch(() => {});
-
-  // AUTO-005: Watch raw/ directory for new files, auto-trigger ingest
-  (async () => {
-    try {
-      const chokidar = await import('chokidar');
-      const { ingestSource } = await import('../core/ingest.js');
-      const { createProviderFromUserConfig } = await import('../providers/index.js');
-      const { loadConfig } = await import('../core/config.js');
-      const rawDir = config.rawDir;
-      if (!existsSync(rawDir)) return;
-
-      const watcher = chokidar.watch(rawDir, {
-        ignored: ['**/.git/**', '**/*.tmp'],
-        persistent: true,
-        ignoreInitial: true,
-        awaitWriteFinish: { stabilityThreshold: 1500 },
-      });
-
-      watcher.on('add', async (filePath: string) => {
-        const INGESTIBLE = new Set(['.md', '.txt', '.pdf', '.json', '.yaml', '.yml', '.csv', '.html', '.docx', '.mp3', '.wav', '.m4a', '.mp4', '.mov']);
-        const ext = filePath.split('.').pop()?.toLowerCase() || '';
-        if (!INGESTIBLE.has('.' + ext)) return;
-        if (webhookIngestingFiles.has(filePath)) {
-          console.log(`[watcher] Skipping ${filePath} (already being ingested by webhook)`);
-          return;
-        }
-        console.log(`[watcher] New file detected: ${filePath}`);
-        try {
-          const userConfig = loadConfig(config.configPath);
-          const provider = createProviderFromUserConfig(userConfig);
-          await ingestSource(filePath, config, provider, { verbose: false });
-          console.log(`[watcher] Ingested: ${filePath}`);
-        } catch (err) {
-          console.error(`[watcher] Failed to ingest ${filePath}:`, err);
-        }
-      });
-
-      console.log(`  Auto-watching raw/ for new files: ${rawDir}`);
-    } catch {}
-  })().catch(() => {});
+  // Start central automation scheduler (observer cron + pipeline watcher)
+  automationScheduler.startAll();
 
   // Serve static files AFTER all API routes
   if (existsSync(publicDir)) {

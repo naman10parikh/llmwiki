@@ -1,6 +1,8 @@
 /** Slack Sync — fetches channels, messages, users and writes raw markdown for ingest. */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { SyncFilters, SyncPreviewResult, PreviewItem } from './sync-filters.js';
+import { estimateTokens, formatCostEstimate } from './sync-filters.js';
 
 export interface SlackSyncOptions {
   token: string;
@@ -9,6 +11,8 @@ export interface SlackSyncOptions {
   maxChannels?: number;
   maxMessagesPerChannel?: number;
   since?: string;
+  /** Sync filter overrides */
+  filters?: SyncFilters;
 }
 
 export interface PlatformSyncResult {
@@ -134,17 +138,69 @@ function frontmatter(fields: Record<string, string>): string {
   return lines.join('\n');
 }
 
+/** Preview what Slack data would be synced with the given filters */
+export async function previewSlack(options: SlackSyncOptions): Promise<SyncPreviewResult> {
+  const errors: string[] = [];
+  const filters = options.filters ?? {};
+  const maxChannels = filters.maxItems ?? options.maxChannels ?? 10;
+  const channelFilter = filters.channels ?? options.channels;
+
+  let channels: SlackChannel[];
+  if (channelFilter && channelFilter.length > 0) {
+    const { channels: allChannels, errors: chErrors } = await fetchAllChannels(options.token, 1000);
+    errors.push(...chErrors);
+    const targetSet = new Set(channelFilter);
+    channels = allChannels.filter((c) => targetSet.has(c.id) || targetSet.has(c.name));
+  } else {
+    const { channels: fetched, errors: chErrors } = await fetchAllChannels(options.token, maxChannels);
+    errors.push(...chErrors);
+    channels = fetched;
+  }
+
+  const items: PreviewItem[] = channels.map((ch) => ({
+    id: ch.id,
+    title: `#${ch.name}`,
+    date: new Date().toISOString(),
+    type: 'channel',
+    sizeEstimate: (ch.num_members ?? 10) * 500, // rough estimate
+    meta: {
+      members: ch.num_members ?? 0,
+      purpose: ch.purpose?.value ?? '',
+    },
+  }));
+
+  const totalChars = items.reduce((sum, i) => sum + i.sizeEstimate, 0);
+  const tokens = estimateTokens(totalChars, items.length);
+
+  return {
+    provider: 'slack',
+    totalItems: items.length,
+    items,
+    estimatedTokens: tokens,
+    costEstimate: formatCostEstimate(tokens),
+    errors,
+  };
+}
+
 export async function syncSlack(
   options: SlackSyncOptions,
 ): Promise<PlatformSyncResult> {
   const start = Date.now();
   const errors: string[] = [];
   let filesWritten = 0;
+  const filters = options.filters ?? {};
 
-  const maxChannels = options.maxChannels ?? 10;
+  // Preview mode
+  if (filters.preview) {
+    const preview = await previewSlack(options);
+    return { provider: 'slack', filesWritten: 0, errors: preview.errors, duration: Date.now() - start };
+  }
+
+  const maxChannels = filters.maxItems ?? options.maxChannels ?? 10;
   const maxMessages = options.maxMessagesPerChannel ?? 100;
-  const sinceTs = options.since
-    ? String(new Date(options.since).getTime() / 1000)
+  const sinceStr = filters.since ?? options.since;
+  const sinceTs = sinceStr
+    ? String(new Date(sinceStr).getTime() / 1000)
     : undefined;
 
   const dateStr = new Date().toISOString().slice(0, 10);
@@ -157,15 +213,16 @@ export async function syncSlack(
 
   // 2. Fetch channels
   let channels: SlackChannel[];
-  if (options.channels && options.channels.length > 0) {
-    // Use provided channel IDs — still fetch list to get metadata
+  const channelFilter = filters.channels ?? options.channels;
+  if (channelFilter && channelFilter.length > 0) {
+    // Use provided channel IDs/names — still fetch list to get metadata
     const { channels: allChannels, errors: chErrors } = await fetchAllChannels(
       options.token,
       1000,
     );
     errors.push(...chErrors);
-    const targetSet = new Set(options.channels);
-    channels = allChannels.filter((c) => targetSet.has(c.id));
+    const targetSet = new Set(channelFilter);
+    channels = allChannels.filter((c) => targetSet.has(c.id) || targetSet.has(c.name));
   } else {
     const { channels: fetched, errors: chErrors } = await fetchAllChannels(
       options.token,

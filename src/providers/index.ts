@@ -10,14 +10,24 @@ import { ClaudeProvider } from './claude.js';
 import { OpenAIProvider } from './openai.js';
 import { OllamaProvider } from './ollama.js';
 import type { UserConfig } from '../core/config.js';
-import { runClaudeCode, isClaudeCodeAvailable } from '../core/claude-code.js';
+import { runWithClaudeCode, isClaudeCodeAvailable, getClaudeCodeCostInfo } from '../core/claude-code.js';
 
 /**
  * LLMProvider backed by the Claude Code CLI (`claude -p`).
- * Uses the caller's Claude Code subscription — no API key needed.
+ *
+ * Uses the caller's Claude Code Max/Pro subscription — no API key needed.
+ * Token counts are reported as 0 because the CLI does not expose them;
+ * cost is tracked via call count and wall-clock duration in
+ * `getClaudeCodeCostInfo()`.
  */
 export class ClaudeCodeProvider implements LLMProvider {
   readonly name = 'claude-code';
+
+  private readonly timeoutMs: number;
+
+  constructor(timeoutMs?: number) {
+    this.timeoutMs = timeoutMs ?? 120_000;
+  }
 
   async chat(messages: LLMMessage[], options?: LLMOptions): Promise<LLMResponse> {
     const systemPrompt =
@@ -29,8 +39,11 @@ export class ClaudeCodeProvider implements LLMProvider {
       .map((m) => m.content)
       .join('\n\n');
 
-    const text = await runClaudeCode(systemPrompt, userContent);
+    const text = await runWithClaudeCode(systemPrompt, userContent, {
+      timeoutMs: this.timeoutMs,
+    });
 
+    // Token counts unavailable from CLI — cost tracked via getClaudeCodeCostInfo()
     return {
       content: text,
       model: 'claude-code-cli',
@@ -40,6 +53,11 @@ export class ClaudeCodeProvider implements LLMProvider {
 
   async isAvailable(): Promise<boolean> {
     return isClaudeCodeAvailable();
+  }
+
+  /** Aggregate cost info for all Claude Code calls in this process. */
+  getCostInfo() {
+    return getClaudeCodeCostInfo();
   }
 }
 

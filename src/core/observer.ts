@@ -2,9 +2,16 @@
  * Automation 2: Observer (Self-Improvement Engine)
  *
  * Runs nightly at 3am (or on demand) to score every wiki page for quality,
- * find orphans, flag contradictions, and identify knowledge gaps.
+ * find orphans, flag contradictions, identify knowledge gaps, discover
+ * unexpected patterns, suggest new pages, and find cross-link opportunities.
+ *
+ * Open-endedness principles (Jeff Clune):
+ *   - Not just fixing known issues but discovering unknown-unknowns
+ *   - Gets BETTER over time by learning from its experiment log
+ *   - Explains what it found and why it matters
  *
  * Reports saved to .wikimem/observer-reports/YYYY-MM-DD.json
+ * Experiment log at .wikimem/observer-experiment-log.json
  * Auto-committed as: wiki: observe: nightly quality scan
  */
 
@@ -30,6 +37,9 @@ export interface PageScore {
     hasTags: boolean;
     freshness: number;
     readability: number;
+    depth: number;
+    crossReferencing: number;
+    sourceQuality: number;
   };
   issues: string[];
 }
@@ -39,7 +49,8 @@ function scoreFreshness(frontmatter: Record<string, unknown>): number {
   if (!updated) return 0;
   try {
     const daysSince = (Date.now() - new Date(updated).getTime()) / 86_400_000;
-    if (daysSince <= 7) return 2;
+    if (daysSince <= 7) return 3;
+    if (daysSince <= 14) return 2;
     if (daysSince <= 30) return 1;
     return 0;
   } catch { return 0; }
@@ -47,13 +58,61 @@ function scoreFreshness(frontmatter: Record<string, unknown>): number {
 
 function scoreReadability(content: string): number {
   let r = 0;
+  // Has subheadings (h2/h3)
   if (/^#{2,3}\s/m.test(content)) r++;
+  // Has structured paragraphs
   const paragraphs = content.split(/\n\n+/).filter(p => p.trim().length > 0);
   if (paragraphs.length >= 3) r++;
+  // Has code blocks or lists (structured content)
+  if (/```[\s\S]*?```/m.test(content) || /^[-*]\s/m.test(content)) r++;
   return r;
 }
 
-const MAX_SCORE = 14;
+/** Depth: how thorough is the page? Checks heading depth, paragraph count, detail signals. */
+function scoreDepth(content: string, wordCount: number): number {
+  let d = 0;
+  // Word count thresholds
+  if (wordCount >= 300) d += 2;
+  else if (wordCount >= 100) d += 1;
+  // Multiple heading levels = structured depth
+  const headingLevels = new Set<number>();
+  const headingRegex = /^(#{1,6})\s/gm;
+  let hMatch: RegExpExecArray | null;
+  while ((hMatch = headingRegex.exec(content)) !== null) {
+    headingLevels.add(hMatch[1]!.length);
+  }
+  if (headingLevels.size >= 2) d++;
+  return d;
+}
+
+/** Cross-referencing: quality of wikilink integration. */
+function scoreCrossReferencing(wikilinks: string[], content: string, incomingLinks: number): number {
+  let cr = 0;
+  // Outbound diversity
+  if (wikilinks.length >= 3) cr++;
+  if (wikilinks.length >= 6) cr++;
+  // Inbound link richness
+  if (incomingLinks >= 3) cr++;
+  // Wikilinks embedded in prose (not just a "See also" section)
+  const proseLines = content.split('\n').filter(l => !l.startsWith('#') && !l.startsWith('-') && l.trim().length > 20);
+  const proseWithLinks = proseLines.filter(l => /\[\[[^\]]+\]\]/.test(l));
+  if (proseWithLinks.length >= 2) cr++;
+  return cr;
+}
+
+/** Source quality: does the page cite where its information comes from? */
+function scoreSourceQuality(frontmatter: Record<string, unknown>, content: string): number {
+  let sq = 0;
+  const sources = frontmatter['sources'] as string[] | undefined;
+  if (Array.isArray(sources) && sources.length > 0) sq++;
+  // Has inline citations or external links
+  if (/https?:\/\/\S+/.test(content)) sq++;
+  // Has a confidence score
+  if (typeof frontmatter['confidence'] === 'number') sq++;
+  return sq;
+}
+
+const MAX_SCORE = 24; // expanded from 14
 
 function scorePage(pagePath: string, incomingLinks: Map<string, number>): PageScore {
   const page = readWikiPage(pagePath);
@@ -69,6 +128,9 @@ function scorePage(pagePath: string, incomingLinks: Map<string, number>): PageSc
     : false;
   const freshness = scoreFreshness(page.frontmatter);
   const readability = scoreReadability(page.content);
+  const depth = scoreDepth(page.content, page.wordCount);
+  const crossReferencing = scoreCrossReferencing(page.wikilinks, page.content, linksIn);
+  const sourceQuality = scoreSourceQuality(page.frontmatter, page.content);
 
   let score = 0;
   if (hasSummary) score += 2;
@@ -77,8 +139,11 @@ function scorePage(pagePath: string, incomingLinks: Map<string, number>): PageSc
   if (page.wordCount >= 50) score += 2;
   else if (page.wordCount >= 20) score += 1;
   if (hasTags) score += 2;
-  score += freshness;
-  score += readability;
+  score += freshness;   // 0-3
+  score += readability;  // 0-3
+  score += depth;        // 0-3
+  score += crossReferencing; // 0-4
+  score += sourceQuality;    // 0-3
 
   if (!hasSummary) issues.push('Missing or empty summary in frontmatter');
   if (!hasLinksOut) issues.push('No outbound [[wikilinks]] — isolated page');
@@ -87,6 +152,9 @@ function scorePage(pagePath: string, incomingLinks: Map<string, number>): PageSc
   if (!hasTags) issues.push('No tags defined');
   if (freshness === 0) issues.push('Stale or missing updated date (>30 days)');
   if (readability === 0) issues.push('No headings or structured paragraphs');
+  if (depth === 0) issues.push('Shallow content — lacks structural depth');
+  if (crossReferencing === 0) issues.push('Poor cross-referencing — few or no contextual links');
+  if (sourceQuality === 0) issues.push('No source attribution or citations');
 
   return {
     page: pagePath,
@@ -101,6 +169,9 @@ function scorePage(pagePath: string, incomingLinks: Map<string, number>): PageSc
       hasTags,
       freshness,
       readability,
+      depth,
+      crossReferencing,
+      sourceQuality,
     },
     issues,
   };
@@ -277,6 +348,507 @@ function buildIncomingLinksMap(pagePaths: string[]): Map<string, number> {
   return incoming;
 }
 
+// ─── Open-Ended Discovery ────────────────────────────────────────────────────
+
+export interface UnexpectedPattern {
+  type: 'isolated-cluster' | 'topic-conflict' | 'missing-connection' | 'stale-hub' | 'tag-orphan';
+  description: string;
+  pages: string[];
+  significance: 'low' | 'medium' | 'high';
+}
+
+/**
+ * Discover unexpected patterns — things the wiki doesn't know it doesn't know.
+ * Goes beyond fixing known issues to find structural anomalies.
+ */
+function discoverUnexpected(
+  pagePaths: string[],
+  incomingLinks: Map<string, number>,
+): UnexpectedPattern[] {
+  const patterns: UnexpectedPattern[] = [];
+  const pageDataCache: Array<{ path: string; slug: string; title: string; tags: string[]; wikilinks: string[]; wordCount: number; summary: string; updated: string }> = [];
+
+  for (const p of pagePaths) {
+    try {
+      const page = readWikiPage(p);
+      pageDataCache.push({
+        path: p,
+        slug: basename(p, '.md'),
+        title: page.title,
+        tags: Array.isArray(page.frontmatter['tags']) ? (page.frontmatter['tags'] as string[]) : [],
+        wikilinks: page.wikilinks,
+        wordCount: page.wordCount,
+        summary: String(page.frontmatter['summary'] ?? ''),
+        updated: String(page.frontmatter['updated'] ?? ''),
+      });
+    } catch { /* skip */ }
+  }
+
+  // 1. Isolated clusters: groups of pages that link to each other but not to the rest
+  const adjacency = new Map<string, Set<string>>();
+  const titleToSlug = new Map<string, string>();
+  for (const pd of pageDataCache) {
+    titleToSlug.set(pd.title.toLowerCase(), pd.slug);
+    titleToSlug.set(pd.slug, pd.slug);
+  }
+
+  for (const pd of pageDataCache) {
+    const neighbors = new Set<string>();
+    for (const link of pd.wikilinks) {
+      const target = titleToSlug.get(link.toLowerCase())
+        ?? titleToSlug.get(link.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+      if (target && target !== pd.slug) neighbors.add(target);
+    }
+    adjacency.set(pd.slug, neighbors);
+  }
+
+  // Find pages with outbound links that only connect within a small group
+  for (const pd of pageDataCache) {
+    const neighbors = adjacency.get(pd.slug);
+    if (!neighbors || neighbors.size < 2) continue;
+    // Check if this page's neighbors form a closed clique
+    let closedCount = 0;
+    for (const n of neighbors) {
+      const nNeighbors = adjacency.get(n);
+      if (nNeighbors) {
+        const outsideLinks = [...nNeighbors].filter(nn => !neighbors.has(nn) && nn !== pd.slug);
+        if (outsideLinks.length === 0) closedCount++;
+      }
+    }
+    if (closedCount >= 2 && neighbors.size <= 5) {
+      patterns.push({
+        type: 'isolated-cluster',
+        description: `"${pd.title}" and ${closedCount} neighbors form an isolated cluster with no outbound links to the broader wiki`,
+        pages: [pd.slug, ...neighbors],
+        significance: 'medium',
+      });
+    }
+    if (patterns.filter(p => p.type === 'isolated-cluster').length >= 5) break;
+  }
+
+  // 2. Stale hubs: pages with many incoming links but very old content
+  for (const pd of pageDataCache) {
+    const inCount = incomingLinks.get(pd.slug) ?? 0;
+    if (inCount < 3) continue;
+    if (!pd.updated) continue;
+    try {
+      const daysSince = (Date.now() - new Date(pd.updated).getTime()) / 86_400_000;
+      if (daysSince > 60) {
+        patterns.push({
+          type: 'stale-hub',
+          description: `"${pd.title}" has ${inCount} pages linking to it but hasn't been updated in ${Math.round(daysSince)} days — high-impact staleness`,
+          pages: [pd.slug],
+          significance: 'high',
+        });
+      }
+    } catch { /* skip bad date */ }
+    if (patterns.filter(p => p.type === 'stale-hub').length >= 5) break;
+  }
+
+  // 3. Tag orphans: tags used by only one page (might be typos or inconsistencies)
+  const tagCounts = new Map<string, string[]>();
+  for (const pd of pageDataCache) {
+    for (const tag of pd.tags) {
+      const normalized = tag.toLowerCase().trim();
+      if (!normalized) continue;
+      const pages = tagCounts.get(normalized) ?? [];
+      pages.push(pd.slug);
+      tagCounts.set(normalized, pages);
+    }
+  }
+  const singletonTags: Array<{ tag: string; page: string }> = [];
+  for (const [tag, pages] of tagCounts) {
+    if (pages.length === 1 && pages[0]) {
+      singletonTags.push({ tag, page: pages[0] });
+    }
+  }
+  if (singletonTags.length > 0) {
+    const topSingletons = singletonTags.slice(0, 10);
+    patterns.push({
+      type: 'tag-orphan',
+      description: `${singletonTags.length} tags used by only one page (possible typos or inconsistencies): ${topSingletons.map(s => `"${s.tag}"`).join(', ')}`,
+      pages: topSingletons.map(s => s.page),
+      significance: singletonTags.length > 5 ? 'medium' : 'low',
+    });
+  }
+
+  // 4. Topic conflicts via content overlap: pages with similar word distributions
+  //    but different summaries (deeper than just opposing-word heuristic)
+  for (let i = 0; i < pageDataCache.length && i < 100; i++) {
+    for (let j = i + 1; j < pageDataCache.length && j < 100; j++) {
+      const a = pageDataCache[i]!;
+      const b = pageDataCache[j]!;
+      // Skip if they already link to each other
+      const aLinks = adjacency.get(a.slug);
+      const bLinks = adjacency.get(b.slug);
+      if (aLinks?.has(b.slug) || bLinks?.has(a.slug)) continue;
+      // Check if tags overlap significantly
+      const sharedTags = a.tags.filter(t => b.tags.includes(t));
+      if (sharedTags.length < 2) continue;
+      // Summaries differ substantially
+      if (a.summary && b.summary && a.summary !== b.summary) {
+        patterns.push({
+          type: 'topic-conflict',
+          description: `"${a.title}" and "${b.title}" share ${sharedTags.length} tags (${sharedTags.join(', ')}) but have different summaries and don't cross-reference each other`,
+          pages: [a.slug, b.slug],
+          significance: 'medium',
+        });
+      }
+      if (patterns.filter(p => p.type === 'topic-conflict').length >= 10) break;
+    }
+    if (patterns.filter(p => p.type === 'topic-conflict').length >= 10) break;
+  }
+
+  return patterns;
+}
+
+// ─── New Page Suggestions ────────────────────────────────────────────────────
+
+export interface PageSuggestion {
+  topic: string;
+  reason: string;
+  referencedBy: string[];
+  priority: 'low' | 'medium' | 'high';
+}
+
+/**
+ * Suggest new pages the wiki should have. Goes beyond gap analysis (broken links)
+ * to identify conceptual gaps — topics heavily discussed but never given their own page.
+ */
+function suggestNewPages(
+  pagePaths: string[],
+  gaps: KnowledgeGap[],
+): PageSuggestion[] {
+  const suggestions: PageSuggestion[] = [];
+
+  // 1. Promote top gaps (broken wikilinks) as high-priority suggestions
+  for (const gap of gaps.slice(0, 10)) {
+    suggestions.push({
+      topic: gap.mentionedTopic,
+      reason: `Referenced by ${gap.mentionCount} page(s) via [[wikilink]] but no dedicated page exists`,
+      referencedBy: gap.mentionedIn,
+      priority: gap.mentionCount >= 3 ? 'high' : 'medium',
+    });
+  }
+
+  // 2. Concept extraction: find recurring noun phrases across pages that aren't page titles
+  const existingTitles = new Set<string>();
+  const phraseOccurrences = new Map<string, Set<string>>();
+
+  for (const p of pagePaths) {
+    try {
+      const page = readWikiPage(p);
+      existingTitles.add(page.title.toLowerCase());
+      existingTitles.add(basename(p, '.md').toLowerCase());
+
+      // Extract capitalized noun phrases (2-3 words) as potential concept names
+      const phrases = page.content.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}\b/g) ?? [];
+      for (const phrase of phrases) {
+        const normalized = phrase.toLowerCase();
+        // Skip if it's already a page title or too common
+        if (existingTitles.has(normalized)) continue;
+        if (normalized.length < 5) continue;
+        const sources = phraseOccurrences.get(normalized) ?? new Set();
+        sources.add(page.title);
+        phraseOccurrences.set(normalized, sources);
+      }
+    } catch { /* skip */ }
+  }
+
+  // Phrases mentioned by 3+ different pages are strong candidates
+  const alreadySuggested = new Set(suggestions.map(s => s.topic.toLowerCase()));
+  for (const [phrase, sources] of phraseOccurrences) {
+    if (sources.size >= 3 && !alreadySuggested.has(phrase)) {
+      suggestions.push({
+        topic: phrase.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+        reason: `Capitalized phrase appearing across ${sources.size} pages — likely a notable concept without its own page`,
+        referencedBy: [...sources],
+        priority: sources.size >= 5 ? 'high' : 'medium',
+      });
+    }
+    if (suggestions.length >= 30) break;
+  }
+
+  // 3. Tag-based suggestions: tags with many pages but no dedicated "overview" page
+  const tagPages = new Map<string, string[]>();
+  for (const p of pagePaths) {
+    try {
+      const page = readWikiPage(p);
+      const tags = Array.isArray(page.frontmatter['tags']) ? (page.frontmatter['tags'] as string[]) : [];
+      for (const tag of tags) {
+        const normalized = tag.toLowerCase().trim();
+        if (!normalized || normalized.length < 3) continue;
+        const pages = tagPages.get(normalized) ?? [];
+        pages.push(page.title);
+        tagPages.set(normalized, pages);
+      }
+    } catch { /* skip */ }
+  }
+
+  for (const [tag, pages] of tagPages) {
+    if (pages.length >= 4 && !existingTitles.has(tag) && !alreadySuggested.has(tag)) {
+      suggestions.push({
+        topic: tag.charAt(0).toUpperCase() + tag.slice(1),
+        reason: `Tag "${tag}" is used by ${pages.length} pages but has no overview page — would serve as a hub`,
+        referencedBy: pages.slice(0, 5),
+        priority: pages.length >= 6 ? 'high' : 'medium',
+      });
+      alreadySuggested.add(tag);
+    }
+    if (suggestions.length >= 40) break;
+  }
+
+  return suggestions
+    .sort((a, b) => {
+      const prio = { high: 0, medium: 1, low: 2 };
+      return prio[a.priority] - prio[b.priority];
+    })
+    .slice(0, 30);
+}
+
+// ─── Cross-Link Discovery ────────────────────────────────────────────────────
+
+export interface CrossLinkOpportunity {
+  pageA: string;
+  titleA: string;
+  pageB: string;
+  titleB: string;
+  reason: string;
+  confidence: number; // 0-1
+}
+
+/**
+ * Find pages that discuss the same concepts but don't link to each other.
+ * Uses keyword overlap, tag similarity, and entity co-occurrence.
+ */
+function crossLinkDiscovery(pagePaths: string[]): CrossLinkOpportunity[] {
+  const opportunities: CrossLinkOpportunity[] = [];
+
+  interface PageData {
+    path: string;
+    slug: string;
+    title: string;
+    tags: Set<string>;
+    keywords: Set<string>;
+    linkedSlugs: Set<string>;
+  }
+
+  const titleToSlug = new Map<string, string>();
+  const pageDataList: PageData[] = [];
+
+  // First pass: build lookup table
+  for (const p of pagePaths) {
+    try {
+      const page = readWikiPage(p);
+      const slug = basename(p, '.md');
+      titleToSlug.set(page.title.toLowerCase(), slug);
+      titleToSlug.set(slug, slug);
+    } catch { /* skip */ }
+  }
+
+  // Second pass: collect page data
+  for (const p of pagePaths) {
+    try {
+      const page = readWikiPage(p);
+      const slug = basename(p, '.md');
+      const tags = new Set(
+        (Array.isArray(page.frontmatter['tags']) ? (page.frontmatter['tags'] as string[]) : [])
+          .map(t => t.toLowerCase().trim())
+          .filter(Boolean),
+      );
+
+      // Extract significant words (>4 chars, not common stop words)
+      const stopWords = new Set(['about', 'after', 'again', 'being', 'between', 'could', 'different', 'does', 'during', 'every', 'first', 'found', 'great', 'however', 'including', 'known', 'large', 'might', 'never', 'other', 'should', 'since', 'small', 'something', 'still', 'their', 'these', 'thing', 'think', 'those', 'through', 'under', 'using', 'very', 'which', 'while', 'would', 'years']);
+      const words = page.content.toLowerCase().split(/\W+/).filter(w => w.length > 4 && !stopWords.has(w));
+      const wordFreq = new Map<string, number>();
+      for (const w of words) {
+        wordFreq.set(w, (wordFreq.get(w) ?? 0) + 1);
+      }
+      // Keep top keywords by frequency
+      const sortedWords = [...wordFreq.entries()].sort((a, b) => b[1] - a[1]);
+      const keywords = new Set(sortedWords.slice(0, 30).map(([w]) => w));
+
+      // Resolve which slugs this page already links to
+      const linkedSlugs = new Set<string>();
+      for (const link of page.wikilinks) {
+        const target = titleToSlug.get(link.toLowerCase())
+          ?? titleToSlug.get(link.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+        if (target) linkedSlugs.add(target);
+      }
+
+      pageDataList.push({ path: p, slug, title: page.title, tags, keywords, linkedSlugs });
+    } catch { /* skip */ }
+  }
+
+  // Compare pairs for keyword/tag overlap
+  const limit = Math.min(pageDataList.length, 150); // cap O(n^2) at manageable size
+  for (let i = 0; i < limit; i++) {
+    for (let j = i + 1; j < limit; j++) {
+      const a = pageDataList[i]!;
+      const b = pageDataList[j]!;
+
+      // Skip if already linked in either direction
+      if (a.linkedSlugs.has(b.slug) || b.linkedSlugs.has(a.slug)) continue;
+
+      // Tag overlap
+      const sharedTags = [...a.tags].filter(t => b.tags.has(t));
+      // Keyword overlap
+      const sharedKeywords = [...a.keywords].filter(k => b.keywords.has(k));
+
+      // Score the opportunity
+      const tagScore = Math.min(sharedTags.length / 2, 1); // 2+ shared tags = max
+      const keywordScore = Math.min(sharedKeywords.length / 8, 1); // 8+ shared keywords = max
+      const confidence = tagScore * 0.4 + keywordScore * 0.6;
+
+      if (confidence >= 0.4) {
+        const reasons: string[] = [];
+        if (sharedTags.length > 0) reasons.push(`${sharedTags.length} shared tags: ${sharedTags.slice(0, 3).join(', ')}`);
+        if (sharedKeywords.length > 0) reasons.push(`${sharedKeywords.length} shared keywords`);
+
+        opportunities.push({
+          pageA: a.path,
+          titleA: a.title,
+          pageB: b.path,
+          titleB: b.title,
+          reason: reasons.join('; '),
+          confidence: Math.round(confidence * 100) / 100,
+        });
+      }
+    }
+    if (opportunities.length >= 50) break;
+  }
+
+  return opportunities
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 30);
+}
+
+// ─── Experiment Log ──────────────────────────────────────────────────────────
+
+export interface ExperimentEntry {
+  id: string;
+  date: string;
+  action: string;
+  target: string;
+  hypothesis: string;
+  result: 'success' | 'failure' | 'neutral';
+  scoreBefore?: number;
+  scoreAfter?: number;
+  details: string;
+}
+
+export interface ExperimentLog {
+  entries: ExperimentEntry[];
+  /** Patterns the observer has learned from past experiments */
+  learnedPatterns: string[];
+}
+
+function getExperimentLogPath(vaultRoot: string): string {
+  return join(vaultRoot, '.wikimem', 'observer-experiment-log.json');
+}
+
+function loadExperimentLog(vaultRoot: string): ExperimentLog {
+  const logPath = getExperimentLogPath(vaultRoot);
+  if (!existsSync(logPath)) return { entries: [], learnedPatterns: [] };
+  try {
+    return JSON.parse(readFileSync(logPath, 'utf-8')) as ExperimentLog;
+  } catch {
+    return { entries: [], learnedPatterns: [] };
+  }
+}
+
+function saveExperimentLog(vaultRoot: string, log: ExperimentLog): void {
+  const dir = join(vaultRoot, '.wikimem');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(getExperimentLogPath(vaultRoot), JSON.stringify(log, null, 2), 'utf-8');
+}
+
+function appendExperiment(
+  vaultRoot: string,
+  entry: Omit<ExperimentEntry, 'id' | 'date'>,
+): void {
+  const log = loadExperimentLog(vaultRoot);
+  log.entries.push({
+    id: `exp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+    date: new Date().toISOString(),
+    ...entry,
+  });
+
+  // Auto-learn patterns from experiment history (every 10 entries)
+  if (log.entries.length % 10 === 0) {
+    const successes = log.entries.filter(e => e.result === 'success');
+    const failures = log.entries.filter(e => e.result === 'failure');
+
+    // Extract which actions tend to succeed
+    const actionSuccess = new Map<string, number>();
+    const actionTotal = new Map<string, number>();
+    for (const e of log.entries) {
+      actionTotal.set(e.action, (actionTotal.get(e.action) ?? 0) + 1);
+      if (e.result === 'success') {
+        actionSuccess.set(e.action, (actionSuccess.get(e.action) ?? 0) + 1);
+      }
+    }
+
+    const newPatterns: string[] = [];
+    for (const [action, total] of actionTotal) {
+      const success = actionSuccess.get(action) ?? 0;
+      const rate = total > 0 ? success / total : 0;
+      if (total >= 3 && rate >= 0.7) {
+        newPatterns.push(`Action "${action}" has ${Math.round(rate * 100)}% success rate (${success}/${total}) — prioritize`);
+      } else if (total >= 3 && rate <= 0.3) {
+        newPatterns.push(`Action "${action}" has ${Math.round(rate * 100)}% success rate (${success}/${total}) — deprioritize or rethink approach`);
+      }
+    }
+
+    if (successes.length > 0 || failures.length > 0) {
+      newPatterns.push(`Overall success rate: ${Math.round((successes.length / log.entries.length) * 100)}% across ${log.entries.length} experiments`);
+    }
+
+    if (newPatterns.length > 0) {
+      log.learnedPatterns = newPatterns;
+    }
+  }
+
+  // Keep experiment log at a reasonable size (last 200 entries)
+  if (log.entries.length > 200) {
+    log.entries = log.entries.slice(-200);
+  }
+
+  saveExperimentLog(vaultRoot, log);
+}
+
+// ─── Budget Estimation ───────────────────────────────────────────────────────
+
+export interface BudgetEstimate {
+  estimatedCostUsd: number;
+  pagesEligible: number;
+  pagesAfterCap: number;
+  budgetRemaining: number;
+  capped: boolean;
+}
+
+function estimateBudget(
+  scores: PageScore[],
+  options: ObserverOptions,
+): BudgetEstimate {
+  const maxBudget = options.maxBudget ?? 2.0;
+  const maxImprovements = options.maxImprovements ?? 3;
+  const costPerPage = COST_PER_IMPROVEMENT_ESTIMATE;
+
+  const eligible = scores.filter(s => s.score < s.maxScore * 0.5 && s.issues.length > 0);
+  const budgetAllowedPages = Math.floor(maxBudget / costPerPage);
+  const effectiveMax = Math.min(maxImprovements, budgetAllowedPages, eligible.length);
+  const estimatedCost = effectiveMax * costPerPage;
+
+  return {
+    estimatedCostUsd: Math.round(estimatedCost * 100) / 100,
+    pagesEligible: eligible.length,
+    pagesAfterCap: effectiveMax,
+    budgetRemaining: Math.round((maxBudget - estimatedCost) * 100) / 100,
+    capped: eligible.length > effectiveMax,
+  };
+}
+
 // ─── Report ───────────────────────────────────────────────────────────────────
 
 export interface ObserverOptions {
@@ -313,15 +885,15 @@ Your job is to improve the page by:
 3. Improving structure with proper headings if readability is low
 4. Expanding very short pages with useful context
 5. Adding [[wikilinks]] to related concepts if the page has no outbound links
+6. Adding source citations or references where possible
+7. Improving cross-referencing with contextual wikilinks in prose (not just "See also")
 
 Rules:
 - Preserve all existing content — only ADD, never remove
 - Keep the existing YAML frontmatter format
 - Use [[Double Bracket]] notation for wikilinks
 - Be concise but informative
-- Return the COMPLETE page content including frontmatter
-
-Return ONLY the improved markdown content, nothing else.`;
+- Return the COMPLETE page content including frontmatter`;
 
 async function improveWeakPages(
   config: VaultConfig,
@@ -337,8 +909,19 @@ async function improveWeakPages(
 
   if (effectiveMax <= 0) return results;
 
+  // Use experiment log to inform page selection
+  const experimentLog = loadExperimentLog(config.root);
+  const recentFailedPages = new Set(
+    experimentLog.entries
+      .filter(e => e.result === 'failure' && e.action === 'improve-page')
+      .slice(-20)
+      .map(e => e.target),
+  );
+
   const weakPages = scores
     .filter((s) => s.score < s.maxScore * 0.5 && s.issues.length > 0)
+    // Deprioritize pages that recently failed improvement
+    .filter((s) => !recentFailedPages.has(s.page))
     .sort((a, b) => a.score - b.score)
     .slice(0, effectiveMax);
 
@@ -349,7 +932,6 @@ async function improveWeakPages(
 
   for (const weak of weakPages) {
     try {
-      const page = readWikiPage(weak.page);
       const fullContent = readFileSync(weak.page, 'utf-8');
       const issueList = weak.issues.map((i) => `- ${i}`).join('\n');
 
@@ -375,10 +957,11 @@ Return the improved complete page content.`;
       improved = response.content;
 
       if (improved && improved.trim().length > fullContent.length * 0.5) {
-        const { writeFileSync } = await import('node:fs');
         writeFileSync(weak.page, improved.trim(), 'utf-8');
         // Re-score to get newScore
         const reScored = scorePage(weak.page, incomingLinks);
+        const success = reScored.score > weak.score;
+
         results.push({
           page: weak.page,
           title: weak.title,
@@ -387,6 +970,19 @@ Return the improved complete page content.`;
           action: `Improved: ${weak.issues.slice(0, 3).join(', ')}`,
           improved: true,
         });
+
+        // Log experiment
+        appendExperiment(config.root, {
+          action: 'improve-page',
+          target: weak.page,
+          hypothesis: `Improving issues [${weak.issues.slice(0, 2).join(', ')}] should raise score from ${weak.score}`,
+          result: success ? 'success' : 'neutral',
+          scoreBefore: weak.score,
+          scoreAfter: reScored.score,
+          details: success
+            ? `Score improved ${weak.score} → ${reScored.score} (+${reScored.score - weak.score})`
+            : `Score unchanged at ${reScored.score} despite improvement attempt`,
+        });
       } else {
         results.push({
           page: weak.page,
@@ -394,6 +990,15 @@ Return the improved complete page content.`;
           originalScore: weak.score,
           action: 'LLM response too short — skipped',
           improved: false,
+        });
+
+        appendExperiment(config.root, {
+          action: 'improve-page',
+          target: weak.page,
+          hypothesis: `LLM would produce usable improvement for score ${weak.score} page`,
+          result: 'failure',
+          scoreBefore: weak.score,
+          details: 'LLM response was too short to be useful',
         });
       }
     } catch (err) {
@@ -404,6 +1009,15 @@ Return the improved complete page content.`;
         action: 'Error during improvement',
         improved: false,
         error: err instanceof Error ? err.message : String(err),
+      });
+
+      appendExperiment(config.root, {
+        action: 'improve-page',
+        target: weak.page,
+        hypothesis: `Improvement would succeed for page with score ${weak.score}`,
+        result: 'failure',
+        scoreBefore: weak.score,
+        details: `Error: ${err instanceof Error ? err.message : String(err)}`,
       });
     }
   }
@@ -424,6 +1038,16 @@ export interface ObserverReport {
   gaps: KnowledgeGap[];
   topIssues: Array<{ issue: string; count: number }>;
   improvements: ImprovementResult[];
+  /** Open-ended discoveries — patterns the observer found that weren't explicitly searched for */
+  unexpectedPatterns: UnexpectedPattern[];
+  /** Suggested new pages based on coverage analysis */
+  pageSuggestions: PageSuggestion[];
+  /** Cross-link opportunities — pages that should link to each other */
+  crossLinks: CrossLinkOpportunity[];
+  /** Budget consumed and remaining */
+  budget: BudgetEstimate;
+  /** Insights from past experiments */
+  experimentInsights: string[];
 }
 
 export function getObserverReportsDir(vaultRoot: string): string {
@@ -444,6 +1068,11 @@ export async function runObserver(config: VaultConfig, options?: ObserverOptions
   const contradictions = flagContradictions(reviewPaths);
   const gaps = findGaps(allPaths);
 
+  // Open-ended discovery — find things we didn't know to look for
+  const unexpectedPatterns = discoverUnexpected(allPaths, incomingLinks);
+  const pageSuggestions = suggestNewPages(allPaths, gaps);
+  const crossLinks = crossLinkDiscovery(allPaths);
+
   const avgScore =
     scores.length > 0
       ? Math.round((scores.reduce((s, p) => s + p.score, 0) / scores.length) * 10) / 10
@@ -461,11 +1090,39 @@ export async function runObserver(config: VaultConfig, options?: ObserverOptions
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
+  // Budget estimation before running improvements
+  const budget = estimateBudget(scores, options ?? {});
+
   // LLM-powered improvement of weakest pages
   let improvements: ImprovementResult[] = [];
   if (options?.autoImprove) {
     improvements = await improveWeakPages(config, scores, options, incomingLinks);
   }
+
+  // Log discovery experiments
+  if (unexpectedPatterns.length > 0) {
+    appendExperiment(config.root, {
+      action: 'discover-patterns',
+      target: 'wiki-wide',
+      hypothesis: 'Open-ended scan will find unknown-unknowns in wiki structure',
+      result: 'success',
+      details: `Found ${unexpectedPatterns.length} unexpected patterns: ${unexpectedPatterns.map(p => p.type).join(', ')}`,
+    });
+  }
+
+  if (crossLinks.length > 0) {
+    appendExperiment(config.root, {
+      action: 'discover-crosslinks',
+      target: 'wiki-wide',
+      hypothesis: 'Cross-link analysis will find pages that should be connected',
+      result: crossLinks.length > 0 ? 'success' : 'neutral',
+      details: `Found ${crossLinks.length} cross-link opportunities (avg confidence: ${crossLinks.length > 0 ? Math.round(crossLinks.reduce((sum, c) => sum + c.confidence, 0) / crossLinks.length * 100) : 0}%)`,
+    });
+  }
+
+  // Load experiment insights to include in report
+  const experimentLog = loadExperimentLog(config.root);
+  const experimentInsights = experimentLog.learnedPatterns;
 
   const date = new Date().toISOString().split('T')[0] ?? '';
   const report: ObserverReport = {
@@ -481,6 +1138,11 @@ export async function runObserver(config: VaultConfig, options?: ObserverOptions
     gaps,
     topIssues,
     improvements,
+    unexpectedPatterns,
+    pageSuggestions,
+    crossLinks,
+    budget,
+    experimentInsights,
   };
 
   // Save report
@@ -492,29 +1154,45 @@ export async function runObserver(config: VaultConfig, options?: ObserverOptions
   // Build rich commit body with details
   const improvementLines = improvements
     .filter((i) => i.improved)
-    .map((i) => `  ✓ ${i.title} (was ${i.originalScore}/${MAX_SCORE}): ${i.action}`);
+    .map((i) => `  + ${i.title} (was ${i.originalScore}/${MAX_SCORE}): ${i.action}`);
   const failedLines = improvements
     .filter((i) => !i.improved)
-    .map((i) => `  ✗ ${i.title}: ${i.action}${i.error ? ` — ${i.error}` : ''}`);
+    .map((i) => `  x ${i.title}: ${i.action}${i.error ? ` — ${i.error}` : ''}`);
 
   const weakestPages = scores
     .filter((s) => s.score < MAX_SCORE * 0.7)
     .slice(0, 5)
     .map((s) => `  ${s.title}: ${s.score}/${MAX_SCORE} — ${s.issues[0] ?? 'no issues'}`);
 
+  const discoveryLines = unexpectedPatterns
+    .filter(p => p.significance !== 'low')
+    .slice(0, 5)
+    .map(p => `  [${p.significance}] ${p.description}`);
+
   const commitBodyParts = [
     `Pages: ${allPaths.length} (reviewed: ${reviewPaths.length})`,
     `Average score: ${avgScore}/${MAX_SCORE}`,
     `Orphans: ${orphans.length} | Gaps: ${gaps.length} | Contradictions: ${contradictions.length}`,
+    `Cross-link opportunities: ${crossLinks.length} | Page suggestions: ${pageSuggestions.length}`,
+    `Unexpected patterns: ${unexpectedPatterns.length}`,
   ];
+  if (budget.capped) {
+    commitBodyParts.push(`Budget: $${budget.estimatedCostUsd} of $${budget.estimatedCostUsd + budget.budgetRemaining} (${budget.pagesEligible} eligible, ${budget.pagesAfterCap} improved)`);
+  }
   if (improvementLines.length > 0) {
     commitBodyParts.push('', 'Improvements applied:', ...improvementLines);
   }
   if (failedLines.length > 0) {
     commitBodyParts.push('', 'Improvement failures:', ...failedLines);
   }
+  if (discoveryLines.length > 0) {
+    commitBodyParts.push('', 'Discoveries:', ...discoveryLines);
+  }
   if (weakestPages.length > 0) {
     commitBodyParts.push('', 'Weakest pages:', ...weakestPages);
+  }
+  if (experimentInsights.length > 0) {
+    commitBodyParts.push('', 'Learned patterns:', ...experimentInsights.map(p => `  - ${p}`));
   }
   const commitBody = commitBodyParts.join('\n');
 
@@ -540,11 +1218,15 @@ export async function runObserver(config: VaultConfig, options?: ObserverOptions
       ? ` Improved ${improvements.filter((i) => i.improved).length}/${improvements.length} pages.`
       : '';
 
+    const discoverySummary = unexpectedPatterns.length > 0
+      ? ` ${unexpectedPatterns.length} patterns discovered.`
+      : '';
+
     appendAuditEntry(config.root, {
       action: 'observe',
       actor: 'observer',
       source: reportPath,
-      summary: `Quality scan: ${allPaths.length} pages (${reviewPaths.length} reviewed), avg score ${avgScore}/${MAX_SCORE}, ${orphans.length} orphans, ${gaps.length} gaps, ${contradictions.length} contradictions.${improveSummary}`,
+      summary: `Quality scan: ${allPaths.length} pages (${reviewPaths.length} reviewed), avg score ${avgScore}/${MAX_SCORE}, ${orphans.length} orphans, ${gaps.length} gaps, ${contradictions.length} contradictions, ${crossLinks.length} cross-link opportunities.${improveSummary}${discoverySummary}`,
       pagesAffected: [
         ...improvements.filter((i) => i.improved).map((i) => basename(i.page, '.md')),
         ...reviewPaths.map((p) => basename(p, '.md')),
@@ -559,7 +1241,7 @@ export async function runObserver(config: VaultConfig, options?: ObserverOptions
   // Record history snapshot for time-lapse
   try {
     const { recordSnapshot } = await import('./history.js');
-    recordSnapshot(config, 'improve', `Observer scan: ${allPaths.length} pages, avg score ${avgScore}/${MAX_SCORE}`);
+    recordSnapshot(config, 'improve', `Observer scan: ${allPaths.length} pages, avg score ${avgScore}/${MAX_SCORE}, ${unexpectedPatterns.length} discoveries`);
   } catch {
     // History recording is optional
   }
@@ -589,6 +1271,11 @@ export function readObserverReport(vaultRoot: string, date: string): ObserverRep
   }
 }
 
+/** Read the experiment log for UI display or debugging */
+export function readExperimentLog(vaultRoot: string): ExperimentLog {
+  return loadExperimentLog(vaultRoot);
+}
+
 // ─── Cron Scheduler ──────────────────────────────────────────────────────────
 
 let scheduledJob: ReturnType<typeof cron.schedule> | null = null;
@@ -602,7 +1289,7 @@ export function startObserverCron(config: VaultConfig): void {
     try {
       const report = await runObserver(config);
       console.log(
-        `[observer] Done — ${report.totalPages} pages (${report.pagesReviewed} reviewed), avg score ${report.averageScore}/${report.maxScore}, ${report.orphans.length} orphans.`,
+        `[observer] Done — ${report.totalPages} pages (${report.pagesReviewed} reviewed), avg score ${report.averageScore}/${report.maxScore}, ${report.orphans.length} orphans, ${report.unexpectedPatterns.length} discoveries.`,
       );
     } catch (err) {
       console.error('[observer] Nightly scan failed:', err);
