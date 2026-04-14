@@ -22395,19 +22395,19 @@
         });
 
       const cxClose = document.getElementById("cx-modal-close");
-      if (cxClose) cxClose.addEventListener("click", closeCxModal);
+      if (cxClose && typeof closeCxModal === "function") cxClose.addEventListener("click", closeCxModal);
       const cxOv = document.getElementById("cx-modal-overlay");
       if (cxOv)
         cxOv.addEventListener("click", (e) => {
-          if (e.target === e.currentTarget) closeCxModal();
+          if (e.target === e.currentTarget && typeof closeCxModal === "function") closeCxModal();
         });
 
       const obsClose = document.getElementById("obs-modal-close");
-      if (obsClose) obsClose.addEventListener("click", closeObsModal);
+      if (obsClose && typeof closeObsModal === "function") obsClose.addEventListener("click", closeObsModal);
       const obsOv = document.getElementById("obs-modal-overlay");
       if (obsOv)
         obsOv.addEventListener("click", (e) => {
-          if (e.target === e.currentTarget) closeObsModal();
+          if (e.target === e.currentTarget && typeof closeObsModal === "function") closeObsModal();
         });
 
       // Settings nav
