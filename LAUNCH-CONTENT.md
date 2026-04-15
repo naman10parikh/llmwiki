@@ -15,9 +15,9 @@ https://x.com/karpathy/status/1908625766490001799
 
 **Tweet 1/6 — Hook**
 
-I took Karpathy's LLM wiki idea seriously.
+Every time you close your laptop, your knowledge atrophies. wikimem compiles it instead.
 
-Built a full CLI + web IDE that compiles any file — PDF, audio, video, Slack export, spreadsheet, URL — into a structured, interlinked knowledge base. Three automations keep it improving while you sleep.
+I took Karpathy's LLM wiki idea seriously. Built a full CLI + web IDE: 38 connectors (GitHub, Slack, Gmail, Notion, Discord — all wired), 3 live automations, a self-improving Observer that scores and repairs your knowledge base nightly.
 
 `npx wikimem@latest`
 
@@ -39,19 +39,23 @@ WikiMem compiles your sources into entity pages, concept pages, and cross-refere
 
 Set up once. Walk away.
 
-1. **Ingest** — file watcher on raw/. Drop a file, get wiki pages + git commit.
-2. **Scrape** — RSS feeds, GitHub trending, URLs fetched on schedule → deposited → ingested automatically.
-3. **Observe** — nightly LLM quality review. Scores coverage, consistency, cross-linking. Fixes orphan pages. Proposes improvements.
+1. **Smart Sourcing** — file watcher on raw/. Drop a file, get wiki pages + git commit.
+2. **Pipeline Watcher** — RSS feeds, GitHub trending, URLs fetched on schedule → deposited → ingested automatically.
+3. **Observer** — nightly LLM quality review. 24-point scoring across 5 dimensions. Fixes orphan pages. Wires broken cross-links. Flags contradictions.
+
+All three are live and running.
 
 ---
 
-**Tweet 4/6 — What It Processes**
+**Tweet 4/6 — 38 Connectors**
 
-13+ formats through specialized processors:
+Every connector works:
 
-PDF, DOCX, PPTX, XLSX, CSV, JSON, YAML, HTML, images (Vision), audio (Whisper), video (ffmpeg → Whisper), URLs (Firecrawl/fetch), plain text.
+GitHub, Slack, Gmail, Notion, Discord, Google Drive, Dropbox, Airtable, Linear, Jira, Confluence, Salesforce, HubSpot, Zendesk, Intercom, Shopify, Stripe, and 20+ more.
 
-One command handles all of them. Output is always structured markdown with wikilinks, frontmatter, and citations.
+OAuth or API key — authenticate once, sync automatically. Your knowledge base ingests from wherever your knowledge actually lives.
+
+13+ local file formats too: PDF, audio (Whisper), video (ffmpeg), images (Vision), Office docs, URLs.
 
 ---
 
@@ -61,7 +65,7 @@ If you use Claude Code, WikiMem has a native MCP server.
 
 Add 5 lines to .mcp.json. Claude gains: wikimem_search, wikimem_read, wikimem_list, wikimem_ingest.
 
-Every conversation can now read your compiled knowledge base directly — no copy-paste, no context-stuffing.
+Every conversation can now read your compiled knowledge base directly — no copy-paste, no context-stuffing. Slash commands work too.
 
 ```bash
 wikimem mcp
@@ -79,9 +83,9 @@ npx wikimem serve
 
 Open localhost:3141. Drop a PDF. Watch it compile.
 
+38 connectors. 3 live automations. Observer with 24-point scoring.
 3 LLMs: Claude, GPT-4o, Ollama (fully local).
-Obsidian-compatible output.
-MIT licensed.
+Obsidian-compatible output. Zero console errors. MIT licensed.
 
 github.com/naman10parikh/wikimem
 npmjs.com/package/wikimem
@@ -116,13 +120,13 @@ I built WikiMem after spending a few months frustrated with how knowledge compou
 
 WikiMem does three things:
 
-**Ingest** (13+ formats): Drop a PDF, audio file, video, spreadsheet, URL, or Slack export. WikiMem detects the type, runs the right processor (pdf-parse for PDFs, ffmpeg+Whisper for video, Claude Vision for images, Firecrawl for URLs), and compiles the content into structured wiki pages — source summary, extracted entities, concept pages, and cross-references. Everything goes to `raw/` first (immutable), then to `wiki/` (LLM-generated). The original source is never modified.
+**Ingest** (13+ formats + 38 connectors): Drop a PDF, audio file, video, spreadsheet, URL, or Slack export — or connect any of 38 OAuth/API-key sources: GitHub, Gmail, Notion, Discord, Google Drive, Airtable, Linear, Jira, and more. WikiMem detects the type, runs the right processor (pdf-parse for PDFs, ffmpeg+Whisper for video, Claude Vision for images, Firecrawl for URLs), and compiles the content into structured wiki pages — source summary, extracted entities, concept pages, and cross-references. Everything goes to `raw/` first (immutable), then to `wiki/` (LLM-generated). The original source is never modified.
 
-**Scrape**: Configure RSS feeds, GitHub queries, or plain URLs in `config.yaml`. WikiMem fetches them on a cron schedule and deposits the results in `raw/`, triggering the ingest pipeline automatically. Your knowledge base grows from external sources without manual intervention.
+**Pipeline Watcher**: Configure RSS feeds, GitHub queries, or plain URLs in `config.yaml`. WikiMem fetches them on a cron schedule and deposits the results in `raw/`, triggering the ingest pipeline automatically. Your knowledge base grows from external sources without manual intervention.
 
-**Observe (Self-Improvement)**: A nightly LLM quality review scores every wiki page across five dimensions: coverage (are all raw sources represented?), consistency (do pages contradict each other?), cross-linking (orphan pages, broken wikilinks, missing connections), freshness (are claims superseded by newer sources?), and organization (missing summaries, sparse pages). Pages below threshold get improved automatically.
+**Observer (Self-Improvement — Jeff Clune open-endedness principles)**: A nightly LLM quality review scores every wiki page on a 24-point scale across five dimensions: coverage (are all raw sources represented?), consistency (do pages contradict each other?), cross-linking (orphan pages, broken wikilinks, missing connections), freshness (are claims superseded by newer sources?), and organization (missing summaries, sparse pages). Every run is logged to the experiment log. Pages below threshold get improved automatically.
 
-The output is plain markdown with YAML frontmatter and `[[wikilinks]]` — Obsidian-compatible from day one. Git-checkpointed automatically. Ships with an MCP server for Claude Code and Cursor.
+The output is plain markdown with YAML frontmatter and `[[wikilinks]]` — Obsidian-compatible from day one. Git-checkpointed automatically. Ships with an MCP server for Claude Code and Cursor, plus slash commands.
 
 ```
 npx wikimem@latest init my-wiki
@@ -130,14 +134,14 @@ cd my-wiki
 npx wikimem serve
 ```
 
-Web IDE at localhost:3141: D3 knowledge graph, time-lapse viewer (watch the wiki grow commit-by-commit), WYSIWYG editing, Cmd+K search, pipeline visualization.
+Web IDE at localhost:3141: D3 knowledge graph, time-lapse viewer (watch the wiki grow commit-by-commit), WYSIWYG editing, Cmd+K search, pipeline visualization. Zero console errors.
 
 Works with Claude, GPT-4o, or Ollama (fully local — no API keys, no data leaves the machine). 17 CLI commands, 15K+ lines of TypeScript, MIT licensed.
 
 GitHub: https://github.com/naman10parikh/wikimem
 npm: https://www.npmjs.com/package/wikimem
 
-Happy to answer questions about the self-improvement cycle, the three-layer architecture (raw/wiki/AGENTS.md), or how it compares to vector RAG.
+Happy to answer questions about the self-improvement cycle, the three-layer architecture (raw/wiki/AGENTS.md), how the 38 connectors work, or how it compares to vector RAG.
 
 ---
 
@@ -158,7 +162,7 @@ Happy to answer questions about the self-improvement cycle, the three-layer arch
 
 ## 3. Reddit r/ClaudeAI Post
 
-**Title:** I built a CLI skill for managing your knowledge base from Claude Code — compiles PDFs, audio, and URLs into a wiki
+**Title:** I built a native Claude Code integration for your knowledge base — 38 connectors, 3 automations, self-improving wiki
 
 ---
 
@@ -166,9 +170,9 @@ Happy to answer questions about the self-improvement cycle, the three-layer arch
 
 Been building with Claude Code for a while and kept running into the same problem: knowledge doesn't compound. Every new session starts fresh. You can add context via system prompts or file attachments, but there's no structured way to say "here's everything I've learned and researched — have it available in every session."
 
-WikiMem is my solution. It's a CLI + web IDE that compiles your sources (PDFs, audio, video, URLs, Slack exports, spreadsheets — 13+ formats) into structured wiki pages with cross-references, entity tracking, and citations. Think less "note-taking app" and more "research compiler."
+WikiMem is my solution. It's a CLI + web IDE that compiles your sources (PDFs, audio, video, URLs, Slack exports, spreadsheets — 13+ formats, plus 38 OAuth/API connectors including GitHub, Gmail, Notion, Discord, Linear, Jira, Airtable) into structured wiki pages with cross-references, entity tracking, and citations. Think less "note-taking app" and more "research compiler."
 
-The Claude Code integration is a native MCP server. Add this to `.mcp.json`:
+The Claude Code integration is a native MCP server plus slash commands. Add this to `.mcp.json`:
 
 ```json
 {
@@ -184,7 +188,7 @@ The Claude Code integration is a native MCP server. Add this to `.mcp.json`:
 
 Then Claude Code has four new tools: `wikimem_search`, `wikimem_read`, `wikimem_list`, `wikimem_ingest`. Every conversation can search your compiled knowledge directly.
 
-The other thing I'm proud of: it has a self-improvement loop. A nightly LLM review scores your knowledge base for coverage, consistency, and cross-linking. Orphan pages get connected. Sparse pages get expanded. Contradictions get flagged. Your wiki gets better while you're not using it.
+The self-improvement loop is what I'm most proud of: the Observer automation (built on Jeff Clune open-endedness principles) scores your knowledge base on a 24-point scale nightly — coverage, consistency, cross-linking, freshness, organization. Orphan pages get connected. Sparse pages get expanded. Contradictions get flagged. Every run logs to an experiment log. Your wiki gets better while you're not using it.
 
 Quick start:
 
@@ -194,7 +198,7 @@ cd my-wiki
 npx wikimem serve
 ```
 
-Open localhost:3141. Drop a PDF in the web UI or via the CLI. It processes, creates pages, and commits to git.
+Open localhost:3141. Drop a PDF in the web UI or via the CLI. It processes, creates pages, and commits to git. Zero console errors.
 
 Works with Claude, GPT-4o, or Ollama (no API keys if you go local). Obsidian-compatible output — open the folder in Obsidian, it just works.
 
@@ -207,14 +211,15 @@ MIT licensed. GitHub: github.com/naman10parikh/wikimem
 - vs Obsidian MCP: reads raw notes, no compilation, no automation, no improvement cycle
 - vs Mem0/SuperMemory: those are memory APIs, this is a structured knowledge compiler you browse and edit
 - vs plain RAG: wiki is structured and browsable; RAG is opaque chunks at query time
+- vs Notion AI: works on any format, not just your existing Notion content; runs the Observer improvement loop
 
 ---
 
 ## 4. DEV.to Article Outline
 
-**Title:** Building a Self-Improving Wiki with Claude Code and 13+ File Formats
+**Title:** Building a Self-Improving Wiki with Claude Code: 38 Connectors, Observer Scoring, and Open-Endedness
 
-**Subtitle:** How the three-layer architecture (raw/wiki/AGENTS.md) creates a knowledge compiler instead of a retrieval system
+**Subtitle:** How the three-layer architecture (raw/wiki/AGENTS.md) and Jeff Clune's open-endedness principles create a knowledge compiler instead of a retrieval system
 
 ---
 
@@ -246,11 +251,12 @@ Code: walkthrough of ingest pipeline for a research PDF
 
 ### Section 3: Three Automations (400 words)
 
-- Automation 1: Ingest (file watcher on raw/)
-- Automation 2: Scrape (RSS/GitHub/URL cron)
-- Automation 3: Observe — the self-improvement loop
-  - Five scoring dimensions
+- Automation 1: Smart Sourcing (file watcher on raw/)
+- Automation 2: Pipeline Watcher (RSS/GitHub/URL cron)
+- Automation 3: Observer — the self-improvement loop (Jeff Clune open-endedness principles)
+  - 24-point scoring across five dimensions
   - What "improvement" means concretely (orphan linking, gap filling, contradiction flagging)
+  - Experiment log: every Observer run is recorded, trends are tracked
   - Why this matters: knowledge bases decay without maintenance
 
 ### Section 4: Claude Code Integration via MCP (300 words)
@@ -285,11 +291,11 @@ Code: walkthrough of ingest pipeline for a research PDF
 
 ### Tagline (max 60 chars)
 
-> Self-improving wiki that compiles your sources into knowledge
+> Self-improving wiki — 38 connectors, compiles anything
 
 (Alternatives if too long:)
-> LLM knowledge compiler — ingest anything, query with Claude
-> The wiki that reads your PDFs so you don't have to
+> LLM knowledge compiler — 38 connectors, Observer scoring
+> The wiki that reads your sources so you don't have to
 
 ---
 

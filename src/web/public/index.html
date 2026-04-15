@@ -2914,6 +2914,43 @@
       .wiki-see-also-list li {
         margin: 5px 0;
       }
+      /* References section (Task B) */
+      .page-references-section {
+        margin-top: 32px;
+        padding-top: 18px;
+        border-top: 1px solid var(--border-subtle);
+      }
+      .page-references-list {
+        margin: 8px 0 0;
+        padding-left: 1.5em;
+        font-size: 13px;
+        color: var(--text-secondary);
+        line-height: 1.65;
+      }
+      .page-references-list li {
+        margin: 5px 0;
+      }
+      .page-references-subheading {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-dim);
+        margin: 16px 0 4px;
+        letter-spacing: 0.01em;
+      }
+      .ref-url-domain {
+        font-size: 11px;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+      }
+      /* See Also list inside infobox */
+      .entity-seealso-ul {
+        list-style: none;
+        padding-left: 0;
+        margin: 0;
+      }
+      .entity-seealso-ul li {
+        margin: 3px 0;
+      }
       /* Similar Pages section */
       .similar-pages-grid {
         display: flex;
@@ -3408,6 +3445,10 @@
       .md td {
         padding: 7px 10px;
         border-bottom: 1px solid var(--border-subtle);
+        text-align: left;
+      }
+      .md tbody tr:nth-child(even) td {
+        background: rgba(255, 255, 255, 0.02);
       }
       .md tr:hover td {
         background: var(--bg-hover);
@@ -3481,6 +3522,65 @@
       #page-toc::-webkit-scrollbar-thumb {
         background: var(--border-subtle);
         border-radius: 2px;
+      }
+
+      /* ── UXO-039: Dynamic metadata union panel ── */
+      #page-dyn-meta {
+        float: right;
+        clear: right;
+        width: 220px;
+        margin: 0 0 18px 28px;
+        border: 1px solid var(--border-subtle);
+        border-radius: 6px;
+        background: var(--bg-card);
+        font-size: 11px;
+        overflow: hidden;
+      }
+      .dyn-meta-title {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: var(--text-muted);
+        padding: 7px 10px 6px;
+        border-bottom: 1px solid var(--border-subtle);
+        background: rgba(255,255,255,0.02);
+      }
+      .dyn-meta-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        padding: 5px 10px;
+        border-bottom: 1px solid rgba(62,62,62,0.3);
+      }
+      .dyn-meta-row:last-child { border-bottom: none; }
+      .dyn-meta-label {
+        flex-shrink: 0;
+        width: 72px;
+        color: var(--text-muted);
+        font-weight: 600;
+        padding-top: 1px;
+      }
+      .dyn-meta-val {
+        color: var(--text-secondary);
+        font-family: var(--font-mono, monospace);
+        font-size: 10.5px;
+        word-break: break-word;
+        flex: 1;
+      }
+      .dyn-meta-tag {
+        display: inline-block;
+        padding: 1px 6px;
+        margin: 1px 2px 1px 0;
+        background: rgba(139,92,246,0.12);
+        border: 1px solid rgba(139,92,246,0.25);
+        border-radius: 8px;
+        font-size: 10px;
+        color: var(--accent);
+        font-family: inherit;
+      }
+      @media (max-width: 720px) {
+        #page-dyn-meta { float: none; width: 100%; margin: 0 0 16px; }
       }
 
       #page-backlinks {
@@ -8183,6 +8283,16 @@
         display: flex;
       }
 
+      /* UXO-093: current commit date/time above slider */
+      .tl-current-datetime {
+        font-size: 11px;
+        color: var(--text-muted);
+        text-align: center;
+        letter-spacing: 0.02em;
+        min-height: 15px;
+        transition: opacity 0.15s;
+      }
+
       /* Glow flash animation for changed file highlight */
       @keyframes tl-glow-pulse {
         0%   { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); background: transparent; }
@@ -9630,6 +9740,10 @@
                   ></div>
                 </div>
 
+                <div id="home-bookmarks" style="display:none;margin-bottom:16px">
+                  <div class="home-section-title">Bookmarks</div>
+                  <div class="recent-list" id="home-bookmarks-list"></div>
+                </div>
                 <div class="home-section-title">Recent pages</div>
                 <div class="recent-list" id="home-recent"></div>
               </div>
@@ -9690,6 +9804,7 @@
                   style="display: none"
                 ></div>
                 <div id="page-meta"></div>
+                <div id="page-dyn-meta" style="display:none"></div>
                 <div id="page-entity-profile" class="page-entity-profile"></div>
                 <div id="page-toc"></div>
                 <div id="page-fact-timeline" style="display: none"></div>
@@ -10665,6 +10780,7 @@
                   </select>
                 </div>
                 <div class="tl-slider-wrap">
+                  <div id="tl-current-datetime" class="tl-current-datetime"></div>
                   <input
                     type="range"
                     id="tl-slider"
@@ -10678,6 +10794,10 @@
                     <span id="tl-label-current"></span>
                     <span id="tl-label-end"></span>
                   </div>
+                </div>
+                <div id="tl-prefetch-bar" class="tl-prefetch-bar">
+                  <div id="tl-prefetch-fill" class="tl-prefetch-fill"></div>
+                  <div id="tl-prefetch-track" class="tl-prefetch-track"></div>
                 </div>
                 <button
                   class="btn-sm"
@@ -11303,10 +11423,22 @@
       function addSourceCitations(container, page) {
         const fm = page?.frontmatter ?? {};
         const sources = Array.isArray(fm.sources) ? fm.sources : [];
-        if (sources.length === 0) return;
 
-        // Build references section
-        const refsHtml = sources
+        // Extract external https:// links found in the rendered page content
+        const extLinks = [];
+        const seenExtUrls = new Set();
+        container.querySelectorAll("a[href^='http']").forEach((a) => {
+          const href = a.getAttribute("href") || "";
+          if (!seenExtUrls.has(href)) {
+            seenExtUrls.add(href);
+            extLinks.push({ url: href, text: a.textContent.trim() || href });
+          }
+        });
+
+        if (sources.length === 0 && extLinks.length === 0) return;
+
+        // Build source file rows
+        const sourceRefsHtml = sources
           .map((src, i) => {
             const label = String(src)
               .replace(/^raw\//, "")
@@ -11315,22 +11447,40 @@
           })
           .join("");
 
-        // Add citation superscripts after the first paragraph
-        const firstP = container.querySelector("p");
-        if (firstP && sources.length > 0) {
-          const citeLinks = sources
-            .map(
-              (_, i) =>
-                `<a href="#cite-${i + 1}" class="citation-ref" title="Source ${i + 1}"><sup>[${i + 1}]</sup></a>`,
-            )
-            .join("");
-          firstP.insertAdjacentHTML("beforeend", " " + citeLinks);
+        // Build external link rows (numbered after sources)
+        const extRefsHtml = extLinks
+          .map((lk, i) => {
+            const n = sources.length + i + 1;
+            const display = lk.text.length > 80 ? lk.text.slice(0, 80) + "…" : lk.text;
+            let hostname = lk.url;
+            try { hostname = new URL(lk.url).hostname; } catch (_) { /* keep raw */ }
+            return `<li id="cite-${n}"><a href="${esc(lk.url)}" target="_blank" rel="noopener noreferrer" class="wiki-source-link">${esc(display)}</a> <span class="ref-url-domain">(${esc(hostname)})</span></li>`;
+          })
+          .join("");
+
+        // Add citation superscripts after the first paragraph (source files only)
+        if (sources.length > 0) {
+          const firstP = container.querySelector("p");
+          if (firstP) {
+            const citeLinks = sources
+              .map(
+                (_, i) =>
+                  `<a href="#cite-${i + 1}" class="citation-ref" title="Source ${i + 1}"><sup>[${i + 1}]</sup></a>`,
+              )
+              .join("");
+            firstP.insertAdjacentHTML("beforeend", " " + citeLinks);
+          }
         }
 
         // Append references section after content
         const refsSection = document.createElement("section");
         refsSection.className = "page-references-section";
-        refsSection.innerHTML = `<h2 class="page-encyclopedia-heading">References</h2><ol class="page-references-list">${refsHtml}</ol>`;
+        const parts = [];
+        if (sourceRefsHtml) parts.push(`<ol class="page-references-list">${sourceRefsHtml}</ol>`);
+        if (extRefsHtml) {
+          parts.push(`<h3 class="page-references-subheading">External links</h3><ol class="page-references-list" start="${sources.length + 1}">${extRefsHtml}</ol>`);
+        }
+        refsSection.innerHTML = `<h2 class="page-encyclopedia-heading">References</h2>${parts.join("")}`;
         container.appendChild(refsSection);
       }
 
@@ -11694,6 +11844,31 @@
         renderTree();
       }
 
+      // Group flat wiki nodes by category field into virtual collapsible folders.
+      // Dir nodes (already have type==="dir") pass through unchanged at the top.
+      function groupWikiByCategory(nodes) {
+        if (!nodes || !nodes.length) return nodes || [];
+        const catIcons = { concepts: "💡", entities: "🏷", sources: "📚", syntheses: "🔗" };
+        const dirNodes = nodes.filter((n) => n.type === "dir");
+        const flatNodes = nodes.filter((n) => n.type !== "dir");
+        if (!flatNodes.length) return dirNodes;
+        const groups = {};
+        for (const n of flatNodes) {
+          const cat = (n.category || "other").toLowerCase();
+          if (!groups[cat]) groups[cat] = [];
+          groups[cat].push(n);
+        }
+        const virtualDirs = Object.entries(groups).map(([cat, children]) => ({
+          name: cat,
+          type: "dir",
+          path: "_virtual_" + cat,
+          children,
+          _virtual: true,
+          _icon: catIcons[cat] || "📁",
+        }));
+        return [...dirNodes, ...virtualDirs];
+      }
+
       function renderTree() {
         const container = document.getElementById("sidebar-tree");
         let html = "";
@@ -11712,7 +11887,7 @@
         html += `<div class="sidebar-section-header" onclick="toggleTreeSection('wiki-tree')">
         <span>Wiki</span><span class="count">${wikiCount}</span>
       </div>`;
-        html += `<div id="wiki-tree" class="tree-children">${renderTreeNodes(state.treeData.wiki, 0, "wiki")}</div>`;
+        html += `<div id="wiki-tree" class="tree-children">${renderTreeNodes(groupWikiByCategory(state.treeData.wiki), 0, "wiki")}</div>`;
 
         const sortOrder = window._rawSortOrder || "newest";
         html += `<div class="sidebar-section-header" onclick="toggleTreeSection('raw-tree')">
@@ -11821,10 +11996,14 @@
             const starIcon = node.type === "wiki"
               ? `<span class="bookmark-star" style="margin-left:auto;padding:0 4px;opacity:0.4;cursor:pointer;display:flex;align-items:center;flex-shrink:0" title="${isBookmarked(label) ? "Remove bookmark" : "Bookmark"}" onclick="event.stopPropagation();toggleBookmarkTitle('${esc(label)}')">${isBookmarked(label) ? starFilled : starOutline}</span>`
               : "";
+            const rawDateStamp = (rootType === "raw" && node.mtime)
+              ? `<span class="tree-raw-date" style="margin-left:auto;font-size:10px;color:var(--text-muted);flex-shrink:0;padding-left:4px" title="${esc(node.mtime)}">${typeof formatTimeAgo === "function" ? formatTimeAgo(node.mtime) : ""}</span>`
+              : "";
             html += `<div class="tree-item tree-file" style="padding-left:${8 + indent}px" onclick="${click}" oncontextmenu="showTreeContextMenu(event,'${esc(label)}','${esc(node.path || "")}','${node.type}'); return false;" data-page-title="${esc(label)}" data-page-path="${esc(node.path || "")}" draggable="true" ondragstart="event.dataTransfer.setData('text/plain',JSON.stringify({title:'${esc(label)}',path:'${esc(node.path || "")}',type:'${node.type}'}));event.dataTransfer.effectAllowed='move'">
             <span class="tree-chevron-spacer"></span>
             <span class="tree-icon">${icon}</span>
             <span class="tree-label">${esc(label)}</span>
+            ${rawDateStamp}
             ${starIcon}
           </div>`;
           }
@@ -12227,6 +12406,38 @@
 
         const tagsRow = `<div class="entity-infobox-dl-row"><dt>Tags</dt><dd class="entity-infobox-tags">${tags}<button type="button" class="meta-add-tag entity-tag-add" onclick="addTagToPage('${esc(title)}')" title="Add tag">+</button></dd></div>`;
 
+        // Custom frontmatter key-value rows (role, date_founded, confidence, etc.)
+        const skipInfoboxKeys = new Set([
+          "tags", "sources", "related", "type", "category", "created",
+          "updated", "title", "summary", "added_by",
+        ]);
+        const customInfoboxRows = Object.entries(fm)
+          .filter(([k]) => !skipInfoboxKeys.has(k))
+          .map(([k, v]) => {
+            const label = k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+            const val = Array.isArray(v) ? v.join(", ") : String(v);
+            return `<div class="entity-infobox-dl-row"><dt>${esc(label)}</dt><dd>${esc(val)}</dd></div>`;
+          })
+          .join("");
+
+        // See also: wikilinks from the page
+        const seenLinks = new Set();
+        const seeAlsoLinks = (page.wikilinks || [])
+          .filter((l) => {
+            const n = String(l).trim();
+            if (!n || n.toLowerCase() === String(title).toLowerCase()) return false;
+            const key = n.toLowerCase();
+            if (seenLinks.has(key)) return false;
+            seenLinks.add(key);
+            return true;
+          })
+          .slice(0, 8)
+          .map((name) => `<li><a href="#" class="wikilink" data-wikilink="${esc(name)}" onclick="event.preventDefault();if(!state.editing)openPage('${esc(name)}')">${esc(name)}</a></li>`)
+          .join("");
+        const seeAlsoRow = seeAlsoLinks
+          ? `<div class="entity-infobox-dl-row"><dt>See also</dt><dd><ul class="entity-source-ul entity-seealso-ul">${seeAlsoLinks}</ul></dd></div>`
+          : "";
+
         return `<div class="entity-profile-layout">
         <aside class="page-infobox entity-infobox" aria-label="Entity profile">
           <div class="entity-infobox-brand"><span class="entity-type-badge entity-type-badge--${typeSafe}">${typeLabel}</span></div>
@@ -12237,6 +12448,8 @@
             ${fm.updated ? `<div class="entity-infobox-dl-row"><dt>Updated</dt><dd><time class="entity-infobox-time" datetime="${esc(String(fm.updated))}">${esc(String(fm.updated))}</time></dd></div>` : ""}
             ${(fm.sources || []).length ? `<div class="entity-infobox-dl-row"><dt>Sources</dt><dd><ul class="entity-source-ul">${sourceItems}</ul></dd></div>` : ""}
             ${(fm.related || []).length ? `<div class="entity-infobox-dl-row"><dt>Related</dt><dd class="entity-infobox-related">${related}</dd></div>` : ""}
+            ${customInfoboxRows}
+            ${seeAlsoRow}
           </dl>
         </aside>
         ${ledeHtml}
@@ -12383,9 +12596,10 @@
             "",
           );
 
-          const typeLower = (fm.type || "").toLowerCase();
+          const typeLower = (fm.type || fm.category || "").toLowerCase();
           const isEntityProfile =
-            typeLower === "entity" || typeLower === "concept";
+            typeLower === "entity" || typeLower === "entities" ||
+            typeLower === "concept" || typeLower === "concepts";
           const backlinks = findBacklinks(title);
 
           let bodyMd = stripped;
@@ -12431,6 +12645,7 @@
           renderFactTimeline(page.title, fm);
 
           renderEncyclopediaChrome(page);
+          renderDynMeta(page, backlinks);
 
           const blContainer = document.getElementById("page-backlinks");
           if (isEntityProfile) {
@@ -12455,8 +12670,75 @@
           // Async: load similar pages
           loadSimilarPages(page.title);
         } catch (err) {
-          console.error("Failed to open page:", err);
+          // UXO-031: 404 → offer to create the page
+          const is404 = err && (err.status === 404 || (err.message && err.message.includes("404")));
+          if (is404) {
+            showView("page");
+            document.getElementById("page-title").textContent = title;
+            document.getElementById("page-breadcrumbs").innerHTML = `<span onclick="showView('home')" style="cursor:pointer">Wiki</span><span class="breadcrumb-sep">›</span><span style="color:var(--text-dim)">${esc(title)}</span>`;
+            document.getElementById("page-meta").innerHTML = "";
+            document.getElementById("page-toc").innerHTML = "";
+            const encEl = document.getElementById("page-encyclopedia-chrome");
+            if (encEl) encEl.innerHTML = "";
+            const epEl = document.getElementById("page-entity-profile");
+            if (epEl) epEl.innerHTML = "";
+            const dynMetaEl = document.getElementById("page-dyn-meta");
+            if (dynMetaEl) { dynMetaEl.innerHTML = ""; dynMetaEl.style.display = "none"; }
+            document.getElementById("page-fact-timeline") && (document.getElementById("page-fact-timeline").style.display = "none");
+            document.getElementById("page-backlinks") && (document.getElementById("page-backlinks").style.display = "none");
+            document.getElementById("page-edit-btn").style.display = "none";
+            const body = document.getElementById("page-body");
+            body.innerHTML = `<div style="padding:48px 0;text-align:center;color:var(--text-muted)">
+              <div style="font-size:15px;margin-bottom:16px">Page <strong style="color:var(--text)">"${esc(title)}"</strong> doesn't exist yet.</div>
+              <button class="btn-primary" onclick="(async()=>{
+                const slug='${esc(title)}'.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-\$/g,'');
+                const today=new Date().toISOString().split('T')[0];
+                const tpl='---\\ntitle: &quot;${esc(title)}&quot;\\ntype: concept\\ncreated: &quot;'+today+'&quot;\\nupdated: &quot;'+today+'&quot;\\ntags: []\\nsources: []\\nrelated: []\\nsummary: &quot;&quot;\\n---\\n\\n# ${esc(title)}\\n\\nWrite your content here...\\n';
+                try{const res=await fetch('/api/pages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:'${esc(title)}',slug,content:tpl})});const data=await res.json();if(data.error){showToast('Error: '+data.error);return;}await loadTree();await loadHome();await openPage('${esc(title)}');enterEditMode(tpl);}catch(e){showToast('Failed to create page');}
+              })()">Create "${esc(title)}"</button>
+            </div>`;
+          } else {
+            console.error("Failed to open page:", err);
+          }
         }
+      }
+
+      // ── UXO-039: Dynamic metadata union panel ──
+      function renderDynMeta(page, backlinks) {
+        const el = document.getElementById("page-dyn-meta");
+        if (!el) return;
+        const fm = page.frontmatter || {};
+        const typeVal = fm.type || fm.category || "";
+        const categoryVal = fm.category || "";
+        const tags = Array.isArray(fm.tags) ? fm.tags : (fm.tags ? [fm.tags] : []);
+        const sourceVal = fm.source || (Array.isArray(fm.sources) && fm.sources.length ? fm.sources[0] : "");
+        const updatedVal = fm.updated || fm.created || "";
+        // Get mtime from allPages cache
+        const pageInfo = (state.allPages || []).find(p => p.title === page.title);
+        const mtimeVal = pageInfo && pageInfo.mtime ? new Date(pageInfo.mtime).toLocaleDateString(undefined, { year:"numeric", month:"short", day:"numeric" }) : "";
+        const blCount = backlinks ? backlinks.length : 0;
+
+        // Only show if page has meaningful frontmatter metadata
+        const hasMeta = typeVal || categoryVal || tags.length || sourceVal || updatedVal;
+        if (!hasMeta) { el.style.display = "none"; el.innerHTML = ""; return; }
+
+        const rows = [];
+        if (typeVal) rows.push(`<div class="dyn-meta-row"><span class="dyn-meta-label">Type</span><span class="dyn-meta-val">${esc(typeVal)}</span></div>`);
+        if (categoryVal && categoryVal !== typeVal) rows.push(`<div class="dyn-meta-row"><span class="dyn-meta-label">Category</span><span class="dyn-meta-val">${esc(categoryVal)}</span></div>`);
+        if (tags.length) {
+          const chips = tags.map(t => `<span class="dyn-meta-tag">${esc(t)}</span>`).join("");
+          rows.push(`<div class="dyn-meta-row"><span class="dyn-meta-label">Tags</span><span class="dyn-meta-val">${chips}</span></div>`);
+        }
+        if (sourceVal) {
+          const srcShort = String(sourceVal).replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
+          rows.push(`<div class="dyn-meta-row"><span class="dyn-meta-label">Source</span><span class="dyn-meta-val" title="${esc(String(sourceVal))}">${esc(srcShort)}</span></div>`);
+        }
+        if (updatedVal) rows.push(`<div class="dyn-meta-row"><span class="dyn-meta-label">Updated</span><span class="dyn-meta-val">${esc(String(updatedVal))}</span></div>`);
+        else if (mtimeVal) rows.push(`<div class="dyn-meta-row"><span class="dyn-meta-label">Updated</span><span class="dyn-meta-val">${esc(mtimeVal)}</span></div>`);
+        rows.push(`<div class="dyn-meta-row"><span class="dyn-meta-label">Backlinks</span><span class="dyn-meta-val">${blCount}</span></div>`);
+
+        el.innerHTML = `<div class="dyn-meta-title">Metadata</div>${rows.join("")}`;
+        el.style.display = "";
       }
 
       function buildToc(container) {
@@ -12983,10 +13265,11 @@
         });
       }
 
-      // Double-click on page body → activate WYSIWYG edit (single-click reserved for link navigation)
-      document.getElementById("page-body").addEventListener("dblclick", (e) => {
+      // UXO-032: Single-click on page body → activate WYSIWYG edit
+      // Guard: ignore clicks on links, buttons, chips, and interactive elements
+      document.getElementById("page-body").addEventListener("click", (e) => {
         if (state.editing || state.editTabType !== "wiki") return;
-        if (e.target.closest("a[href]")) return; // let normal links work
+        if (e.target.closest("a, button, [onclick], .meta-tag-chip, .chip-remove, .cite-pill, .code-copy, [role='button']")) return;
         activateWysiwyg();
       });
 
@@ -17395,9 +17678,32 @@
           <span class="recent-item-title">${esc(p.title)}</span>
           <span class="category-badge ${catClass(p.category)}">${esc(p.category)}</span>
           <span class="recent-item-meta">${p.wordCount}w</span>
+          ${p.mtime ? `<span class="recent-item-ts" style="font-size:10px;color:var(--text-muted);margin-left:4px" title="${esc(p.mtime)}">${typeof formatTimeAgo === "function" ? formatTimeAgo(p.mtime) : ""}</span>` : ""}
         </div>`,
           )
           .join("");
+
+        // ── UXO-038: Bookmarks section on home dashboard ──
+        await loadBookmarksFromServer();
+        const bkTitles = getBookmarks();
+        const bkSection = document.getElementById("home-bookmarks");
+        const bkList = document.getElementById("home-bookmarks-list");
+        if (bkSection && bkList) {
+          if (bkTitles.length > 0) {
+            bkList.innerHTML = bkTitles
+              .map(
+                (t) =>
+                  `<div class="recent-item" onclick="openPage('${esc(t)}')">
+              <span style="color:var(--accent);margin-right:4px;flex-shrink:0">★</span>
+              <span class="recent-item-title">${esc(t)}</span>
+            </div>`,
+              )
+              .join("");
+            bkSection.style.display = "";
+          } else {
+            bkSection.style.display = "none";
+          }
+        }
 
         // God nodes section — top 5 most connected pages
         if (graphData?.nodes?.length > 3) {
@@ -21346,6 +21652,12 @@
           `</div>`;
         document.getElementById("tl-label-current").textContent =
           `${idx + 1} / ${tlState.commits.length}`;
+
+        // UXO-093: update current datetime display above slider
+        const dtEl = document.getElementById("tl-current-datetime");
+        if (dtEl) {
+          dtEl.textContent = dateStr;
+        }
 
         if (!tlState.treeCache[commit.hash]) {
           try {

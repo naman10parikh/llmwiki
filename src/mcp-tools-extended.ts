@@ -4,7 +4,8 @@
  * Handles: wikimem_observe, wikimem_improve, wikimem_pipeline,
  *          wikimem_scrape, wikimem_connectors,
  *          wikimem_list_connectors, wikimem_connect, wikimem_sync,
- *          wikimem_preview, wikimem_run_observer, wikimem_get_report
+ *          wikimem_preview, wikimem_run_observer, wikimem_get_report,
+ *          wikimem_ingest_url, wikimem_ask, wikimem_lint
  *
  * All imports are dynamic to keep MCP server startup fast.
  */
@@ -648,6 +649,158 @@ export async function handleRunObserver(
     budgetUsed: maxBudget,
     message: `Observer run complete. ${report.pagesReviewed} pages reviewed, avg score ${report.averageScore}/${report.maxScore}. ${improvedCount} pages auto-improved.`,
     hint: 'Full report saved to .wikimem/observer-reports/. Use wikimem_get_report to retrieve it.',
+  };
+}
+
+// ─── wikimem_ingest_url ───────────────────────────────────────────────────
+
+/**
+ * Ingest a URL directly into the vault. Distinct from wikimem_ingest (which
+ * also accepts file paths) — this accepts only URLs and explicitly labels the
+ * source type for clarity in Claude Code workflows.
+ */
+export async function handleIngestUrl(
+  vaultRoot: string,
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  const url = args['url'];
+  if (typeof url !== 'string' || !url.trim()) {
+    throw { code: -32602, message: 'url must be a non-empty string' };
+  }
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    throw { code: -32602, message: 'url must start with http:// or https://' };
+  }
+
+  const { spawn } = await import('node:child_process');
+  const wikimemBin = join(__dirname, 'index.js');
+
+  const cliArgs = [wikimemBin, 'ingest', url.trim(), '--vault', vaultRoot];
+
+  const tags = args['tags'];
+  if (Array.isArray(tags) && tags.length > 0) {
+    cliArgs.push('--tags', (tags as string[]).join(','));
+  }
+
+  const category = args['category'];
+  if (typeof category === 'string' && category.trim()) {
+    cliArgs.push('--category', category.trim());
+  }
+
+  const result = await new Promise<{ success: boolean; output: string }>((res) => {
+    const proc = spawn(process.execPath, cliArgs, { stdio: ['ignore', 'pipe', 'pipe'] });
+    let output = '';
+    proc.stdout?.on('data', (d: Buffer) => { output += d.toString(); });
+    proc.stderr?.on('data', (d: Buffer) => { output += d.toString(); });
+    proc.on('close', (code) => res({ success: code === 0, output }));
+    proc.on('error', (err) => res({ success: false, output: err.message }));
+  });
+
+  return {
+    url: url.trim(),
+    tags: Array.isArray(tags) ? tags : [],
+    category: typeof category === 'string' ? category.trim() : null,
+    success: result.success,
+    output: result.output.trim(),
+    message: result.success
+      ? `Successfully ingested URL: ${url.trim()}`
+      : `URL ingest failed. See output for details.`,
+  };
+}
+
+// ─── wikimem_ask ──────────────────────────────────────────────────────────
+
+/**
+ * Query the wiki vault with a natural language question.
+ * Uses BM25 search to retrieve relevant pages, then synthesises an answer
+ * with cited page titles via the configured LLM provider.
+ */
+export async function handleAsk(
+  config: VaultConfig,
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  const question = args['question'];
+  if (typeof question !== 'string' || !question.trim()) {
+    throw { code: -32602, message: 'question must be a non-empty string' };
+  }
+
+  const fileBack = args['fileBack'] === true;
+  const searchMode = typeof args['searchMode'] === 'string'
+    ? (args['searchMode'] as 'bm25' | 'semantic' | 'hybrid')
+    : 'bm25';
+
+  const { loadConfig } = await import('./core/config.js');
+  const userConfig = loadConfig(config.configPath);
+
+  const { createProviderFromUserConfig } = await import('./providers/index.js');
+  const provider = createProviderFromUserConfig(userConfig);
+
+  const { queryWiki } = await import('./core/query.js');
+  const result = await queryWiki(question.trim(), config, provider, {
+    fileBack,
+    searchMode,
+  });
+
+  return {
+    question: question.trim(),
+    answer: result.answer,
+    sourcesConsulted: result.sourcesConsulted,
+    filedAs: result.filedAs ?? null,
+    searchMode,
+  };
+}
+
+// ─── wikimem_lint ─────────────────────────────────────────────────────────
+
+/**
+ * Run the wiki health checker. Finds orphan pages, missing cross-links,
+ * pages without summaries, contradictions, and other quality issues.
+ * Returns structured issues with severity and page attribution.
+ */
+export async function handleLint(
+  config: VaultConfig,
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  const fix = args['fix'] === true;
+
+  const { loadConfig } = await import('./core/config.js');
+  const userConfig = loadConfig(config.configPath);
+
+  const { createProviderFromUserConfig } = await import('./providers/index.js');
+  const provider = createProviderFromUserConfig(userConfig);
+
+  const { lintWiki } = await import('./core/lint.js');
+  const result = await lintWiki(config, provider, { fix });
+
+  const byCategory = result.issues.reduce<Record<string, number>>((acc, i) => {
+    acc[i.category] = (acc[i.category] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const errorCount = result.issues.filter((i) => i.severity === 'error').length;
+  const warningCount = result.issues.filter((i) => i.severity === 'warning').length;
+  const fixedCount = result.issues.filter((i) => i.fixed).length;
+
+  return {
+    score: result.score,
+    healthy: result.issues.length === 0,
+    issueCount: result.issues.length,
+    errorCount,
+    warningCount,
+    fixedCount,
+    byCategory,
+    issues: result.issues.map((i) => ({
+      category: i.category,
+      severity: i.severity,
+      message: i.message,
+      page: i.page ?? null,
+      fixed: i.fixed ?? false,
+    })),
+    message: result.issues.length === 0
+      ? 'Wiki is healthy. No issues found.'
+      : `Found ${errorCount} error(s) and ${warningCount} warning(s). Score: ${result.score}/100.${fix && fixedCount > 0 ? ` Auto-fixed ${fixedCount} issue(s).` : ''}`,
+    hint: result.issues.length > 0 && !fix
+      ? 'Set fix=true to auto-fix issues where possible, or run wikimem_improve for LLM-powered fixes.'
+      : undefined,
   };
 }
 

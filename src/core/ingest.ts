@@ -319,6 +319,7 @@ async function _ingestSourceInner(
       tags: mergedTags,
       sources: [rawPath],
       summary: page.summary,
+      ...(page.tldr ? { tldr: page.tldr } : {}),
       added_by: options.addedBy ?? 'human',
       confidence,
       validation_status: 'unreviewed',
@@ -578,6 +579,7 @@ interface ParsedPage {
   category: string;
   tags: string[];
   summary: string;
+  tldr: string;
   content: string;
 }
 
@@ -594,6 +596,7 @@ function parseLLMPages(response: string): ParsedPage[] {
     const categoryLine = lines.find((l) => l.startsWith('CATEGORY:'));
     const tagsLine = lines.find((l) => l.startsWith('TAGS:'));
     const summaryLine = lines.find((l) => l.startsWith('SUMMARY:'));
+    const tldrLine = lines.find((l) => l.startsWith('TLDR:'));
 
     const separatorIdx = lines.findIndex((l) => l.trim() === '---');
     const content = separatorIdx >= 0 ? lines.slice(separatorIdx + 1).join('\n').trim() : '';
@@ -604,6 +607,7 @@ function parseLLMPages(response: string): ParsedPage[] {
         category: categoryLine.replace('CATEGORY:', '').trim(),
         tags: (tagsLine?.replace('TAGS:', '').trim() ?? '').split(',').map((t) => t.trim()).filter(Boolean),
         summary: summaryLine?.replace('SUMMARY:', '').trim() ?? '',
+        tldr: tldrLine?.replace('TLDR:', '').trim() ?? '',
         content,
       });
     }
@@ -616,6 +620,7 @@ function parseLLMPages(response: string): ParsedPage[] {
       category: 'sources',
       tags: [],
       summary: 'Auto-generated source page',
+      tldr: '',
       content: response,
     });
   }

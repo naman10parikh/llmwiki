@@ -41,27 +41,55 @@ export function registerLintCommand(program: Command): void {
 
       if (result.issues.length === 0) {
         console.log(chalk.green('Wiki is healthy! No issues found.'));
+        console.log(chalk.dim(`Score: ${result.score}/100`));
       } else {
-        console.log(chalk.yellow(`Found ${result.issues.length} issue(s):`));
-        console.log();
-
+        // Group issues by category for a cleaner report
+        const grouped = new Map<string, typeof result.issues>();
         for (const issue of result.issues) {
-          const icon = issue.severity === 'error' ? chalk.red('x') : chalk.yellow('!');
-          console.log(`  ${icon} [${issue.category}] ${issue.message}`);
-          if (issue.page) {
-            console.log(chalk.dim(`    Page: ${issue.page}`));
-          }
-          if (issue.fixed) {
-            console.log(chalk.green('    -> Fixed'));
-          }
+          if (!grouped.has(issue.category)) grouped.set(issue.category, []);
+          grouped.get(issue.category)!.push(issue);
         }
 
+        const categoryLabels: Record<string, string> = {
+          'orphan': 'Orphan Pages',
+          'missing-link': 'Broken Wikilinks',
+          'no-summary': 'Missing Summary',
+          'no-tldr': 'Missing TLDR (KARP-002)',
+          'duplicate-title': 'Duplicate Titles (KARP-005)',
+          'malformed-frontmatter': 'Malformed Frontmatter (KARP-005)',
+          'empty': 'Empty Pages',
+          'contradiction': 'Contradictions',
+          'stale': 'Stale Content',
+        };
+
+        const errors = result.issues.filter(i => i.severity === 'error').length;
+        const warnings = result.issues.filter(i => i.severity === 'warning').length;
+
+        console.log(chalk.yellow(`Found ${result.issues.length} issue(s): ${errors > 0 ? chalk.red(`${errors} errors`) : ''}${errors > 0 && warnings > 0 ? ', ' : ''}${warnings > 0 ? chalk.yellow(`${warnings} warnings`) : ''}`));
         console.log();
+
+        for (const [category, issues] of grouped) {
+          const label = categoryLabels[category] ?? category;
+          const hasErrors = issues.some(i => i.severity === 'error');
+          const header = hasErrors ? chalk.red(`  [${label}]`) : chalk.yellow(`  [${label}]`);
+          console.log(header);
+
+          for (const issue of issues) {
+            const icon = issue.severity === 'error' ? chalk.red('  x') : chalk.yellow('  !');
+            console.log(`${icon} ${issue.message}`);
+            if (issue.fixed) {
+              console.log(chalk.green('    -> Fixed'));
+            }
+          }
+          console.log();
+        }
+
         console.log(chalk.dim(`Score: ${result.score}/100`));
 
-        if (!options.fix && result.issues.some((i) => i.category === 'no-summary' || i.category === 'orphan')) {
+        const fixable = result.issues.filter(i => i.category === 'no-summary' || i.category === 'orphan' || i.category === 'no-tldr');
+        if (!options.fix && fixable.length > 0) {
           console.log();
-          console.log(chalk.dim('Next: wikimem improve — auto-fix issues with LLM'));
+          console.log(chalk.dim(`${fixable.length} issue(s) auto-fixable: wikimem improve`));
         }
       }
     });

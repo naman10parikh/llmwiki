@@ -606,6 +606,400 @@ function suggestNewPages(
     .slice(0, 30);
 }
 
+// ─── Pattern Detection Across Vault ─────────────────────────────────────────
+
+export interface VaultPattern {
+  topic: string;
+  pageCount: number;
+  pages: string[];
+  suggestion: string;
+}
+
+/**
+ * Task 1: Scan for repeated themes across pages. When 3+ pages mention the same
+ * topic (by heading keyword or body phrase), suggest creating a dedicated concept page.
+ * Writes findings to the experiment log.
+ */
+function detectVaultPatterns(
+  pagePaths: string[],
+  existingTitles: Set<string>,
+): VaultPattern[] {
+  // Extract significant heading-level keywords from each page
+  const headingWords = new Map<string, string[]>(); // word → [pageTitles...]
+
+  for (const p of pagePaths) {
+    try {
+      const page = readWikiPage(p);
+      // Pull words from all headings (##, ###, etc.)
+      const headings = page.content.match(/^#{2,4}\s+(.+)$/gm) ?? [];
+      for (const h of headings) {
+        const text = h.replace(/^#+\s+/, '').toLowerCase();
+        // Split into words of 5+ chars
+        const words = text.split(/\W+/).filter(w => w.length >= 5);
+        for (const w of words) {
+          if (existingTitles.has(w)) continue;
+          const refs = headingWords.get(w) ?? [];
+          refs.push(page.title);
+          headingWords.set(w, refs);
+        }
+      }
+    } catch { /* skip */ }
+  }
+
+  const patterns: VaultPattern[] = [];
+  for (const [word, pages] of headingWords) {
+    const unique = [...new Set(pages)];
+    if (unique.length >= 3) {
+      const displayTopic = word.charAt(0).toUpperCase() + word.slice(1);
+      if (!existingTitles.has(displayTopic.toLowerCase())) {
+        patterns.push({
+          topic: displayTopic,
+          pageCount: unique.length,
+          pages: unique.slice(0, 10),
+          suggestion: `Create a dedicated "${displayTopic}" concept page — found in headings across ${unique.length} pages`,
+        });
+      }
+    }
+  }
+
+  return patterns
+    .sort((a, b) => b.pageCount - a.pageCount)
+    .slice(0, 20);
+}
+
+// ─── Semantic Contradiction Detection ───────────────────────────────────────
+
+export interface SemanticContradiction {
+  pageA: string;
+  titleA: string;
+  snippetA: string;
+  pageB: string;
+  titleB: string;
+  snippetB: string;
+  explanation: string;
+}
+
+/**
+ * Task 2: Use LLM to detect semantic contradictions between pages.
+ * Compares summaries of pages that share tags or title words.
+ * Budget-gated: max `maxPairs` comparisons.
+ */
+async function detectSemanticContradictions(
+  pagePaths: string[],
+  options: ObserverOptions,
+  maxPairs = 10,
+): Promise<SemanticContradiction[]> {
+  const results: SemanticContradiction[] = [];
+  if (pagePaths.length < 2) return results;
+
+  // Build candidate pairs: same tag or shared title word
+  interface PageMeta {
+    path: string;
+    title: string;
+    tags: string[];
+    summary: string;
+  }
+  const metas: PageMeta[] = [];
+  for (const p of pagePaths) {
+    try {
+      const page = readWikiPage(p);
+      const summary = String(page.frontmatter['summary'] ?? '').trim();
+      if (!summary) continue; // need summaries to compare
+      metas.push({
+        path: p,
+        title: page.title,
+        tags: Array.isArray(page.frontmatter['tags']) ? (page.frontmatter['tags'] as string[]) : [],
+        summary,
+      });
+    } catch { /* skip */ }
+  }
+
+  // Find candidate pairs by shared tags
+  const candidatePairs: Array<[PageMeta, PageMeta]> = [];
+  for (let i = 0; i < metas.length; i++) {
+    for (let j = i + 1; j < metas.length; j++) {
+      const a = metas[i]!;
+      const b = metas[j]!;
+      const sharedTags = a.tags.filter(t => b.tags.includes(t));
+      if (sharedTags.length >= 1) {
+        candidatePairs.push([a, b]);
+        if (candidatePairs.length >= maxPairs * 3) break; // collect extra, pick below
+      }
+    }
+    if (candidatePairs.length >= maxPairs * 3) break;
+  }
+
+  const pairs = candidatePairs.slice(0, maxPairs);
+  if (pairs.length === 0) return results;
+
+  try {
+    const { loadConfig } = await import('./config.js');
+    const { createProviderFromUserConfig } = await import('../providers/index.js');
+    const vaultRoot = pagePaths[0] ? pagePaths[0].split('/.wikimem')[0] ?? pagePaths[0].split('/wiki/')[0] ?? '' : '';
+    // Determine config path — use first page's vault context
+    const configPath = pagePaths[0]?.includes('.wikimem')
+      ? pagePaths[0].split('.wikimem')[0] + '.wikimem/config.yaml'
+      : undefined;
+    const userConfig = loadConfig(configPath ?? '');
+    const provider = createProviderFromUserConfig(userConfig);
+
+    for (const [a, b] of pairs) {
+      try {
+        const prompt = `Do these two wiki page summaries contain semantic contradictions — claims that are incompatible with each other?
+
+Page A: "${a.title}"
+Summary A: ${a.summary}
+
+Page B: "${b.title}"
+Summary B: ${b.summary}
+
+Reply with EXACTLY one of:
+- "NO_CONTRADICTION" — if they are compatible
+- "CONTRADICTION: <one sentence explaining the incompatibility>" — if they contradict each other`;
+
+        const response = await provider.chat([
+          { role: 'user', content: prompt },
+        ], { maxTokens: 150, temperature: 0 });
+
+        const text = response.content.trim();
+        if (text.startsWith('CONTRADICTION:')) {
+          const explanation = text.slice('CONTRADICTION:'.length).trim();
+          results.push({
+            pageA: a.path,
+            titleA: a.title,
+            snippetA: a.summary.slice(0, 200),
+            pageB: b.path,
+            titleB: b.title,
+            snippetB: b.summary.slice(0, 200),
+            explanation,
+          });
+        }
+      } catch { /* skip pair on error */ }
+    }
+  } catch { /* LLM unavailable — return empty */ }
+
+  return results;
+}
+
+// ─── Knowledge-Gap Suggestions (Top Missing Wikilinks) ───────────────────────
+
+export interface MissingPageSuggestion {
+  title: string;
+  occurrences: number;
+  referencedBy: string[];
+}
+
+/**
+ * Task 3: Count wikilink targets that point to non-existent pages.
+ * Return top 5 most-referenced missing pages.
+ */
+function suggestMissingPages(
+  pagePaths: string[],
+  gaps: KnowledgeGap[],
+): MissingPageSuggestion[] {
+  // gaps already contains all missing-wikilink data sorted by count
+  return gaps.slice(0, 5).map(g => ({
+    title: g.mentionedTopic,
+    occurrences: g.mentionCount,
+    referencedBy: g.mentionedIn,
+  }));
+}
+
+// ─── Temporal Staleness Scan ─────────────────────────────────────────────────
+
+export interface StalePage {
+  page: string;
+  title: string;
+  daysSinceUpdate: number;
+  stalenessScore: number; // higher = more urgent
+  signals: string[];
+}
+
+/**
+ * Task 4: Find pages not updated in 30+ days.
+ * Rank by staleness signals: age, incoming links, date references in content.
+ */
+function scanTemporalStaleness(
+  pagePaths: string[],
+  incomingLinks: Map<string, number>,
+  thresholdDays = 30,
+): StalePage[] {
+  const stale: StalePage[] = [];
+  const now = Date.now();
+
+  // Patterns that suggest time-sensitive content
+  const TIME_SIGNALS = [
+    /\b(20\d{2})\b/g,              // year mentions
+    /\b(Q[1-4]\s+20\d{2})\b/g,     // Q1 2024 style
+    /\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+20\d{2}\b/gi,
+    /\bversion\s+\d+\.\d+/gi,      // versioned software
+    /\bas of\b/gi,                  // "as of" date references
+    /\bcurrently\b/gi,              // "currently" implies temporal state
+  ];
+
+  for (const p of pagePaths) {
+    try {
+      const page = readWikiPage(p);
+      const slug = basename(p, '.md');
+      const updated = page.frontmatter['updated'] as string | undefined;
+      if (!updated) continue;
+
+      let daysSince: number;
+      try {
+        daysSince = (now - new Date(updated).getTime()) / 86_400_000;
+      } catch { continue; }
+
+      if (daysSince < thresholdDays) continue;
+
+      const signals: string[] = [];
+      const inCount = incomingLinks.get(slug) ?? 0;
+
+      // Check content for time-sensitive signals
+      const lowerContent = page.content.toLowerCase();
+      let timeSignalCount = 0;
+      for (const pattern of TIME_SIGNALS) {
+        pattern.lastIndex = 0;
+        const matches = lowerContent.match(pattern);
+        if (matches) timeSignalCount += matches.length;
+      }
+
+      if (timeSignalCount > 0) signals.push(`${timeSignalCount} temporal references in content`);
+      if (inCount >= 3) signals.push(`${inCount} pages link to this (high-impact)`);
+      if (page.wordCount > 300) signals.push('substantial page (>300 words)');
+
+      // Staleness score: weight by age, impact (incoming links), and time signals
+      const ageFactor = Math.min(daysSince / 365, 1); // cap at 1 year
+      const impactFactor = Math.min(inCount / 5, 1);
+      const signalFactor = Math.min(timeSignalCount / 10, 1);
+      const stalenessScore = Math.round((ageFactor * 0.4 + impactFactor * 0.4 + signalFactor * 0.2) * 100);
+
+      stale.push({
+        page: p,
+        title: page.title,
+        daysSinceUpdate: Math.round(daysSince),
+        stalenessScore,
+        signals,
+      });
+    } catch { /* skip */ }
+  }
+
+  return stale
+    .sort((a, b) => b.stalenessScore - a.stalenessScore)
+    .slice(0, 20);
+}
+
+// ─── Serendipitous Connection ─────────────────────────────────────────────────
+
+export interface SerendipitousConnection {
+  pageA: string;
+  titleA: string;
+  pageB: string;
+  titleB: string;
+  connection: string;
+}
+
+/**
+ * Task 5: Take 2 random pages from different categories/tags.
+ * Ask LLM "is there a non-obvious connection?"
+ * Writes findings to experiment log.
+ * Budget-gated: max `maxAttempts` LLM calls.
+ */
+async function findSerendipitousConnections(
+  pagePaths: string[],
+  options: ObserverOptions,
+  maxAttempts = 3,
+): Promise<SerendipitousConnection[]> {
+  const results: SerendipitousConnection[] = [];
+  if (pagePaths.length < 4) return results;
+
+  // Group pages by their first tag
+  const tagGroups = new Map<string, string[]>();
+  const untagged: string[] = [];
+
+  for (const p of pagePaths) {
+    try {
+      const page = readWikiPage(p);
+      const tags = Array.isArray(page.frontmatter['tags']) ? (page.frontmatter['tags'] as string[]) : [];
+      if (tags.length === 0) { untagged.push(p); continue; }
+      const group = tagGroups.get(tags[0]!) ?? [];
+      group.push(p);
+      tagGroups.set(tags[0]!, group);
+    } catch { untagged.push(p); }
+  }
+
+  // Build pairs from DIFFERENT groups
+  const groupKeys = [...tagGroups.keys()];
+  if (groupKeys.length < 2) return results;
+
+  const pairs: Array<[string, string]> = [];
+  for (let attempt = 0; attempt < maxAttempts * 5 && pairs.length < maxAttempts; attempt++) {
+    const idxA = Math.floor(Math.random() * groupKeys.length);
+    let idxB = Math.floor(Math.random() * (groupKeys.length - 1));
+    if (idxB >= idxA) idxB++;
+
+    const groupA = tagGroups.get(groupKeys[idxA]!)!;
+    const groupB = tagGroups.get(groupKeys[idxB]!)!;
+    if (!groupA.length || !groupB.length) continue;
+
+    const pageA = groupA[Math.floor(Math.random() * groupA.length)]!;
+    const pageB = groupB[Math.floor(Math.random() * groupB.length)]!;
+    pairs.push([pageA, pageB]);
+  }
+
+  if (pairs.length === 0) return results;
+
+  try {
+    const { loadConfig } = await import('./config.js');
+    const { createProviderFromUserConfig } = await import('../providers/index.js');
+    const configPath = pagePaths[0]?.includes('.wikimem')
+      ? pagePaths[0].split('.wikimem')[0] + '.wikimem/config.yaml'
+      : undefined;
+    const userConfig = loadConfig(configPath ?? '');
+    const provider = createProviderFromUserConfig(userConfig);
+
+    for (const [pathA, pathB] of pairs) {
+      try {
+        const pageA = readWikiPage(pathA);
+        const pageB = readWikiPage(pathB);
+
+        // Give LLM a summary + first 300 chars of content for each
+        const summA = String(pageA.frontmatter['summary'] ?? pageA.content.slice(0, 300));
+        const summB = String(pageB.frontmatter['summary'] ?? pageB.content.slice(0, 300));
+
+        const prompt = `These are two wiki pages from different topic categories. Is there a non-obvious, intellectually interesting connection between them?
+
+Page A: "${pageA.title}"
+${summA.slice(0, 300)}
+
+Page B: "${pageB.title}"
+${summB.slice(0, 300)}
+
+Reply with EXACTLY one of:
+- "NO_CONNECTION" — if there is no meaningful connection
+- "CONNECTION: <one concise sentence describing the non-obvious link>" — if there is one`;
+
+        const response = await provider.chat([
+          { role: 'user', content: prompt },
+        ], { maxTokens: 150, temperature: 0.3 });
+
+        const text = response.content.trim();
+        if (text.startsWith('CONNECTION:')) {
+          const connection = text.slice('CONNECTION:'.length).trim();
+          results.push({
+            pageA: pathA,
+            titleA: pageA.title,
+            pageB: pathB,
+            titleB: pageB.title,
+            connection,
+          });
+        }
+      } catch { /* skip this pair */ }
+    }
+  } catch { /* LLM unavailable — return empty */ }
+
+  return results;
+}
+
 // ─── Cross-Link Discovery ────────────────────────────────────────────────────
 
 export interface CrossLinkOpportunity {
@@ -1048,6 +1442,17 @@ export interface ObserverReport {
   budget: BudgetEstimate;
   /** Insights from past experiments */
   experimentInsights: string[];
+  // ── New open-endedness fields (Jeff Clune P0-C) ──
+  /** Repeated themes across 3+ pages — candidates for new concept pages */
+  vaultPatterns: VaultPattern[];
+  /** LLM-detected semantic contradictions between related pages */
+  semanticContradictions: SemanticContradiction[];
+  /** Top 5 wikilink targets with no existing page */
+  missingPageSuggestions: MissingPageSuggestion[];
+  /** Pages not updated in 30+ days, ranked by staleness urgency */
+  stalePages: StalePage[];
+  /** Serendipitous non-obvious connections between pages from different categories */
+  serendipitousConnections: SerendipitousConnection[];
 }
 
 export function getObserverReportsDir(vaultRoot: string): string {
@@ -1072,6 +1477,32 @@ export async function runObserver(config: VaultConfig, options?: ObserverOptions
   const unexpectedPatterns = discoverUnexpected(allPaths, incomingLinks);
   const pageSuggestions = suggestNewPages(allPaths, gaps);
   const crossLinks = crossLinkDiscovery(allPaths);
+
+  // ── P0-C: Jeff Clune open-endedness extensions ──
+  // Build existing-titles set (shared across multiple new functions)
+  const existingTitlesSet = new Set<string>();
+  for (const p of allPaths) {
+    try {
+      const page = readWikiPage(p);
+      existingTitlesSet.add(page.title.toLowerCase());
+      existingTitlesSet.add(basename(p, '.md').toLowerCase());
+    } catch { /* skip */ }
+  }
+
+  // 1. Pattern detection: themes appearing in 3+ pages → suggest concept page
+  const vaultPatterns = detectVaultPatterns(allPaths, existingTitlesSet);
+
+  // 2. Semantic contradiction detection (LLM, budget-gated — max 8 pairs)
+  const semanticContradictions = await detectSemanticContradictions(reviewPaths, options ?? {}, 8);
+
+  // 3. Knowledge-gap suggestions: top 5 most-referenced missing wikilinks
+  const missingPageSuggestions = suggestMissingPages(allPaths, gaps);
+
+  // 4. Temporal staleness scan: pages stale 30+ days, ranked by urgency
+  const stalePages = scanTemporalStaleness(allPaths, incomingLinks, 30);
+
+  // 5. Serendipitous connections: random cross-category pairs via LLM (max 3)
+  const serendipitousConnections = await findSerendipitousConnections(allPaths, options ?? {}, 3);
 
   const avgScore =
     scores.length > 0
@@ -1120,6 +1551,47 @@ export async function runObserver(config: VaultConfig, options?: ObserverOptions
     });
   }
 
+  // Log P0-C experiments
+  if (vaultPatterns.length > 0) {
+    appendExperiment(config.root, {
+      action: 'detect-vault-patterns',
+      target: 'wiki-wide',
+      hypothesis: 'Heading-keyword frequency will surface emerging concept pages',
+      result: 'success',
+      details: `Found ${vaultPatterns.length} repeated themes: top topics — ${vaultPatterns.slice(0, 3).map(p => p.topic).join(', ')}`,
+    });
+  }
+
+  if (semanticContradictions.length > 0) {
+    appendExperiment(config.root, {
+      action: 'semantic-contradiction-detection',
+      target: 'wiki-wide',
+      hypothesis: 'LLM can detect semantic contradictions beyond keyword heuristics',
+      result: 'success',
+      details: `Found ${semanticContradictions.length} semantic contradictions via LLM`,
+    });
+  }
+
+  if (stalePages.length > 0) {
+    appendExperiment(config.root, {
+      action: 'temporal-staleness-scan',
+      target: 'wiki-wide',
+      hypothesis: 'Temporal scan will identify high-impact stale content',
+      result: 'success',
+      details: `Found ${stalePages.length} stale pages (30+ days). Top: "${stalePages[0]?.title}" (${stalePages[0]?.daysSinceUpdate} days, score ${stalePages[0]?.stalenessScore})`,
+    });
+  }
+
+  if (serendipitousConnections.length > 0) {
+    appendExperiment(config.root, {
+      action: 'serendipitous-connection',
+      target: 'wiki-wide',
+      hypothesis: 'LLM can find non-obvious connections between unrelated wiki pages',
+      result: 'success',
+      details: `Found ${serendipitousConnections.length} serendipitous connections: ${serendipitousConnections.map(c => `"${c.titleA}" ↔ "${c.titleB}"`).join('; ')}`,
+    });
+  }
+
   // Load experiment insights to include in report
   const experimentLog = loadExperimentLog(config.root);
   const experimentInsights = experimentLog.learnedPatterns;
@@ -1143,6 +1615,11 @@ export async function runObserver(config: VaultConfig, options?: ObserverOptions
     crossLinks,
     budget,
     experimentInsights,
+    vaultPatterns,
+    semanticContradictions,
+    missingPageSuggestions,
+    stalePages,
+    serendipitousConnections,
   };
 
   // Save report
@@ -1175,6 +1652,7 @@ export async function runObserver(config: VaultConfig, options?: ObserverOptions
     `Orphans: ${orphans.length} | Gaps: ${gaps.length} | Contradictions: ${contradictions.length}`,
     `Cross-link opportunities: ${crossLinks.length} | Page suggestions: ${pageSuggestions.length}`,
     `Unexpected patterns: ${unexpectedPatterns.length}`,
+    `Vault patterns: ${vaultPatterns.length} | Stale pages: ${stalePages.length} | Semantic contradictions: ${semanticContradictions.length} | Serendipitous: ${serendipitousConnections.length}`,
   ];
   if (budget.capped) {
     commitBodyParts.push(`Budget: $${budget.estimatedCostUsd} of $${budget.estimatedCostUsd + budget.budgetRemaining} (${budget.pagesEligible} eligible, ${budget.pagesAfterCap} improved)`);

@@ -4,7 +4,7 @@
  * Implements the Model Context Protocol without the SDK dependency.
  * Reads newline-delimited JSON from stdin, writes responses to stdout.
  *
- * Tools exposed (16):
+ * Tools exposed (19):
  *   wikimem_search           — BM25 keyword search over wiki pages
  *   wikimem_read             — Read a specific wiki page by title or filename
  *   wikimem_list             — List all wiki pages with metadata
@@ -21,6 +21,9 @@
  *   wikimem_preview          — Preview what would be synced without writing files
  *   wikimem_run_observer     — Trigger the observer/self-improvement engine
  *   wikimem_get_report       — Get latest (or specific date) observer report
+ *   wikimem_ingest_url       — Ingest a URL directly into the vault
+ *   wikimem_ask              — Query vault with natural language, returns LLM answer + citations
+ *   wikimem_lint             — Run wiki health check, returns structured issues
  */
 
 import { createInterface } from 'node:readline';
@@ -33,6 +36,7 @@ import {
   handleObserve, handleImprove, handlePipeline, handleScrape, handleConnectors,
   handleListConnectors, handleConnect, handleSyncProvider, handlePreview,
   handleRunObserver, handleGetReport,
+  handleIngestUrl, handleAsk, handleLint,
 } from './mcp-tools-extended.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -297,6 +301,59 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'wikimem_ingest_url',
+    description: 'Ingest a URL into the wiki vault. Fetches the page, extracts text, and runs it through the ingest pipeline. Use this when you want to add a web resource to the knowledge base.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'URL to fetch and ingest (must start with http:// or https://)' },
+        tags: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional tags to associate with the ingested page',
+        },
+        category: {
+          type: 'string',
+          description: 'Optional page category: sources | entities | concepts | syntheses',
+        },
+      },
+      required: ['url'],
+    },
+  },
+  {
+    name: 'wikimem_ask',
+    description: 'Query the wiki vault with a natural language question. Uses BM25 retrieval to find relevant pages and synthesises a cited answer via the configured LLM provider.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        question: { type: 'string', description: 'Natural language question to ask against the wiki' },
+        fileBack: {
+          type: 'boolean',
+          description: 'When true, save the answer as a new synthesis wiki page (default false)',
+        },
+        searchMode: {
+          type: 'string',
+          enum: ['bm25', 'semantic', 'hybrid'],
+          description: 'Retrieval strategy: bm25 (default), semantic, or hybrid',
+        },
+      },
+      required: ['question'],
+    },
+  },
+  {
+    name: 'wikimem_lint',
+    description: 'Run the wiki health checker. Finds orphan pages, missing cross-links, pages without summaries, contradictions, and other quality issues. Returns structured issues with severity and per-page attribution.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        fix: {
+          type: 'boolean',
+          description: 'When true, auto-fix issues where possible (default false — dry run)',
+        },
+      },
+    },
+  },
 ];
 
 // ─── Server state ──────────────────────────────────────────────────────────
@@ -531,6 +588,15 @@ async function handleToolCall(name: string, args: Record<string, unknown>): Prom
 
     case 'wikimem_get_report':
       return handleGetReport(vaultRoot, args);
+
+    case 'wikimem_ingest_url':
+      return handleIngestUrl(vaultRoot, args);
+
+    case 'wikimem_ask':
+      return handleAsk(config, args);
+
+    case 'wikimem_lint':
+      return handleLint(config, args);
 
     default:
       throw { code: -32601, message: `Unknown tool: ${name}` };

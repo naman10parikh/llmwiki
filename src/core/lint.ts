@@ -5,7 +5,7 @@ import { basename } from 'node:path';
 import { flagContradictions } from './observer.js';
 
 export interface LintIssue {
-  category: 'orphan' | 'contradiction' | 'stale' | 'missing-link' | 'empty' | 'no-summary';
+  category: 'orphan' | 'contradiction' | 'stale' | 'missing-link' | 'empty' | 'no-summary' | 'no-tldr' | 'duplicate-title' | 'malformed-frontmatter';
   severity: 'error' | 'warning';
   message: string;
   page?: string;
@@ -124,12 +124,65 @@ export async function lintWiki(
     });
   }
 
+  // Check 6 (KARP-002): Pages missing TLDR field in frontmatter
+  for (const page of pageData) {
+    if (
+      structuralPages.has(page.title) ||
+      page.path.endsWith('/index.md') ||
+      page.path.endsWith('/log.md')
+    ) continue;
+    const hasTldr = page.frontmatter['tldr'] &&
+      String(page.frontmatter['tldr']).trim().length > 0;
+    if (!hasTldr) {
+      issues.push({
+        category: 'no-tldr',
+        severity: 'warning',
+        message: `Page "${page.title}" is missing a tldr frontmatter field (run \`wikimem improve\` to auto-generate)`,
+        page: page.path,
+      });
+    }
+  }
+
+  // Check 7 (KARP-005): Duplicate page titles
+  const titleCount = new Map<string, string[]>();
+  for (const page of pageData) {
+    const norm = page.title.toLowerCase().trim();
+    if (!titleCount.has(norm)) titleCount.set(norm, []);
+    titleCount.get(norm)!.push(page.path);
+  }
+  for (const [title, paths] of titleCount) {
+    if (paths.length > 1) {
+      issues.push({
+        category: 'duplicate-title',
+        severity: 'error',
+        message: `Duplicate title "${title}" found across ${paths.length} pages: ${paths.map(p => basename(p)).join(', ')}`,
+        page: paths[0],
+      });
+    }
+  }
+
+  // Check 8 (KARP-005): Malformed frontmatter — missing required fields
+  const requiredFields = ['title', 'type'];
+  for (const page of pageData) {
+    if (page.path.endsWith('/index.md') || page.path.endsWith('/log.md')) continue;
+    const missing = requiredFields.filter(f => !page.frontmatter[f]);
+    if (missing.length > 0) {
+      issues.push({
+        category: 'malformed-frontmatter',
+        severity: 'warning',
+        message: `Page "${page.title}" (${basename(page.path)}) is missing frontmatter field(s): ${missing.join(', ')}`,
+        page: page.path,
+      });
+    }
+  }
+
   // Calculate score — weight by severity and category
   // Broken wikilinks are common in growing wikis (knowledge gaps), so weight them low
   const issueWeight = issues.reduce((sum, i) => {
     if (i.severity === 'error') return sum + 10;
     if (i.category === 'missing-link') return sum + 0.5; // knowledge gaps are normal
     if (i.category === 'no-summary') return sum + 1;
+    if (i.category === 'no-tldr') return sum + 0.5; // informational, not blocking
     return sum + 2;
   }, 0);
   const maxPenalty = pageData.length * 5; // rough ceiling

@@ -28,6 +28,7 @@ TITLE: Page Title
 CATEGORY: sources | entities | concepts | syntheses
 TAGS: tag1, tag2, tag3
 SUMMARY: One-line summary for the index
+TLDR: One or two sentences capturing the single most important thing to know about this page. Should be standalone — readable without any other context.
 ---
 Page content in markdown with [[wikilinks]] to other pages.
 \`\`\`

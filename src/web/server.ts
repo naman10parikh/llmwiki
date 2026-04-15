@@ -1,5 +1,5 @@
 import express from 'express';
-import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync, statSync, renameSync, unlinkSync as fsUnlinkSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync, statSync, renameSync, unlinkSync as fsUnlinkSync, chmodSync } from 'node:fs';
 import { join, resolve, extname, basename, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
@@ -94,12 +94,15 @@ interface PageInfo {
   category: string;
   wikilinks: string[];
   tags: string[];
+  mtime?: string;
 }
 
 function listPages(config: VaultConfig): PageInfo[] {
   const pages = listWikiPages(config.wikiDir);
   return pages.map((p) => {
     const page = readWikiPage(p);
+    let mtime: string | undefined;
+    try { mtime = statSync(p).mtime.toISOString(); } catch { /* ignore */ }
     return {
       title: page.title,
       path: p,
@@ -107,6 +110,7 @@ function listPages(config: VaultConfig): PageInfo[] {
       category: (page.frontmatter['category'] as string) ?? 'uncategorized',
       wikilinks: page.wikilinks,
       tags: (page.frontmatter['tags'] as string[] | undefined) ?? [],
+      mtime,
     };
   });
 }
@@ -2267,10 +2271,12 @@ export function createServer(vaultRoot: string, port: number): void {
 
   function saveOAuthToken(provider: string, tokenData: { access_token: string; refresh_token?: string; scope?: string }): void {
     const tokenPath = getTokenStorePath();
-    mkdirSync(dirname(tokenPath), { recursive: true });
+    mkdirSync(dirname(tokenPath), { recursive: true, mode: 0o700 });
     const tokens = loadOAuthTokens();
     tokens[provider] = { ...tokenData, connectedAt: new Date().toISOString() };
-    writeFileSync(tokenPath, JSON.stringify(tokens, null, 2), 'utf-8');
+    writeFileSync(tokenPath, JSON.stringify(tokens, null, 2), { encoding: 'utf-8', mode: 0o600 });
+    // Defense in depth: ensure existing files get 0600 even if previously 0644
+    try { chmodSync(tokenPath, 0o600); } catch { /* non-fatal */ }
   }
 
   // GET /api/auth/tokens — list which providers have tokens stored + credential availability
@@ -2400,11 +2406,13 @@ export function createServer(vaultRoot: string, port: number): void {
         .card { background: #252526; border: 1px solid #3e3e3e; border-radius: 12px; padding: 32px 40px; text-align: center; }
         h2 { color: #4ec9b0; margin: 0 0 8px; } p { color: #808080; font-size: 14px; }
       </style></head><body><div class="card"><h2>Connected!</h2><p>${providerDisplay} is now linked to WikiMem.</p><p style="margin-top:8px"><small>You can now preview and select what to sync.</small></p></div>
-      <script>if(window.opener){window.opener.postMessage({type:'wikimem-oauth-connected',provider:'${stateData.provider}'},'*');}setTimeout(function(){window.close()},3000)</script>
+      <script>if(window.opener){window.opener.postMessage({type:'wikimem-oauth-connected',provider:'${stateData.provider}'},'http://localhost:${port}');}setTimeout(function(){window.close()},3000)</script>
       </body></html>`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      res.status(500).send(`<h2>OAuth callback failed</h2><pre>${msg}</pre>`);
+      // Security: don't leak internal error details to the browser
+      if (process.env['NODE_ENV'] !== 'production') console.error('[OAuth callback]', msg);
+      res.status(500).send(`<h2>OAuth callback failed</h2><p>The authorization flow did not complete. Please try again or check the server logs.</p>`);
     }
   });
 
@@ -3986,7 +3994,9 @@ export function createServer(vaultRoot: string, port: number): void {
     }
   });
 
-  app.listen(port, () => {
+  // Security: bind to 127.0.0.1 only — prevents other hosts on the network from
+  // overwriting tokens via POST /api/auth/tokens/:provider (no auth check there).
+  app.listen(port, '127.0.0.1', () => {
     console.log(`\n  wikimem web UI running at http://localhost:${port}`);
     console.log(`  Vault: ${vaultRoot}\n`);
   });
