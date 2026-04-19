@@ -14,6 +14,7 @@ import { syncLinear, previewLinear } from './linear.js';
 import { syncNotion, previewNotion } from './notion.js';
 import { syncRss, previewRss } from './rss.js';
 import { syncJira, previewJira } from './jira.js';
+import { syncDiscord, previewDiscord } from './discord.js';
 import type { SyncFilters, SyncPreviewResult } from './sync-filters.js';
 
 export interface PlatformSyncResult {
@@ -34,8 +35,8 @@ export interface TokenStore {
 }
 
 // Re-export all sync functions, preview functions, and types
-export { syncGitHub, syncSlack, syncGmail, syncGDrive, syncLinear, syncNotion, syncRss, syncJira };
-export { previewGitHub, previewSlack, previewGmail, previewGDrive, previewLinear, previewNotion, previewRss, previewJira };
+export { syncGitHub, syncSlack, syncGmail, syncGDrive, syncLinear, syncNotion, syncRss, syncJira, syncDiscord };
+export { previewGitHub, previewSlack, previewGmail, previewGDrive, previewLinear, previewNotion, previewRss, previewJira, previewDiscord };
 export type { GitHubSyncOptions } from './github.js';
 export type { SlackSyncOptions } from './slack.js';
 export type { GmailSyncOptions } from './gmail.js';
@@ -44,6 +45,7 @@ export type { LinearSyncOptions } from './linear.js';
 export type { NotionSyncOptions } from './notion.js';
 export type { RssSyncOptions } from './rss.js';
 export type { JiraSyncOptions } from './jira.js';
+export type { DiscordSyncOptions } from './discord.js';
 export type { SyncFilters, SyncPreviewResult, PreviewItem } from './sync-filters.js';
 export { estimateTokens, formatCostEstimate } from './sync-filters.js';
 export { SyncScheduler, SCHEDULE_PRESETS } from './scheduler.js';
@@ -72,7 +74,7 @@ export async function syncRssConnector(connectorId: string, vaultRoot: string): 
   });
 }
 
-const SUPPORTED_PROVIDERS = ['github', 'slack', 'google', 'gmail', 'gdrive', 'linear', 'notion', 'jira'] as const;
+const SUPPORTED_PROVIDERS = ['github', 'slack', 'google', 'gmail', 'gdrive', 'linear', 'notion', 'jira', 'discord'] as const;
 type SupportedProvider = typeof SUPPORTED_PROVIDERS[number];
 
 function isSupported(provider: string): provider is SupportedProvider {
@@ -138,6 +140,8 @@ export async function syncProvider(provider: string, vaultRoot: string, filters?
       return syncNotion({ token, vaultRoot, filters });
     case 'jira':
       return syncJira({ token, vaultRoot, filters });
+    case 'discord':
+      return syncDiscord({ botToken: token, vaultRoot, filters });
     default:
       return { provider, filesWritten: 0, errors: ['Unreachable'], duration: Date.now() - start };
   }
@@ -193,6 +197,8 @@ export async function previewProvider(provider: string, vaultRoot: string, filte
       return previewNotion({ token, vaultRoot, filters: f });
     case 'jira':
       return previewJira({ token, vaultRoot, filters: f });
+    case 'discord':
+      return previewDiscord({ botToken: token, vaultRoot, filters: f });
     default:
       return { provider, totalItems: 0, items: [], estimatedTokens: 0, costEstimate: '0 tokens', errors: ['Unreachable'] };
   }

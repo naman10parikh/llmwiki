@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>wikimem</title>
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -21,6 +21,44 @@
       }
 
       :root {
+        /* ── Design System (Chairman Prompt #77 — 2026-04-17) ── */
+        /* Typography scale */
+        --font-xs: 11px;
+        --font-sm: 12px;
+        --font-base: 13px;
+        --font-md: 14px;
+        --font-lg: 16px;
+        --font-xl: 20px;
+        --font-2xl: 24px;
+        --font-3xl: 32px;
+        /* Font weights (NO 300 — chairman rejected thin) */
+        --fw-regular: 400;
+        --fw-medium: 500;
+        --fw-semibold: 600;
+        --fw-bold: 700;
+        /* Line heights */
+        --lh-tight: 1.2;
+        --lh-base: 1.5;
+        --lh-loose: 1.65;
+        /* Spacing (4px grid) */
+        --space-1: 4px;
+        --space-2: 8px;
+        --space-3: 12px;
+        --space-4: 16px;
+        --space-5: 20px;
+        --space-6: 24px;
+        --space-8: 32px;
+        /* Semantic color tokens (warm black palette) */
+        --bg-primary: #141312;
+        --bg-secondary: #1a1918;
+        --bg-tertiary: #222120;
+        --text-primary: #e8e7e5;
+        --text-on-accent: #0a0a0a;
+        --success: #5fd97a;
+        --warning: #f0b341;
+        --error: #e86868;
+
+        /* ── Legacy tokens (kept for backwards compatibility) ── */
         --bg: #1e1e1e;
         --bg-surface: #252526;
         --bg-card: #2d2d2d;
@@ -32,17 +70,17 @@
         --text-bright: #e0e0e0;
         --text-secondary: #acacac;
         --text-dim: #808080;
-        --text-muted: #5a5a5a;
+        --text-muted: #7a7875;
         --accent: #4f9eff;
         --accent-dim: rgba(79, 158, 255, 0.12);
         --accent-surface: rgba(79, 158, 255, 0.06);
         --wiki-link: #6eb3f7;
         --wiki-link-hover: #9dcfff;
         --wiki-link-visited: #8fa8c4;
-        --green: #4ec9b0;
-        --green-dim: rgba(78, 201, 176, 0.15);
-        --amber: #d7ba7d;
-        --red: #f14c4c;
+        --green: #5fd97a;
+        --green-dim: rgba(95, 217, 122, 0.15);
+        --amber: #f0b341;
+        --red: #e86868;
         --blue: #569cd6;
         --orange: #ce9178;
         --purple: #9c78d8;
@@ -50,7 +88,7 @@
         --bg-inset: #1a1a1a;
         --orange-dim: rgba(206, 145, 120, 0.12);
         --purple-dim: rgba(156, 120, 216, 0.12);
-        --red-dim: rgba(241, 76, 76, 0.15);
+        --red-dim: rgba(232, 104, 104, 0.15);
         --blue-dim: rgba(86, 156, 214, 0.12);
         --icon-rail-w: 44px;
         --sidebar-w: 240px;
@@ -63,9 +101,12 @@
         --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
         --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.25);
         --font:
-          "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
-          sans-serif;
-        --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+          "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+          system-ui, sans-serif;
+        --font-sans: var(--font);
+        --font-mono:
+          "JetBrains Mono", "SF Mono", Menlo, "Fira Code", "Cascadia Code",
+          monospace;
         --font-display: "Instrument Serif", Georgia, serif;
       }
 
@@ -78,8 +119,10 @@
         color: var(--text);
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-        font-size: 13px;
-        line-height: 1.5;
+        /* Bound to --font-base so the Appearance → Font Size slider takes effect globally */
+        font-size: var(--font-base);
+        line-height: var(--lh-base);
+        font-weight: var(--fw-regular);
       }
 
       /* ── Shell Layout ── */
@@ -521,42 +564,99 @@
         background: var(--accent-dim);
         color: var(--text-bright);
       }
-      /* Context menu */
+      /* Context menu — VS Code / Obsidian style */
       .ctx-menu {
         position: fixed;
-        z-index: 9999;
+        z-index: 99999;
         background: var(--bg-card);
         border: 1px solid var(--border);
         border-radius: 8px;
         padding: 4px;
-        min-width: 160px;
-        box-shadow: var(--shadow-md);
-        animation: pipeSlideIn 0.15s ease;
+        min-width: 220px;
+        box-shadow: var(--shadow-md), 0 12px 32px rgba(0, 0, 0, 0.32);
+        animation: pipeSlideIn 0.12s ease;
+        font-family: inherit;
+        user-select: none;
       }
       .ctx-menu-item {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 6px 12px;
-        font-size: 12px;
+        gap: 10px;
+        padding: 6px 10px 6px 10px;
+        font-size: 13px;
         color: var(--text-secondary);
         cursor: pointer;
         border-radius: 5px;
-        transition: background 0.1s;
+        transition: background 0.08s, color 0.08s;
       }
       .ctx-menu-item:hover {
-        background: var(--bg-hover);
+        background: var(--accent-dim, var(--bg-hover));
         color: var(--text-bright);
       }
+      .ctx-menu-item.danger:hover {
+        background: rgba(220, 53, 69, 0.14);
+        color: #ff6b6b;
+      }
+      .ctx-menu-item .ctx-icon {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.7;
+      }
+      .ctx-menu-item:hover .ctx-icon {
+        opacity: 1;
+      }
+      .ctx-menu-item .ctx-icon svg,
       .ctx-menu-item svg {
-        width: 13px;
-        height: 13px;
-        opacity: 0.6;
+        width: 14px;
+        height: 14px;
+      }
+      .ctx-menu-item .ctx-label {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .ctx-menu-item .ctx-kbd {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--text-muted);
+        opacity: 0.8;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        padding-left: 12px;
       }
       .ctx-menu-sep {
         height: 1px;
         background: var(--border-subtle);
-        margin: 3px 8px;
+        margin: 4px 6px;
+      }
+      /* Inline rename input — matches tree-label */
+      .tree-rename-input {
+        flex: 1;
+        font: inherit;
+        font-size: 12px;
+        color: var(--text-bright);
+        background: var(--bg);
+        border: 1px solid var(--accent);
+        border-radius: 3px;
+        padding: 1px 4px;
+        margin: 0;
+        outline: none;
+        box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 30%, transparent);
+        min-width: 0;
+      }
+      /* Selection highlight (distinct from "active" open tab) */
+      .tree-item.selected {
+        background: var(--accent-dim);
+      }
+      .tree-item.drop-target {
+        background: var(--accent-dim) !important;
+        outline: 1px solid var(--accent);
+        outline-offset: -1px;
       }
 
       .tree-chevron {
@@ -998,20 +1098,24 @@
 
       .home-hero {
         text-align: center;
-        padding: 36px 0 28px;
+        padding: var(--space-8) 0 var(--space-6);
       }
       .home-hero h1 {
-        font-family: var(--font-display);
-        font-size: 34px;
-        font-weight: 400;
-        letter-spacing: -0.5px;
+        /* Chairman #77: no thin serif. Inter semibold, no tracking glitch. */
+        font-family: var(--font-sans);
+        font-size: var(--font-3xl);
+        font-weight: var(--fw-semibold);
+        letter-spacing: -0.01em;
         color: var(--text-bright);
         text-wrap: balance;
+        line-height: var(--lh-tight);
       }
       .home-hero p {
         color: var(--text-dim);
-        margin-top: 6px;
-        font-size: 14px;
+        margin-top: var(--space-2);
+        font-size: var(--font-md);
+        font-weight: var(--fw-regular);
+        line-height: var(--lh-base);
       }
 
       /* ── Onboarding (empty vault) ── */
@@ -1041,11 +1145,13 @@
         margin-bottom: 10px;
       }
       .onboard-card h1 {
-        font-family: var(--font-display);
-        font-size: 42px;
-        font-weight: 400;
+        /* Chairman #77: Inter semibold, no thin serif */
+        font-family: var(--font-sans);
+        font-size: 40px;
+        font-weight: var(--fw-semibold);
         color: var(--text-bright);
-        letter-spacing: -0.5px;
+        letter-spacing: -0.02em;
+        line-height: var(--lh-tight);
         margin: 0;
       }
       .onboard-card .onboard-sub {
@@ -1687,12 +1793,13 @@
       }
 
       #page-title {
-        font-family: var(--font-display);
-        font-size: 30px;
-        font-weight: 400;
-        letter-spacing: -0.4px;
-        line-height: 1.15;
-        margin-bottom: 10px;
+        /* Chairman #77: Inter semibold, not thin serif */
+        font-family: var(--font-sans);
+        font-size: 28px;
+        font-weight: var(--fw-semibold);
+        letter-spacing: -0.015em;
+        line-height: var(--lh-tight);
+        margin-bottom: var(--space-3);
         color: var(--text-bright);
         text-wrap: balance;
       }
@@ -2580,12 +2687,13 @@
       }
       .entity-infobox-title {
         margin: 0;
-        padding: 14px 16px 12px;
-        font-family: var(--font-display);
-        font-size: 17px;
-        font-weight: 600;
+        padding: var(--space-3) var(--space-4) var(--space-3);
+        font-family: var(--font-sans);
+        font-size: var(--font-lg);
+        font-weight: var(--fw-semibold);
         color: var(--text-bright);
-        line-height: 1.25;
+        letter-spacing: -0.005em;
+        line-height: var(--lh-tight);
         text-align: center;
         border-bottom: 1px solid var(--border-subtle);
       }
@@ -2692,12 +2800,13 @@
         margin: 0;
       }
       .entity-section-title {
-        margin: 0 0 10px;
-        font-family: var(--font-display);
-        font-size: 15px;
-        font-weight: 600;
+        margin: 0 0 var(--space-3);
+        font-family: var(--font-sans);
+        font-size: var(--font-md);
+        font-weight: var(--fw-semibold);
         color: var(--text-bright);
-        letter-spacing: 0.02em;
+        letter-spacing: 0.01em;
+        line-height: var(--lh-tight);
       }
       .entity-mentioned-list {
         list-style: none;
@@ -2878,11 +2987,13 @@
         border-top: 1px solid var(--border-subtle);
       }
       .page-encyclopedia-heading {
-        font-family: var(--font-display);
-        font-size: 18px;
-        font-weight: 400;
+        font-family: var(--font-sans);
+        font-size: var(--font-xl);
+        font-weight: var(--fw-semibold);
         color: var(--text-bright);
-        margin-bottom: 10px;
+        letter-spacing: -0.01em;
+        line-height: var(--lh-tight);
+        margin-bottom: var(--space-3);
       }
       .wiki-source-list {
         margin: 0;
@@ -3146,17 +3257,20 @@
       .validation-bar {
         display: flex;
         align-items: center;
-        gap: 6px;
-        margin-top: 4px;
+        gap: var(--space-2);
+        margin-top: var(--space-2);
         flex-wrap: wrap;
       }
       .validation-btn {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        font-size: 11px;
-        padding: 3px 10px;
-        border-radius: 4px;
+        gap: var(--space-1);
+        font-family: var(--font-sans);
+        font-size: var(--font-xs);
+        font-weight: var(--fw-medium);
+        line-height: var(--lh-tight);
+        padding: var(--space-1) var(--space-3);
+        border-radius: var(--radius);
         border: 1px solid var(--border-subtle);
         background: transparent;
         color: var(--text-dim);
@@ -3320,33 +3434,42 @@
         font-family: var(--font-mono);
       }
 
-      /* ── Markdown styles ── */
+      /* ── Markdown styles (Chairman #77 — Inter semibold, no thin serif) ── */
       .md h1 {
-        font-family: var(--font-display);
-        font-size: 26px;
-        font-weight: 400;
-        margin: 28px 0 10px;
+        font-family: var(--font-sans);
+        font-size: var(--font-2xl);
+        font-weight: var(--fw-semibold);
+        letter-spacing: -0.015em;
+        line-height: var(--lh-tight);
+        margin: var(--space-6) 0 var(--space-3);
         color: var(--text-bright);
         border-bottom: 1px solid var(--border-subtle);
-        padding-bottom: 6px;
+        padding-bottom: var(--space-2);
       }
       .md h2 {
-        font-family: var(--font-display);
-        font-size: 21px;
-        font-weight: 400;
-        margin: 24px 0 8px;
+        font-family: var(--font-sans);
+        font-size: var(--font-xl);
+        font-weight: var(--fw-semibold);
+        letter-spacing: -0.01em;
+        line-height: var(--lh-tight);
+        margin: var(--space-5) 0 var(--space-2);
         color: var(--text-bright);
       }
       .md h3 {
-        font-size: 15px;
-        font-weight: 600;
-        margin: 20px 0 6px;
+        font-family: var(--font-sans);
+        font-size: var(--font-lg);
+        font-weight: var(--fw-semibold);
+        letter-spacing: -0.005em;
+        line-height: var(--lh-tight);
+        margin: var(--space-4) 0 var(--space-2);
         color: var(--text-bright);
       }
       .md h4 {
-        font-size: 13px;
-        font-weight: 600;
-        margin: 16px 0 4px;
+        font-family: var(--font-sans);
+        font-size: var(--font-md);
+        font-weight: var(--fw-semibold);
+        line-height: var(--lh-tight);
+        margin: var(--space-4) 0 var(--space-1);
         color: var(--text-bright);
       }
       .md p {
@@ -3524,42 +3647,46 @@
         border-radius: 2px;
       }
 
-      /* ── UXO-039: Dynamic metadata union panel ── */
+      /* ── UXO-039: Properties panel (top-right of page view) ── */
+      /* Chairman #77: even spacing, consistent typography */
       #page-dyn-meta {
         float: right;
         clear: right;
-        width: 220px;
-        margin: 0 0 18px 28px;
+        width: 240px;
+        margin: 0 0 var(--space-4) var(--space-6);
         border: 1px solid var(--border-subtle);
-        border-radius: 6px;
+        border-radius: var(--radius-md);
         background: var(--bg-card);
-        font-size: 11px;
+        font-family: var(--font-sans);
+        font-size: var(--font-xs);
         overflow: hidden;
       }
       .dyn-meta-title {
+        font-family: var(--font-sans);
         font-size: 10px;
-        font-weight: 700;
+        font-weight: var(--fw-semibold);
         text-transform: uppercase;
-        letter-spacing: 0.6px;
+        letter-spacing: 0.08em;
         color: var(--text-muted);
-        padding: 7px 10px 6px;
+        padding: var(--space-2) var(--space-3) var(--space-2);
         border-bottom: 1px solid var(--border-subtle);
         background: rgba(255,255,255,0.02);
       }
       .dyn-meta-row {
         display: flex;
-        align-items: flex-start;
-        gap: 6px;
-        padding: 5px 10px;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
         border-bottom: 1px solid rgba(62,62,62,0.3);
+        min-height: 28px;
       }
       .dyn-meta-row:last-child { border-bottom: none; }
       .dyn-meta-label {
         flex-shrink: 0;
         width: 72px;
         color: var(--text-muted);
-        font-weight: 600;
-        padding-top: 1px;
+        font-weight: var(--fw-medium);
+        font-size: var(--font-xs);
       }
       .dyn-meta-val {
         color: var(--text-secondary);
@@ -4335,10 +4462,12 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 0 10px;
+        padding: 0 var(--space-3);
         border-top: 1px solid var(--border-subtle);
         background: var(--bg-deep);
-        font-size: 11px;
+        font-family: var(--font-sans);
+        font-size: var(--font-xs);
+        font-weight: var(--fw-regular);
         color: var(--text-muted);
         user-select: none;
       }
@@ -4346,7 +4475,11 @@
       #statusbar-right {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: var(--space-3);
+      }
+      #statusbar-left > span,
+      #statusbar-right > span {
+        font-variant-numeric: tabular-nums;
       }
 
       /* ── Query ── */
@@ -8760,6 +8893,399 @@
       }
 
       /* ══════════════════════════════════════════════
+         Observer — Experiment History (killer moat)
+         ══════════════════════════════════════════════ */
+      #observer-view {
+        display: none;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+      }
+      #observer-view.active { display: flex; }
+      .obs-header {
+        padding: 24px 32px 8px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .obs-header h2 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-bright);
+      }
+      .obs-header p {
+        margin: 4px 0 0;
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+      .obs-header-actions {
+        display: flex;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .obs-run-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        border: 1px solid var(--accent);
+        background: var(--accent-dim);
+        color: var(--accent);
+        border-radius: var(--radius);
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 150ms ease-out, color 150ms ease-out;
+        font-family: inherit;
+      }
+      .obs-run-btn:hover:not(:disabled) {
+        background: var(--accent);
+        color: #fff;
+      }
+      .obs-run-btn:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
+      .obs-run-btn svg { flex-shrink: 0; }
+      .obs-refresh-btn {
+        padding: 7px 10px;
+        border: 1px solid var(--border);
+        background: var(--bg-surface);
+        color: var(--text-secondary);
+        border-radius: var(--radius);
+        cursor: pointer;
+        transition: background 150ms ease-out, color 150ms ease-out;
+        display: inline-flex;
+        align-items: center;
+      }
+      .obs-refresh-btn:hover { background: var(--bg-hover); color: var(--text); }
+
+      .obs-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0 32px 40px;
+        min-height: 0;
+      }
+      .obs-body::-webkit-scrollbar { width: 8px; }
+      .obs-body::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 4px; }
+
+      .obs-summary-card {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        padding: 16px;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        margin-bottom: 16px;
+      }
+      .obs-stat {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .obs-stat-value {
+        font-size: 22px;
+        font-weight: var(--fw-semibold);
+        color: var(--text-bright);
+        font-variant-numeric: tabular-nums;
+        line-height: var(--lh-tight);
+        font-family: var(--font-sans);
+      }
+      .obs-stat-value.positive { color: var(--green); }
+      .obs-stat-value.negative { color: var(--red); }
+      .obs-stat-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+
+      .obs-chart {
+        padding: 12px 16px;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        margin-bottom: 16px;
+      }
+      .obs-chart-title {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+      }
+      .obs-chart svg {
+        display: block;
+        width: 100%;
+        height: 140px;
+      }
+      .obs-chart .obs-chart-grid { stroke: var(--border-subtle); stroke-width: 1; }
+      .obs-chart .obs-chart-area { fill: var(--accent-dim); stroke: none; }
+      .obs-chart .obs-chart-line { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+      .obs-chart .obs-chart-dot { fill: var(--accent); }
+      .obs-chart .obs-chart-dot-fail { fill: var(--red); }
+      .obs-chart .obs-chart-label { fill: var(--text-muted); font-size: 9px; font-family: var(--font-mono); }
+
+      .obs-filters {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        padding: 10px 12px;
+        background: var(--bg-inset);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        margin-bottom: 12px;
+      }
+      .obs-filter-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--text-muted);
+        font-weight: 600;
+        margin-right: 4px;
+      }
+      .obs-chip {
+        padding: 4px 10px;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        font-size: 11px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 150ms ease-out;
+        font-family: var(--font-mono);
+      }
+      .obs-chip:hover { background: var(--bg-hover); color: var(--text); }
+      .obs-chip.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+
+      .obs-timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .obs-entry {
+        border: 1px solid var(--border-subtle);
+        background: var(--bg-surface);
+        border-radius: var(--radius-md);
+        padding: 12px 14px;
+        transition: border-color 150ms ease-out, background 150ms ease-out;
+        animation: obs-fade-in 200ms ease-out;
+      }
+      .obs-entry:hover {
+        border-color: var(--border);
+        background: var(--bg-card);
+      }
+      @keyframes obs-fade-in {
+        from { opacity: 0; transform: translateY(2px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .obs-entry-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .obs-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        border-radius: var(--radius-sm);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        font-family: var(--font-mono);
+        background: var(--accent-dim);
+        color: var(--accent);
+      }
+      .obs-badge.success { background: var(--green-dim); color: var(--green); }
+      .obs-badge.failure { background: var(--red-dim); color: var(--red); }
+      .obs-badge.neutral { background: var(--bg-hover); color: var(--text-secondary); }
+      .obs-entry-action {
+        font-weight: 500;
+        color: var(--text-bright);
+        font-size: 13px;
+      }
+      .obs-entry-time {
+        color: var(--text-muted);
+        font-size: 11px;
+        margin-left: auto;
+        font-variant-numeric: tabular-nums;
+      }
+      .obs-entry-details {
+        color: var(--text-secondary);
+        font-size: 12px;
+        margin-top: 6px;
+        line-height: 1.5;
+      }
+      .obs-entry-meta {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-top: 6px;
+        font-size: 11px;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .obs-entry-meta .delta-pos { color: var(--green); }
+      .obs-entry-meta .delta-neg { color: var(--red); }
+      .obs-toggle {
+        margin-top: 8px;
+        background: none;
+        border: none;
+        padding: 0;
+        font-size: 11px;
+        color: var(--accent);
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .obs-toggle:hover { text-decoration: underline; }
+      .obs-entry-expand {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-top: 1px solid var(--border-subtle);
+        background: var(--bg-inset);
+        border-radius: var(--radius);
+        display: none;
+      }
+      .obs-entry.is-expanded .obs-entry-expand { display: block; }
+      .obs-kv {
+        display: grid;
+        grid-template-columns: 110px 1fr;
+        gap: 4px 12px;
+        font-size: 11px;
+      }
+      .obs-kv dt {
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        font-size: 9px;
+        font-weight: 600;
+        padding-top: 2px;
+      }
+      .obs-kv dd {
+        margin: 0;
+        color: var(--text-secondary);
+        font-family: var(--font-mono);
+        word-break: break-word;
+      }
+      .obs-kv dd.score-delta.pos { color: var(--green); }
+      .obs-kv dd.score-delta.neg { color: var(--red); }
+
+      .obs-live-log {
+        margin-top: 12px;
+        padding: 10px 12px;
+        background: var(--bg-inset);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-secondary);
+        max-height: 160px;
+        overflow-y: auto;
+        display: none;
+      }
+      .obs-live-log.active { display: block; }
+      .obs-live-log .log-line {
+        padding: 2px 0;
+        line-height: 1.5;
+      }
+      .obs-live-log .log-line.log-info { color: var(--text-secondary); }
+      .obs-live-log .log-line.log-ok { color: var(--green); }
+      .obs-live-log .log-line.log-err { color: var(--red); }
+
+      .obs-empty {
+        padding: 56px 24px;
+        text-align: center;
+        border: 1px dashed var(--border);
+        border-radius: var(--radius-md);
+        background: var(--bg-surface);
+      }
+      .obs-empty-icon {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 12px;
+        color: var(--text-muted);
+      }
+      .obs-empty h3 {
+        margin: 0 0 var(--space-2);
+        font-size: var(--font-lg);
+        font-weight: var(--fw-semibold);
+        color: var(--text-bright);
+        font-family: var(--font-sans);
+        letter-spacing: -0.005em;
+      }
+      .obs-empty p {
+        margin: 0 auto 16px;
+        max-width: 520px;
+        font-size: 13px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+      }
+      .obs-empty-steps {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        margin: 12px auto 20px;
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+      .obs-empty-steps span { display: inline-flex; align-items: center; gap: 4px; }
+      .obs-empty-steps span::before {
+        content: '';
+        width: 4px; height: 4px;
+        background: var(--accent);
+        border-radius: 50%;
+      }
+
+      .obs-patterns {
+        margin-top: 16px;
+        padding: 12px 16px;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+      }
+      .obs-patterns-title {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+      }
+      .obs-patterns ul {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--text-secondary);
+        font-size: 12px;
+        line-height: 1.7;
+      }
+
+      /* Sidebar panel for Observer — matches other context panels */
+      #sidebar-panel-observer .sidebar-ctx-item {
+        gap: 8px;
+      }
+      #sidebar-panel-observer .obs-side-stat {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 12px;
+        font-size: 11px;
+        color: var(--text-secondary);
+        font-variant-numeric: tabular-nums;
+      }
+      #sidebar-panel-observer .obs-side-stat strong {
+        color: var(--text-bright);
+        font-weight: 500;
+      }
+
+      /* ══════════════════════════════════════════════
          UXO-011 READING EXPERIENCE POLISH
          ══════════════════════════════════════════════ */
 
@@ -8767,12 +9293,15 @@
       #page-reading-bar {
         display: none;
         align-items: center;
-        gap: 10px;
-        margin: 2px 0 10px;
-        font-size: 12px;
+        gap: var(--space-3);
+        margin: var(--space-1) 0 var(--space-3);
+        font-family: var(--font-sans);
+        font-size: var(--font-sm);
+        font-weight: var(--fw-regular);
         color: var(--text-muted);
         font-variant-numeric: tabular-nums;
         letter-spacing: 0.01em;
+        line-height: var(--lh-tight);
       }
       #page-reading-bar.visible {
         display: flex;
@@ -8787,40 +9316,52 @@
       }
       .reading-bar-time {
         color: var(--text-secondary);
-        font-weight: 500;
+        font-weight: var(--fw-medium);
       }
 
-      /* Typography rhythm — tighter baseline grid */
+      /* Typography rhythm (Chairman #77 — tokens + consistent weights) */
       #page-body.md p {
-        margin: 0 0 12px;
-        line-height: 1.8;
-        font-size: 15px;
+        margin: 0 0 var(--space-3);
+        line-height: var(--lh-loose);
+        font-size: var(--font-md);
       }
       #page-body.md > p:first-of-type {
-        font-size: 16px;
+        font-size: var(--font-lg);
         color: var(--text-bright);
-        line-height: 1.75;
+        line-height: var(--lh-loose);
       }
       #page-body.md h1 {
+        font-family: var(--font-sans);
         font-size: 28px;
-        margin: 32px 0 8px;
+        font-weight: var(--fw-semibold);
+        letter-spacing: -0.015em;
+        line-height: var(--lh-tight);
+        margin: var(--space-8) 0 var(--space-2);
       }
       #page-body.md h2 {
-        font-size: 24px;
-        margin: 28px 0 8px;
+        font-family: var(--font-sans);
+        font-size: var(--font-2xl);
+        font-weight: var(--fw-semibold);
+        letter-spacing: -0.01em;
+        line-height: var(--lh-tight);
+        margin: var(--space-6) 0 var(--space-2);
         border-bottom: 1px solid var(--border-subtle);
-        padding-bottom: 6px;
+        padding-bottom: var(--space-2);
       }
       #page-body.md h3 {
-        font-size: 20px;
-        margin: 20px 0 8px;
-        font-weight: 500;
-        letter-spacing: -0.01em;
+        font-family: var(--font-sans);
+        font-size: var(--font-xl);
+        font-weight: var(--fw-semibold);
+        letter-spacing: -0.005em;
+        line-height: var(--lh-tight);
+        margin: var(--space-5) 0 var(--space-2);
       }
       #page-body.md h4 {
-        font-size: 18px;
-        margin: 16px 0 4px;
-        font-weight: 600;
+        font-family: var(--font-sans);
+        font-size: var(--font-lg);
+        font-weight: var(--fw-semibold);
+        line-height: var(--lh-tight);
+        margin: var(--space-4) 0 var(--space-1);
         color: var(--text-secondary);
       }
 
@@ -9164,6 +9705,23 @@
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
             </svg>
             <span class="rail-tooltip">Connectors</span>
+          </button>
+          <button class="rail-btn" id="rail-observer" title="Observer">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93L12 22"/>
+              <path d="M12 2a4 4 0 0 0-4 4c0 1.95 1.4 3.58 3.25 3.93"/>
+              <line x1="4.5" y1="9" x2="19.5" y2="9"/>
+            </svg>
+            <span class="rail-tooltip">Observer</span>
           </button>
           <div class="rail-spacer"></div>
           <button class="rail-btn" id="rail-settings" title="Settings">
@@ -9594,7 +10152,7 @@
               <!-- Normal home dashboard -->
               <div id="home-dashboard">
                 <div class="home-hero">
-                  <h1 style="font-family: var(--font-display)">My Wiki</h1>
+                  <h1 id="home-hero-title">My Wiki</h1>
                   <p></p>
                 </div>
                 <div class="stats-row" id="home-stats"></div>
@@ -16501,7 +17059,9 @@
           r.style.removeProperty("--border");
           r.style.removeProperty("--border-subtle");
         }
-        r.style.setProperty("--font-size-base", prefs.fontSize + "px");
+        // Bind to --font-base so body (and all --font-base consumers) resize live
+        r.style.setProperty("--font-base", prefs.fontSize + "px");
+        r.style.setProperty("--font-size-base", prefs.fontSize + "px"); // legacy
         r.style.setProperty("--accent", prefs.accent);
         r.style.setProperty("--accent-dim", prefs.accent + "22");
         document.querySelectorAll(".page-layout").forEach((el) => {
@@ -17622,11 +18182,29 @@
           api("/api/pages"),
           api("/api/config").catch(() => ({})),
         ]);
-        const wikiName = (wikiConfig && wikiConfig.name) ? wikiConfig.name : "My Wiki";
+        // Chairman #77: home shows wiki name as a greeting. "Welcome to {Name}'s Wiki"
+        // Priority: config.name (if meaningful) → owner → generic
+        const rawConfigName = wikiConfig && wikiConfig.name ? String(wikiConfig.name).trim() : "";
+        const ownerName = wikiConfig && (wikiConfig.owner || wikiConfig.user)
+          ? String(wikiConfig.owner || wikiConfig.user).trim() : "";
+        const isGenericName = !rawConfigName || /^my wiki$/i.test(rawConfigName);
+        let heroTitle;
+        if (!isGenericName) {
+          // Use configured name directly. If it already says "… Wiki" use as-is, else append.
+          if (/\bwiki\b/i.test(rawConfigName)) {
+            heroTitle = `Welcome to ${rawConfigName}`;
+          } else {
+            heroTitle = `Welcome to ${rawConfigName}'s Wiki`;
+          }
+        } else if (ownerName) {
+          heroTitle = `Welcome to ${ownerName}'s Wiki`;
+        } else {
+          heroTitle = "Welcome to your Wiki";
+        }
         const wikiDesc = (wikiConfig && wikiConfig.description) ? wikiConfig.description : "";
-        const heroH1 = document.querySelector("#home-dashboard .home-hero h1");
+        const heroH1 = document.getElementById("home-hero-title") || document.querySelector("#home-dashboard .home-hero h1");
         const heroP = document.querySelector("#home-dashboard .home-hero p");
-        if (heroH1) heroH1.textContent = wikiName;
+        if (heroH1) heroH1.textContent = heroTitle;
         if (heroP) {
           heroP.textContent = wikiDesc || "";
           heroP.style.display = wikiDesc ? "" : "none";
@@ -21105,7 +21683,7 @@
           ? `<div style="margin-bottom:12px;padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:12px;color:var(--text-muted);white-space:pre-line">${esc(c.instructions)}</div>`
           : "";
         const docsLink = c.docsUrl
-          ? `<a href="${c.docsUrl}" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent,#7c6af7)">Get ${esc(keyLabel)} ↗</a>`
+          ? `<a href="${c.docsUrl}" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent)">Get ${esc(keyLabel)} ↗</a>`
           : "";
         _showConnectorModal(
           `Connect ${c.name}`,
@@ -21115,7 +21693,7 @@
           ${docsLink}
           <div id="conn-apikey-error" style="color:#f87171;font-size:12px;margin-top:6px;display:none"></div>`,
           `<button onclick="document.getElementById('conn-generic-modal').remove()" style="padding:8px 16px;background:transparent;border:1px solid var(--border,rgba(255,255,255,0.12));border-radius:7px;color:var(--text-muted);cursor:pointer;font-size:13px">Cancel</button>
-           <button id="conn-apikey-save-btn" onclick="_saveApiKey('${c.id}')" style="padding:8px 20px;background:var(--accent,#7c6af7);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Save &amp; Connect</button>`,
+           <button id="conn-apikey-save-btn" onclick="_saveApiKey('${c.id}')" style="padding:8px 20px;background:var(--accent);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Save &amp; Connect</button>`,
         );
         setTimeout(() => document.getElementById("conn-apikey-input")?.focus(), 50);
       }
@@ -21154,7 +21732,7 @@
           ? `<div style="margin-bottom:12px;padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:12px;color:var(--text-muted);white-space:pre-line">${esc(c.instructions)}</div>`
           : "";
         const docsLink = c.docsUrl
-          ? `<a href="${c.docsUrl}" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent,#7c6af7)">Setup docs ↗</a>`
+          ? `<a href="${c.docsUrl}" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent)">Setup docs ↗</a>`
           : "";
         _showConnectorModal(
           `Connect ${c.name}`,
@@ -21164,7 +21742,7 @@
           ${docsLink}
           <div id="conn-bottoken-error" style="color:#f87171;font-size:12px;margin-top:6px;display:none"></div>`,
           `<button onclick="document.getElementById('conn-generic-modal').remove()" style="padding:8px 16px;background:transparent;border:1px solid var(--border,rgba(255,255,255,0.12));border-radius:7px;color:var(--text-muted);cursor:pointer;font-size:13px">Cancel</button>
-           <button id="conn-bottoken-save-btn" onclick="_saveBotToken('${c.id}')" style="padding:8px 20px;background:var(--accent,#7c6af7);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Save &amp; Connect</button>`,
+           <button id="conn-bottoken-save-btn" onclick="_saveBotToken('${c.id}')" style="padding:8px 20px;background:var(--accent);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Save &amp; Connect</button>`,
         );
         setTimeout(() => document.getElementById("conn-bottoken-input")?.focus(), 50);
       }
@@ -21213,7 +21791,7 @@
           <input id="conn-url-name" type="text" placeholder="My feed" style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--surface,#12121a);border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:8px;color:var(--text-primary);font-size:13px;outline:none">
           <div id="conn-url-error" style="color:#f87171;font-size:12px;margin-top:6px;display:none"></div>`,
           `<button onclick="document.getElementById('conn-generic-modal').remove()" style="padding:8px 16px;background:transparent;border:1px solid var(--border,rgba(255,255,255,0.12));border-radius:7px;color:var(--text-muted);cursor:pointer;font-size:13px">Cancel</button>
-           <button id="conn-url-save-btn" onclick="_saveUrlConnector('${c.id}')" style="padding:8px 20px;background:var(--accent,#7c6af7);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Add Feed</button>`,
+           <button id="conn-url-save-btn" onclick="_saveUrlConnector('${c.id}')" style="padding:8px 20px;background:var(--accent);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Add Feed</button>`,
         );
         setTimeout(() => document.getElementById("conn-url-input")?.focus(), 50);
       }
@@ -21261,7 +21839,7 @@
           <div style="font-size:11px;color:var(--text-muted)">WikiMem will index markdown files in this folder.</div>
           <div id="conn-local-error" style="color:#f87171;font-size:12px;margin-top:6px;display:none"></div>`,
           `<button onclick="document.getElementById('conn-generic-modal').remove()" style="padding:8px 16px;background:transparent;border:1px solid var(--border,rgba(255,255,255,0.12));border-radius:7px;color:var(--text-muted);cursor:pointer;font-size:13px">Cancel</button>
-           <button id="conn-local-save-btn" onclick="_saveLocalConnector('${c.id}')" style="padding:8px 20px;background:var(--accent,#7c6af7);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Connect Folder</button>`,
+           <button id="conn-local-save-btn" onclick="_saveLocalConnector('${c.id}')" style="padding:8px 20px;background:var(--accent);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Connect Folder</button>`,
         );
         setTimeout(() => document.getElementById("conn-local-input")?.focus(), 50);
       }
@@ -21305,9 +21883,9 @@
           <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Your webhook URL</label>
           <div style="display:flex;gap:8px;align-items:center">
             <input id="conn-webhook-url" type="text" readonly value="Loading…" style="flex:1;padding:9px 12px;background:var(--surface,#12121a);border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:8px;color:var(--text-primary);font-size:12px;font-family:monospace;outline:none">
-            <button onclick="_copyWebhookUrl()" style="padding:8px 12px;background:rgba(124,106,247,0.15);border:1px solid rgba(124,106,247,0.3);border-radius:7px;color:var(--accent,#7c6af7);cursor:pointer;font-size:12px;white-space:nowrap">Copy</button>
+            <button onclick="_copyWebhookUrl()" style="padding:8px 12px;background:rgba(79, 158, 255, 0.15);border:1px solid rgba(79, 158, 255, 0.3);border-radius:7px;color:var(--accent);cursor:pointer;font-size:12px;white-space:nowrap">Copy</button>
           </div>`,
-          `<button onclick="document.getElementById('conn-generic-modal').remove()" style="padding:8px 20px;background:var(--accent,#7c6af7);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Done</button>`,
+          `<button onclick="document.getElementById('conn-generic-modal').remove()" style="padding:8px 20px;background:var(--accent);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Done</button>`,
         );
         try {
           const data = await api("/api/auth/webhook-url");
@@ -21341,9 +21919,9 @@
             <div style="font-size:14px;color:#4ade80;font-weight:500">Connected</div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Since ${connectedAt}</div>
           </div>
-          <button onclick="_triggerConnectorSync('${c.id}')" style="width:100%;padding:9px;background:rgba(124,106,247,0.1);border:1px solid rgba(124,106,247,0.3);border-radius:8px;color:var(--accent,#7c6af7);cursor:pointer;font-size:13px;margin-bottom:8px">Sync now</button>`,
+          <button onclick="_triggerConnectorSync('${c.id}')" style="width:100%;padding:9px;background:rgba(79, 158, 255, 0.1);border:1px solid rgba(79, 158, 255, 0.3);border-radius:8px;color:var(--accent);cursor:pointer;font-size:13px;margin-bottom:8px">Sync now</button>`,
           `<button onclick="_disconnectAndRefresh('${c.id}')" style="padding:8px 16px;background:transparent;border:1px solid rgba(248,113,113,0.4);border-radius:7px;color:#f87171;cursor:pointer;font-size:13px">Disconnect</button>
-           <button onclick="document.getElementById('conn-generic-modal').remove()" style="padding:8px 20px;background:var(--accent,#7c6af7);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Done</button>`,
+           <button onclick="document.getElementById('conn-generic-modal').remove()" style="padding:8px 20px;background:var(--accent);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:13px;font-weight:500">Done</button>`,
         );
       }
 

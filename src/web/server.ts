@@ -8,6 +8,8 @@ import type { VaultConfig } from '../core/vault.js';
 import { getBundledCredentials, getBundledDeviceFlowClientId, hasBundledDefaults } from '../core/oauth-defaults.js';
 import type { UserConfig } from '../core/config.js';
 import { isPrivacyAccepted, markPrivacyAccepted, deleteAllVaultData, ensureVaultGitignore } from '../core/privacy.js';
+import { registerOAuthRoutes } from '../mcp/oauth-server.js';
+import { registerMcpHttpRoutes } from '../mcp/http-server.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -136,6 +138,11 @@ export function createServer(vaultRoot: string, port: number): void {
 
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+
+  // MCP OAuth 2.1 + HTTP transport — makes wikimem a Claude-Connector-compatible
+  // Authorization Server and exposes /mcp with Bearer auth. See src/mcp/*.
+  registerOAuthRoutes(app, { vaultRoot, port });
+  registerMcpHttpRoutes(app, { vaultRoot, port });
 
   const publicDir = join(__dirname, 'public');
 
@@ -3129,6 +3136,201 @@ export function createServer(vaultRoot: string, port: number): void {
       res.json(report);
     } catch (err) {
       res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // ─── Observer Experiment History (Observer Timeline UI) ───────────────────
+  //
+  // The self-improvement engine logs every experiment it runs to
+  // `<vault>/.wikimem/observer-experiment-log.json`. The UI consumes these
+  // routes to render the timeline, filter by pattern/action/result, show detail,
+  // and (optionally) stream live progress from a manual run.
+
+  // GET /api/observer/experiments — timeline list + summary (filter support)
+  //   Query params:
+  //     limit     — cap on returned entries (default 100, max 500)
+  //     since     — ISO timestamp; include entries strictly newer than this
+  //     pattern   — filter by action (alias: ?action=). Comma-separated OK.
+  //     result    — success|failure|neutral (comma-separated OK)
+  app.get('/api/observer/experiments', async (req, res) => {
+    try {
+      const { readExperimentLog } = await import('../core/observer.js');
+      const log = readExperimentLog(vaultRoot);
+      const entries = Array.isArray(log.entries) ? log.entries : [];
+
+      // Parse filters
+      const rawLimit = Number(req.query['limit']);
+      const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 500) : 100;
+      const sinceRaw = typeof req.query['since'] === 'string' ? req.query['since'] : undefined;
+      const sinceMs = sinceRaw ? Date.parse(sinceRaw) : NaN;
+      const patternRaw = (req.query['pattern'] ?? req.query['action']) as string | undefined;
+      const patternSet = patternRaw
+        ? new Set(patternRaw.split(',').map((s) => s.trim()).filter(Boolean))
+        : null;
+      const resultRaw = typeof req.query['result'] === 'string' ? req.query['result'] : undefined;
+      const resultSet = resultRaw
+        ? new Set(resultRaw.split(',').map((s) => s.trim()).filter(Boolean))
+        : null;
+
+      // Full-log summary (computed BEFORE filtering so totals are always true)
+      let totalImprovements = 0;
+      let scoreDeltaSum = 0;
+      let scoreDeltaCount = 0;
+      const byPattern: Record<string, { count: number; successes: number; avgDelta: number }> = {};
+      for (const e of entries) {
+        if (e.result === 'success') totalImprovements++;
+        if (typeof e.scoreBefore === 'number' && typeof e.scoreAfter === 'number') {
+          const d = e.scoreAfter - e.scoreBefore;
+          scoreDeltaSum += d;
+          scoreDeltaCount++;
+        }
+        const action = e.action || 'unknown';
+        if (!byPattern[action]) byPattern[action] = { count: 0, successes: 0, avgDelta: 0 };
+        byPattern[action].count++;
+        if (e.result === 'success') byPattern[action].successes++;
+        if (typeof e.scoreBefore === 'number' && typeof e.scoreAfter === 'number') {
+          byPattern[action].avgDelta += e.scoreAfter - e.scoreBefore;
+        }
+      }
+      for (const k of Object.keys(byPattern)) {
+        const bp = byPattern[k];
+        if (bp && bp.count > 0) bp.avgDelta = Math.round((bp.avgDelta / bp.count) * 100) / 100;
+      }
+
+      // Apply filters (newest first), then cap
+      const filtered = entries
+        .filter((e) => {
+          if (patternSet && !patternSet.has(e.action)) return false;
+          if (resultSet && !resultSet.has(e.result)) return false;
+          if (Number.isFinite(sinceMs)) {
+            const t = Date.parse(e.date);
+            if (!Number.isFinite(t) || t <= sinceMs) return false;
+          }
+          return true;
+        })
+        .slice()
+        .reverse()
+        .slice(0, limit);
+
+      res.json({
+        experiments: filtered,
+        learnedPatterns: log.learnedPatterns ?? [],
+        summary: {
+          totalRuns: entries.length,
+          totalImprovements,
+          avgScoreDelta: scoreDeltaCount > 0
+            ? Math.round((scoreDeltaSum / scoreDeltaCount) * 100) / 100
+            : 0,
+          cumulativeScoreDelta: Math.round(scoreDeltaSum * 100) / 100,
+          byPattern,
+        },
+      });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // GET /api/observer/experiments/:id — single experiment detail.
+  //   Enriches the record with the most recent observer report that contains
+  //   the targeted page so the UI can render per-page issues / score context.
+  app.get('/api/observer/experiments/:id', async (req, res) => {
+    try {
+      const id = req.params['id'];
+      if (!id) { res.status(400).json({ error: 'Missing id' }); return; }
+      const { readExperimentLog, listObserverReports, readObserverReport } = await import('../core/observer.js');
+      const log = readExperimentLog(vaultRoot);
+      const entry = (log.entries ?? []).find((e) => e.id === id);
+      if (!entry) { res.status(404).json({ error: `No experiment ${id}` }); return; }
+
+      // Try to enrich with the nearest report (newest first). If the target is
+      // 'wiki-wide' there's no per-page score to attach.
+      let pageContext: unknown = null;
+      let reportDate: string | undefined;
+      if (entry.target && entry.target !== 'wiki-wide') {
+        const reports = listObserverReports(vaultRoot);
+        for (const f of reports) {
+          const date = f.replace(/\.json$/, '');
+          const rep = readObserverReport(vaultRoot, date);
+          if (!rep) continue;
+          const match = rep.scores.find((s) => s.page === entry.target);
+          if (match) {
+            pageContext = match;
+            reportDate = date;
+            break;
+          }
+        }
+      }
+
+      const scoreDelta = typeof entry.scoreBefore === 'number' && typeof entry.scoreAfter === 'number'
+        ? entry.scoreAfter - entry.scoreBefore
+        : null;
+
+      res.json({
+        experiment: { ...entry, scoreDelta },
+        pageContext,
+        reportDate,
+      });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // GET /api/observer/run/stream — SSE endpoint that triggers a manual observer
+  // run and streams progress events. The existing POST /api/observer/run route
+  // remains the canonical way to trigger a run when the client doesn't care
+  // about live progress.
+  app.get('/api/observer/run/stream', async (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    const send = (event: string, data: unknown): void => {
+      res.write(`event: ${event}\n`);
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    const autoImprove = String(req.query['autoImprove'] ?? '') === 'true';
+    const maxImprovements = Number(req.query['maxImprovements']);
+    const maxBudget = Number(req.query['maxBudget']);
+
+    send('status', { phase: 'starting', message: 'Observer starting…', ts: Date.now() });
+
+    // Heartbeat so the connection doesn't idle out behind proxies.
+    const heartbeat = setInterval(() => {
+      try { res.write(': ping\n\n'); } catch { /* client gone */ }
+    }, 10_000);
+
+    try {
+      send('status', { phase: 'scanning', message: 'Scoring pages and scanning for patterns…', ts: Date.now() });
+      const { runObserver } = await import('../core/observer.js');
+      const report = await runObserver(config, {
+        autoImprove,
+        maxImprovements: Number.isFinite(maxImprovements) ? maxImprovements : undefined,
+        maxBudget: Number.isFinite(maxBudget) ? maxBudget : undefined,
+      });
+
+      send('status', { phase: 'summarizing', message: `Analyzed ${report.pagesReviewed}/${report.totalPages} pages.`, ts: Date.now() });
+
+      send('complete', {
+        date: report.date,
+        totalPages: report.totalPages,
+        pagesReviewed: report.pagesReviewed,
+        averageScore: report.averageScore,
+        maxScore: report.maxScore,
+        orphanCount: report.orphans.length,
+        gapCount: report.gaps.length,
+        contradictionCount: report.contradictions.length,
+        improvementCount: report.improvements?.length ?? 0,
+        discoveryCount: report.unexpectedPatterns?.length ?? 0,
+        crossLinkCount: report.crossLinks?.length ?? 0,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      send('error', { message: msg });
+    } finally {
+      clearInterval(heartbeat);
+      try { res.end(); } catch { /* already closed */ }
     }
   });
 

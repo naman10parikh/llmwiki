@@ -180,6 +180,59 @@ WikiMem ships with a built-in MCP server so Claude Code and Cursor can read, sea
 wikimem-mcp
 ```
 
+## Use as a Claude Connector (MCP OAuth 2.1)
+
+WikiMem speaks Anthropic's Custom Connector dialect. Once `wikimem serve` is
+running, any OAuth 2.1 MCP client — including Claude.ai's Custom Connector UI —
+can discover, authorize, and call every wikimem tool over HTTP + JSON-RPC.
+
+**1 · Start wikimem locally**
+
+```bash
+wikimem serve            # default: http://localhost:3141
+```
+
+**2 · Expose it with HTTPS** (Claude requires HTTPS except for `localhost`).
+Easiest path is ngrok or a tunneled Cloudflare Worker:
+
+```bash
+ngrok http 3141          # copy the https URL, e.g. https://abc.ngrok.app
+```
+
+Export the public URL so metadata documents advertise it:
+
+```bash
+export WIKIMEM_PUBLIC_URL=https://abc.ngrok.app
+wikimem serve            # restart
+```
+
+**3 · Paste the MCP URL into Claude**
+
+- Go to [Claude.ai → Settings → Connectors](https://claude.ai/settings/connectors).
+- Click **Add Custom Connector**.
+- Paste `https://abc.ngrok.app/mcp` (or `http://localhost:3141/mcp` if you're
+  testing on the same machine).
+- Claude will:
+  1. Fetch `/.well-known/oauth-protected-resource`
+  2. Fetch `/.well-known/oauth-authorization-server`
+  3. POST `/oauth/register` for a fresh `client_id`
+  4. Open `/oauth/authorize` — click **Allow** once
+  5. Exchange the code at `/oauth/token`
+  6. Call `/mcp` with the bearer token
+- All 19 wikimem tools appear in the connector panel. Ask Claude anything about
+  your wiki and it will cite pages from your vault.
+
+**Security knobs**
+
+| Env var | Purpose |
+| --- | --- |
+| `WIKIMEM_PUBLIC_URL` | Canonical issuer + resource URL advertised in metadata. |
+| `WIKIMEM_OAUTH_SECRET` | HS256 signing key for access tokens. Auto-generated and persisted to `.wikimem/oauth-secret` if unset. |
+| `WIKIMEM_OAUTH_AUTO_APPROVE` | Set to `1` to skip the consent screen (tests + CI only). |
+
+Everything happens locally — tokens never leave your machine and the signing
+secret is stored inside your vault directory (mode `0600`).
+
 ## Configuration
 
 After `wikimem init`, your vault contains `config.yaml`:

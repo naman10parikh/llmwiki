@@ -361,6 +361,35 @@ const TOOLS = [
 let vaultRoot = process.cwd();
 let initialized = false;
 
+// Exported for the HTTP MCP transport so `/mcp` can advertise the same
+// toolset as `wikimem mcp` (stdio).
+export const MCP_TOOLS = TOOLS;
+
+/**
+ * Run a tool against the vault currently bound to the stdio MCP server.
+ * Exported so the HTTP transport can share the exact same dispatcher.
+ */
+export async function runWikimemTool(
+  name: string,
+  args: Record<string, unknown>,
+  vaultPath?: string,
+): Promise<unknown> {
+  if (vaultPath) vaultRoot = resolve(vaultPath);
+  return handleToolCall(name, args);
+}
+
+/**
+ * Handle a JSON-RPC 2.0 request against the wikimem MCP toolset.
+ * Exported for the HTTP MCP transport.
+ */
+export async function dispatchJsonRpc(
+  req: JsonRpcRequest,
+  vaultPath?: string,
+): Promise<JsonRpcResponse | null> {
+  if (vaultPath) vaultRoot = resolve(vaultPath);
+  return handleRequest(req);
+}
+
 // ─── Tool handlers ─────────────────────────────────────────────────────────
 
 async function handleToolCall(name: string, args: Record<string, unknown>): Promise<unknown> {
