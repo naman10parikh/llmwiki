@@ -1,7 +1,8 @@
 import { Command } from 'commander';
-import { existsSync, mkdirSync, writeFileSync, copyFileSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, copyFileSync, readdirSync, readFileSync, rmSync, statSync, chmodSync } from 'node:fs';
 import { join, resolve, basename, dirname, relative, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { randomBytes, createCipheriv, scryptSync } from 'node:crypto';
 import chalk from 'chalk';
 import ora from 'ora';
 import { getDefaultAgentsMd } from '../../templates/agents-md.js';

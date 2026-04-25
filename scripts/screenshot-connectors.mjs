@@ -1,0 +1,13 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ headless: true });
+const page = await (await browser.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
+await page.goto('http://localhost:3456/', { waitUntil: 'domcontentloaded', timeout: 20000 });
+await page.waitForTimeout(1200);
+await page.click('#rail-connectors');
+await page.waitForTimeout(2500);
+await page.screenshot({ path: '/Users/naman/energy/content/screenshots/wikimem-audit-2026-04-24/connectors-concierge-v2.png', fullPage: false });
+const inputPresent = await page.isVisible('#mcp-server-url');
+const btnPresent = await page.isVisible('#mcp-server-connect');
+const listPresent = await page.isVisible('#mcp-connected-servers');
+console.log(JSON.stringify({ inputPresent, btnPresent, listPresent }));
+await browser.close();

@@ -13,12 +13,13 @@
     "dist/",
     "scripts/",
     "templates/",
+    "skills/",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc && chmod +x dist/index.js && rm -rf dist/web/public && cp -r src/web/public dist/web/ 2>/dev/null || true",
+    "build": "tsc && chmod +x dist/index.js && rm -rf dist/web/public && cp -r src/web/public dist/web/ 2>/dev/null; cp src/core/mcp-client/known-servers.json dist/core/mcp-client/known-servers.json 2>/dev/null || true",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -71,6 +72,7 @@
     "@types/node": "^22.0.0",
     "@types/node-cron": "^3.0.11",
     "@types/pdf-parse": "^1.1.5",
+    "playwright": "^1.59.1",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   }

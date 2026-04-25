@@ -10,6 +10,7 @@ import type { UserConfig } from '../core/config.js';
 import { isPrivacyAccepted, markPrivacyAccepted, deleteAllVaultData, ensureVaultGitignore } from '../core/privacy.js';
 import { registerOAuthRoutes } from '../mcp/oauth-server.js';
 import { registerMcpHttpRoutes } from '../mcp/http-server.js';
+import { McpClient, type ConnectPrepared, canonicalizeResource } from '../core/mcp-client/index.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -4342,6 +4343,185 @@ export function createServer(vaultRoot: string, port: number): void {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       res.status(500).json({ error: `AgentDial Slack query failed: ${msg}` });
+    }
+  });
+
+  // ─── MCP OAuth 2.1 Client (BUG-079-090) ────────────────────────────────
+  // Lets wikimem act as a CLIENT that speaks to any remote MCP server. One
+  // code path replaces per-provider OAuth — paste an MCP URL, discover +
+  // DCR + PKCE + token exchange all happen here. Chairman Prompt #79.
+  const mcpClient = new McpClient({ vaultRoot });
+  // Per-state prepared-connection cache (held in memory between /register and
+  // the /callback round-trip). Keyed by `state` so each in-flight auth is
+  // isolated even when the user spawns multiple connect flows at once.
+  const mcpPending = new Map<string, { prepared: ConnectPrepared; createdAt: number }>();
+  function gcMcpPending(): void {
+    const now = Date.now();
+    for (const [k, v] of mcpPending) {
+      if (now - v.createdAt > 10 * 60 * 1000) mcpPending.delete(k);
+    }
+  }
+
+  // POST /api/mcp-client/register — begin OAuth flow for a new MCP server URL.
+  // Body: { mcpUrl: string, label?: string, staticClientId?: string }
+  // Returns: { authorizeUrl, state } — caller opens `authorizeUrl` in a popup.
+  app.post('/api/mcp-client/register', async (req, res) => {
+    try {
+      gcMcpPending();
+      const body = req.body as { mcpUrl?: string; label?: string; scope?: string; staticClientId?: string };
+      const mcpUrl = (body.mcpUrl || '').trim();
+      if (!mcpUrl) { res.status(400).json({ error: 'Missing mcpUrl' }); return; }
+      let validatedUrl: URL;
+      try { validatedUrl = new URL(mcpUrl); } catch {
+        res.status(400).json({ error: 'Invalid mcpUrl — must be absolute URL (e.g. https://host/mcp)' });
+        return;
+      }
+      // HTTPS-only except localhost (mcp-first-connectors.md §10)
+      const isLocal = validatedUrl.hostname === 'localhost' || validatedUrl.hostname === '127.0.0.1';
+      if (validatedUrl.protocol !== 'https:' && !isLocal) {
+        res.status(400).json({ error: 'mcpUrl must be HTTPS (localhost exempted)' });
+        return;
+      }
+      const redirectUri = `http://localhost:${port}/api/mcp-client/callback`;
+      const connectInput: Parameters<typeof mcpClient.connect>[0] = { mcpUrl, redirectUri };
+      if (body.label) connectInput.label = body.label;
+      if (body.scope) connectInput.scope = body.scope;
+      if (body.staticClientId) connectInput.staticClientId = body.staticClientId;
+      const prepared = await mcpClient.connect(connectInput);
+      mcpPending.set(prepared.state, { prepared, createdAt: Date.now() });
+      res.json({
+        authorizeUrl: prepared.authorizeUrl,
+        state: prepared.state,
+        canonicalResource: prepared.canonicalResource,
+        scope: prepared.scope,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: `MCP register failed: ${msg}` });
+    }
+  });
+
+  // GET /api/mcp-client/callback — OAuth redirect handler.
+  // Receives ?code=...&state=... from the AS. Exchanges code for tokens,
+  // persists them, shows a self-closing success page.
+  app.get('/api/mcp-client/callback', async (req, res) => {
+    try {
+      const code = req.query['code'] as string | undefined;
+      const state = req.query['state'] as string | undefined;
+      const error = req.query['error'] as string | undefined;
+      if (error) {
+        res.status(400).send(`<!DOCTYPE html><html><body style="font-family:system-ui;background:#141312;color:#eee;padding:40px;text-align:center"><h2 style="color:#f87171">MCP authorization failed</h2><p>${String(error).slice(0, 200)}</p><script>setTimeout(function(){window.close()},3000)</script></body></html>`);
+        return;
+      }
+      if (!code || !state) {
+        res.status(400).send('<h2>Missing code or state</h2>');
+        return;
+      }
+      const pending = mcpPending.get(state);
+      if (!pending) {
+        res.status(400).send('<h2>Invalid or expired state token</h2>');
+        return;
+      }
+      mcpPending.delete(state);
+      const entry = await mcpClient.finalize(pending.prepared, code);
+      res.send(`<!DOCTYPE html><html><head><style>
+        body { font-family: system-ui, sans-serif; background: #141312; color: #ddd; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .card { background: #1e1e1e; border: 1px solid #333; border-radius: 12px; padding: 32px 40px; text-align: center; max-width: 420px; }
+        h2 { color: #4ec9b0; margin: 0 0 8px; } p { color: #888; font-size: 13px; margin: 6px 0; }
+        code { font-size: 11px; background: #2a2a2a; padding: 2px 6px; border-radius: 4px; color: #4ec9b0; }
+      </style></head><body><div class="card"><h2>MCP server connected</h2>
+        <p><code>${entry.label ?? entry.mcp_url}</code></p>
+        <p>WikiMem is now a client of this MCP server.</p>
+        <p style="margin-top:14px;font-size:11px;color:#666">This window will close automatically.</p>
+      </div>
+      <script>if(window.opener){window.opener.postMessage({type:'wikimem-mcp-connected',mcpUrl:${JSON.stringify(entry.mcp_url)}},'http://localhost:${port}');}setTimeout(function(){window.close()},2000)</script>
+      </body></html>`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (process.env['NODE_ENV'] !== 'production') console.error('[MCP callback]', msg);
+      res.status(500).send(`<!DOCTYPE html><html><body style="font-family:system-ui;background:#141312;color:#eee;padding:40px;text-align:center"><h2 style="color:#f87171">Token exchange failed</h2><p style="color:#888">${msg.slice(0, 300)}</p></body></html>`);
+    }
+  });
+
+  // GET /api/mcp-client/list — enumerate every connected MCP server (redacted).
+  app.get('/api/mcp-client/list', (_req, res) => {
+    try {
+      const servers = mcpClient.listConnections();
+      res.json({ servers });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // GET /api/mcp-client/tools?serverUrl=... — list tools on a connected server.
+  // Path uses ?serverUrl= rather than a `:serverUrl` param because MCP URLs
+  // contain `/` which Express would treat as path separators.
+  app.get('/api/mcp-client/tools', async (req, res) => {
+    try {
+      const serverUrl = (req.query['serverUrl'] as string | undefined)?.trim();
+      if (!serverUrl) { res.status(400).json({ error: 'Missing serverUrl query param' }); return; }
+      const tools = await mcpClient.listTools(serverUrl);
+      res.json({ serverUrl: canonicalizeResource(serverUrl), tools });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // POST /api/mcp-client/invoke — call a tool on a connected MCP server.
+  // Body: { serverUrl, toolName, args? }
+  app.post('/api/mcp-client/invoke', async (req, res) => {
+    try {
+      const body = req.body as { serverUrl?: string; toolName?: string; args?: Record<string, unknown> };
+      const serverUrl = (body.serverUrl || '').trim();
+      const toolName = (body.toolName || '').trim();
+      if (!serverUrl || !toolName) {
+        res.status(400).json({ error: 'Missing serverUrl or toolName' });
+        return;
+      }
+      const result = await mcpClient.callTool(serverUrl, toolName, body.args ?? {});
+      res.json({ serverUrl: canonicalizeResource(serverUrl), toolName, result });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // DELETE /api/mcp-client/connection?serverUrl=... — disconnect a server.
+  app.delete('/api/mcp-client/connection', (req, res) => {
+    try {
+      const serverUrl = (req.query['serverUrl'] as string | undefined)?.trim();
+      if (!serverUrl) { res.status(400).json({ error: 'Missing serverUrl query param' }); return; }
+      mcpClient.disconnect(serverUrl);
+      res.json({ status: 'disconnected', serverUrl: canonicalizeResource(serverUrl) });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  // GET /api/mcp-client/known-servers — return the curated catalog (read-only).
+  app.get('/api/mcp-client/known-servers', (_req, res) => {
+    try {
+      // Try bundled dist path first, fall back to src (dev-mode or missing
+      // copy step). Keeping both paths means fresh git checkouts always work
+      // even before the package.json cp-step has run.
+      const candidates = [
+        join(__dirname, '..', 'core', 'mcp-client', 'known-servers.json'),
+        join(__dirname, '..', '..', 'src', 'core', 'mcp-client', 'known-servers.json'),
+      ];
+      for (const p of candidates) {
+        if (existsSync(p)) {
+          const catalog = JSON.parse(readFileSync(p, 'utf-8')) as Record<string, unknown>;
+          res.json(catalog);
+          return;
+        }
+      }
+      res.json({ servers: [] });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: msg });
     }
   });
 

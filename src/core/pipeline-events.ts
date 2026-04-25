@@ -148,14 +148,52 @@ class PipelineEventBus extends EventEmitter {
   completeRun(result?: PipelineRun['result']): void {
     if (this.currentRun) {
       this.currentRun.result = result;
-      this.emitStep('complete', 'done', result ? `Created ${result.pagesCreated} pages` : undefined);
+      // Emit an enriched complete event that the UI can use without a follow-up fetch:
+      //   { step, status, detail, runId, pagesCreated (number), linksAdded, title, pages (string[]) }
+      const pagesList =
+        this.currentRun.summary?.pagesCreated && this.currentRun.summary.pagesCreated.length
+          ? this.currentRun.summary.pagesCreated
+          : this.currentRun.summary?.pagesUpdated ?? [];
+      const entities = this.currentRun.summary?.entitiesFound ?? [];
+      const concepts = this.currentRun.summary?.conceptsFound ?? [];
+      this.emit('step', {
+        step: 'complete',
+        status: 'done',
+        detail: result ? `Created ${result.pagesCreated} pages` : undefined,
+        runId: this.currentRun.id,
+        pagesCreated: result?.pagesCreated ?? pagesList.length,
+        linksAdded: result?.linksAdded ?? 0,
+        title: result?.title ?? '',
+        pages: pagesList,
+        entities,
+        concepts,
+        timestamp: new Date().toISOString(),
+      });
+      const evt: PipelineEvent = {
+        step: 'complete',
+        status: 'done',
+        detail: result ? `Created ${result.pagesCreated} pages` : undefined,
+        timestamp: new Date().toISOString(),
+      };
+      this.currentRun.events.push(evt);
     }
     this.currentRun = null;
     this.saveToDisk();
   }
 
-  errorRun(error: string): void {
-    this.emitStep('error', 'error', error);
+  errorRun(error: string, failedStep?: PipelineStep): void {
+    const errEvent: PipelineEvent & { failedStep?: PipelineStep; runId?: string } = {
+      step: 'error',
+      status: 'error',
+      detail: error,
+      timestamp: new Date().toISOString(),
+    };
+    if (failedStep) errEvent.failedStep = failedStep;
+    if (this.currentRun) {
+      errEvent.runId = this.currentRun.id;
+      this.currentRun.events.push({ step: 'error', status: 'error', detail: error, timestamp: errEvent.timestamp });
+    }
+    this.emit('step', errEvent);
     this.currentRun = null;
     this.saveToDisk();
   }

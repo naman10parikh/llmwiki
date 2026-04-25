@@ -1,0 +1,13 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ headless: true });
+const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
+const page = await ctx.newPage();
+const failed = [];
+page.on('response', r => { if (r.status() === 404) failed.push({ url: r.url() }); });
+page.on('requestfailed', req => failed.push({ url: req.url(), failure: req.failure()?.errorText }));
+await page.goto('http://localhost:3456/', { waitUntil: 'domcontentloaded', timeout: 25000 });
+await page.waitForTimeout(1500);
+await page.click('#rail-connectors');
+await page.waitForTimeout(3500);
+console.log(JSON.stringify(failed.slice(0, 30), null, 2));
+await browser.close();

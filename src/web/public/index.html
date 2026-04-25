@@ -69,8 +69,11 @@
         --text: #cccccc;
         --text-bright: #e0e0e0;
         --text-secondary: #acacac;
-        --text-dim: #808080;
-        --text-muted: #7a7875;
+        /* Accessibility: --text-dim and --text-muted bumped to meet WCAG 1.4.3
+           (4.5:1 on --bg #1e1e1e, --bg-surface #252526, --bg-card #2d2d2d, --bg-deep #181818).
+           Previous values (#808080 / #7a7875) failed on bg-card and bg-surface. */
+        --text-dim: #9a9a9a;
+        --text-muted: #9e9c9a;
         --accent: #4f9eff;
         --accent-dim: rgba(79, 158, 255, 0.12);
         --accent-surface: rgba(79, 158, 255, 0.06);
@@ -98,8 +101,22 @@
         --radius: 5px;
         --radius-md: 6px;
         --radius-lg: 10px;
+        /* Polish pass (Chairman Prompt #79 — 2026-04-24):
+           Consistent radius scale and reusable shadow/transition tokens
+           so every surface participates in the same rhythm. */
+        --r-sm: 4px;
+        --r-md: 6px;
+        --r-lg: 10px;
+        --r-pill: 999px;
         --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
         --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.25);
+        --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+        --shadow-modal: 0 10px 40px rgba(0, 0, 0, 0.35);
+        /* Transition tokens — 80/120/200ms matches Obsidian + jakub.kr rhythm. */
+        --tx-fast: 80ms;
+        --tx-std: 120ms;
+        --tx-slow: 200ms;
+        --ease-out: cubic-bezier(0.2, 0, 0, 1);
         --font:
           "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
           system-ui, sans-serif;
@@ -749,30 +766,36 @@
         text-align: center;
       }
 
-      /* Sidebar upload zone */
+      /* Sidebar upload zone — BUG-079-054: enlarged text, higher contrast, hover glow */
       #sidebar-upload {
-        padding: 6px 8px;
+        padding: 8px 10px;
         border-top: 1px solid var(--border-subtle);
       }
       #sidebar-drop-zone {
-        border: 1.5px dashed var(--border);
+        border: 1.5px dashed color-mix(in oklab, var(--text-primary, var(--text, #eaeaea)) 42%, transparent);
         border-radius: var(--radius);
-        padding: 10px;
+        padding: 12px 10px;
         text-align: center;
-        font-size: 11px;
-        color: var(--text-muted);
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-dim, var(--text-secondary, #cfcfcf));
         cursor: pointer;
         transition:
           border-color 0.15s,
-          background 0.15s;
+          background 0.15s,
+          color 0.15s,
+          box-shadow 0.15s;
       }
       #sidebar-drop-zone:hover {
         border-color: var(--accent);
-        color: var(--text-dim);
+        color: var(--text-bright, var(--text, #fff));
+        background: var(--bg-subtle, var(--bg-hover, rgba(255, 255, 255, 0.04)));
+        box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 20%, transparent);
       }
       #sidebar-drop-zone.dragover {
         border-color: var(--accent);
         background: var(--accent-dim);
+        color: var(--text-bright, var(--text, #fff));
       }
 
       /* Sidebar bottom */
@@ -907,9 +930,14 @@
       .tab.active .tab-icon {
         opacity: 1;
       }
+      /* BUG-079-217: truncate long tab titles with ellipsis, keep close button visible. */
       .tab-label {
+        display: inline-block;
+        max-width: 140px;
         overflow: hidden;
         text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
       }
       .tab-close {
         opacity: 0;
@@ -2629,262 +2657,14 @@
       #page-view.wiki-editing #page-entity-profile {
         display: none;
       }
-      .entity-profile-layout {
-        position: relative;
-        margin-bottom: 28px;
-      }
-      .entity-profile-layout::after {
-        content: "";
-        display: table;
-        clear: both;
-      }
-      .page-infobox.entity-infobox {
-        float: right;
-        clear: right;
-        margin: 0 0 20px 28px;
-        width: min(300px, 92vw);
-        background: linear-gradient(
-          165deg,
-          var(--bg-surface) 0%,
-          var(--bg-inset) 100%
-        );
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 0;
-        font-size: 12px;
-        box-shadow:
-          0 4px 24px rgba(0, 0, 0, 0.12),
-          0 0 0 1px rgba(255, 255, 255, 0.03) inset;
-      }
-      .entity-infobox-brand {
-        padding: 12px 16px 10px;
-        border-bottom: 1px solid var(--border-subtle);
-        background: var(--bg-inset);
-        border-radius: 12px 12px 0 0;
-        text-align: center;
-      }
-      .entity-type-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        border: 1px solid rgba(215, 186, 125, 0.35);
-        background: rgba(215, 186, 125, 0.12);
-        color: var(--amber);
-      }
-      .entity-type-badge--entity {
-        border-color: rgba(79, 158, 255, 0.35);
-        background: rgba(79, 158, 255, 0.12);
-        color: var(--accent);
-      }
-      .entity-type-badge--concept {
-        border-color: rgba(180, 140, 255, 0.35);
-        background: rgba(180, 140, 255, 0.1);
-        color: #c4b5fd;
-      }
-      .entity-infobox-title {
-        margin: 0;
-        padding: var(--space-3) var(--space-4) var(--space-3);
-        font-family: var(--font-sans);
+      /* BUG-079-070/076/079 — Entity infobox, activity track, mentioned-list all removed.
+         Obsidian-parity: Properties panel (#page-meta) is the single source of truth for
+         all metadata. Body runs full-width. Backlinks render as a flat list at bottom. */
+      .entity-lede { margin: 0 0 var(--space-4); }
+      .entity-lede p:first-of-type {
         font-size: var(--font-lg);
-        font-weight: var(--fw-semibold);
         color: var(--text-bright);
-        letter-spacing: -0.005em;
-        line-height: var(--lh-tight);
-        text-align: center;
-        border-bottom: 1px solid var(--border-subtle);
-      }
-      .entity-infobox-dl {
-        margin: 0;
-        padding: 12px 16px 16px;
-      }
-      .entity-infobox-dl-row {
-        display: grid;
-        grid-template-columns: 72px 1fr;
-        gap: 8px 10px;
-        padding: 8px 0;
-        border-bottom: 1px solid var(--border-subtle);
-        align-items: start;
-      }
-      .entity-infobox-dl-row:last-child {
-        border-bottom: none;
-        padding-bottom: 0;
-      }
-      .entity-infobox-dl-row dt {
-        margin: 0;
-        font-size: 10px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: var(--text-muted);
-        padding-top: 3px;
-      }
-      .entity-infobox-dl-row dd {
-        margin: 0;
-        min-width: 0;
-        font-size: 12px;
-        color: var(--text-secondary);
-      }
-      .entity-infobox-tags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        align-items: center;
-      }
-      .entity-infobox-time {
-        font-family: var(--font-mono);
-        font-size: 11px;
-        color: var(--text-secondary);
-      }
-      .entity-source-ul {
-        margin: 0;
-        padding-left: 1.1em;
-        font-size: 11px;
-      }
-      .entity-source-ul li {
-        margin: 4px 0;
-      }
-      .entity-infobox-related {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-      .entity-related-chip {
-        cursor: pointer;
-        padding: 3px 8px;
-        border-radius: 6px;
-        font-size: 11px;
-        background: var(--accent-dim);
-        color: var(--accent);
-        border: 1px solid rgba(79, 158, 255, 0.2);
-        transition: background 0.15s;
-      }
-      .entity-related-chip:hover {
-        background: rgba(79, 158, 255, 0.2);
-      }
-      .entity-summary {
-        overflow: hidden;
-        padding-right: 8px;
-        margin-bottom: 4px;
-      }
-      .entity-summary--lede {
-        font-size: 17px;
-        line-height: 1.65;
-        color: var(--text-secondary);
-        padding: 16px 18px 18px;
-        margin: 0;
-        background: var(--bg-inset);
-        border: 1px solid var(--border-subtle);
-        border-radius: 10px;
-        border-left: 4px solid var(--accent);
-      }
-      .entity-summary--lede p {
-        margin: 0 0 0.65em;
-        font-size: inherit;
-        line-height: inherit;
-      }
-      .entity-summary--lede p:last-child {
-        margin-bottom: 0;
-      }
-      .entity-profile-sections {
-        clear: both;
-        padding-top: 8px;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-      }
-      .entity-section {
-        margin: 0;
-      }
-      .entity-section-title {
-        margin: 0 0 var(--space-3);
-        font-family: var(--font-sans);
-        font-size: var(--font-md);
-        font-weight: var(--fw-semibold);
-        color: var(--text-bright);
-        letter-spacing: 0.01em;
-        line-height: var(--lh-tight);
-      }
-      .entity-mentioned-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
-      .entity-mentioned-link {
-        display: block;
-        width: 100%;
-        text-align: left;
-        padding: 8px 12px;
-        margin: 0;
-        font: inherit;
-        font-size: 14px;
-        color: var(--wiki-link);
-        background: var(--bg-inset);
-        border: 1px solid var(--border-subtle);
-        border-radius: 8px;
-        cursor: pointer;
-        transition:
-          background 0.15s,
-          border-color 0.15s;
-      }
-      .entity-mentioned-link:hover {
-        background: var(--bg-hover);
-        border-color: var(--border);
-        color: var(--wiki-link-hover);
-      }
-      .entity-mentioned--empty .entity-empty-hint {
-        margin: 0;
-        font-size: 13px;
-        color: var(--text-muted);
-        font-style: italic;
-      }
-      .entity-activity {
-        margin: 0;
-      }
-      .entity-activity-track {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-        padding: 14px 16px;
-        background: var(--bg-inset);
-        border: 1px solid var(--border-subtle);
-        border-radius: 10px;
-      }
-      .entity-activity-node {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        min-width: 0;
-      }
-      .entity-activity-label {
-        font-size: 10px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: var(--text-muted);
-      }
-      .entity-activity-value {
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--text-bright);
-        font-family: var(--font-mono);
-        word-break: break-word;
-      }
-      @media (max-width: 700px) {
-        .page-infobox.entity-infobox {
-          float: none;
-          width: 100%;
-          margin: 0 0 20px;
-        }
-        .entity-activity-track {
-          grid-template-columns: 1fr;
-        }
+        line-height: var(--lh-loose);
       }
 
       /* ── Wikipedia-style page layout (UX-011) ── */
@@ -2900,10 +2680,49 @@
       .page-layout {
         display: flex;
         flex-direction: column;
-        max-width: 860px;
+        max-width: 820px;
         margin: 0 auto;
         width: 100%;
         padding: 32px 40px 60px;
+      }
+      /* BUG-079-077 — Desktop (≥1200 px): Outline docks as a right-sticky aside
+         next to the body. Layout becomes a 2-column grid; all metadata rows stay
+         in the left column so they stack above body naturally. */
+      @media (min-width: 1200px) {
+        .page-layout {
+          max-width: calc(820px + 280px);
+          display: grid;
+          grid-template-columns: 1fr 240px;
+          grid-template-areas:
+            "breadcrumbs ."
+            "title       ."
+            "reading     ."
+            "validation  ."
+            "meta        ."
+            "dynmeta     ."
+            "entity      ."
+            "fact        ."
+            "body        outline"
+            "encyc       outline"
+            "wysiwyg     ."
+            "editor      ."
+            "backlinks   .";
+          column-gap: 40px;
+        }
+        .page-layout > #page-breadcrumbs { grid-area: breadcrumbs; }
+        .page-layout > #page-title-row { grid-area: title; }
+        .page-layout > #page-reading-bar { grid-area: reading; }
+        .page-layout > #page-validation-bar { grid-area: validation; }
+        .page-layout > #page-meta { grid-area: meta; }
+        .page-layout > #page-dyn-meta { grid-area: dynmeta; }
+        .page-layout > #page-entity-profile { grid-area: entity; }
+        .page-layout > #page-fact-timeline { grid-area: fact; }
+        .page-layout > #page-body { grid-area: body; min-width: 0; }
+        .page-layout > #page-encyclopedia-chrome { grid-area: encyc; min-width: 0; }
+        .page-layout > #wysiwyg-bar { grid-area: wysiwyg; }
+        .page-layout > #page-editor { grid-area: editor; }
+        .page-layout > #page-backlinks { grid-area: backlinks; }
+        .page-layout > #page-outline { grid-area: outline; }
       }
       #page-body {
         line-height: 1.82;
@@ -2912,33 +2731,9 @@
         cursor: text;
         position: relative;
       }
-      /* Section numbering (h2/h3) — encyclopedic outline */
-      #page-body.md {
-        counter-reset: wiki-h2 0;
-      }
-      #page-body.md h2 {
-        counter-increment: wiki-h2;
-        counter-reset: wiki-h3 0;
-      }
-      #page-body.md h3 {
-        counter-increment: wiki-h3;
-      }
-      #page-body.md h2::before {
-        content: counter(wiki-h2) ". ";
-        font-variant-numeric: tabular-nums;
-        font-weight: 600;
-        color: var(--text-muted);
-        margin-right: 0.35em;
-        font-size: 0.92em;
-      }
-      #page-body.md h3::before {
-        content: counter(wiki-h2) "." counter(wiki-h3) " ";
-        font-variant-numeric: tabular-nums;
-        font-weight: 600;
-        color: var(--text-muted);
-        margin-right: 0.35em;
-        font-size: 0.88em;
-      }
+      /* BUG-079-078 — Section numbering removed. Obsidian does not auto-number body
+         headings; neither should WikiMem. The prior counter-increment rules caused
+         an unwanted "1. " prefix on h1/h2 body headings. */
       /* Encyclopedia chrome (outside editable #page-body — WYSIWYG-safe) */
       #page-encyclopedia-chrome {
         margin-top: 28px;
@@ -3595,57 +3390,114 @@
       }
 
       /* Table of contents */
-      #page-toc {
-        margin-bottom: 16px;
-        padding: 10px 14px;
-        background: var(--bg-card);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius-md);
-        max-height: 240px;
-        overflow-y: auto;
+      /* BUG-079-077 — Outline (TOC) refactor:
+         ≥1200px  → right-sticky aside (see grid-area: outline in .page-layout)
+         900-1199 → inline collapsible <details> under the title
+         <900     → hidden (Quick Switcher covers navigation) */
+      #page-outline {
+        display: none; /* hidden by default; per-breakpoint rules re-show */
+        margin: 0;
+        padding: 0;
+        font-family: var(--font-sans);
       }
-      #page-toc:empty {
-        display: none;
-      }
-      .toc-title {
+      #page-outline.has-headings { display: block; }
+      #page-outline:empty { display: none; }
+      .outline-title {
         font-size: 10px;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.08em;
         color: var(--text-muted);
-        margin-bottom: 6px;
+        margin: 0 0 8px;
       }
-      .toc-item {
+      .outline-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .outline-list li { margin: 0; padding: 0; }
+      .outline-item {
         display: block;
-        padding: 2px 0;
+        padding: 3px 8px;
+        margin: 1px 0;
         font-size: 12px;
+        line-height: 1.35;
         color: var(--text-dim);
         cursor: pointer;
         text-decoration: none;
-        transition: color 0.1s;
+        transition: color 0.12s, background 0.12s, border-color 0.12s;
+        border-left: 2px solid transparent;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
-      .toc-item:hover {
-        color: var(--accent);
+      .outline-item:hover { color: var(--accent); }
+      .outline-item.outline-h2 { padding-left: 8px; }
+      .outline-item.outline-h3 { padding-left: 18px; }
+      .outline-item.outline-h4 { padding-left: 28px; }
+      /* Row 11 — IntersectionObserver active state: bold the on-screen heading */
+      .outline-item.is-active {
+        color: var(--text-bright);
+        font-weight: 600;
+        border-left-color: var(--accent);
+        background: rgba(139,92,246,0.05);
       }
-      .toc-item.toc-h2 {
-        padding-left: 0;
+
+      /* Desktop (≥1200px): sticky right-sidebar */
+      @media (min-width: 1200px) {
+        #page-outline.has-headings {
+          position: sticky;
+          top: 88px;
+          align-self: start;
+          width: 240px;
+          max-height: calc(100vh - 120px);
+          overflow-y: auto;
+          padding: 4px 12px 16px;
+        }
+        #page-outline::-webkit-scrollbar { width: 4px; }
+        #page-outline::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 2px; }
       }
-      .toc-item.toc-h3 {
-        padding-left: 12px;
+
+      /* Tablet (900-1199): collapsed <details> under the title */
+      @media (min-width: 900px) and (max-width: 1199.98px) {
+        #page-outline.has-headings {
+          display: block;
+          margin: 0 0 16px;
+          padding: 10px 14px;
+          background: var(--bg-card);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-md);
+        }
+        #page-outline.has-headings details > summary {
+          cursor: pointer;
+          font-size: 10px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: var(--text-muted);
+          list-style: none;
+        }
+        #page-outline.has-headings details > summary::-webkit-details-marker { display: none; }
+        #page-outline.has-headings details > summary::before {
+          content: "▸";
+          display: inline-block;
+          margin-right: 6px;
+          font-size: 9px;
+          transform: translateY(-1px);
+          transition: transform 0.15s;
+        }
+        #page-outline.has-headings details[open] > summary::before {
+          transform: rotate(90deg);
+        }
       }
-      .toc-item.toc-h4 {
-        padding-left: 24px;
+
+      /* Mobile (<900): hidden */
+      @media (max-width: 899.98px) {
+        #page-outline { display: none !important; }
       }
-      #page-toc::-webkit-scrollbar {
-        width: 4px;
-      }
-      #page-toc::-webkit-scrollbar-thumb {
-        background: var(--border-subtle);
-        border-radius: 2px;
-      }
+
+      /* Legacy #page-toc (kept as zero-height no-op for any leftover scripts). */
+      #page-toc { display: none !important; }
 
       /* ── UXO-039: Properties panel (top-right of page view) ── */
       /* Chairman #77: even spacing, consistent typography */
@@ -3710,6 +3562,9 @@
         #page-dyn-meta { float: none; width: 100%; margin: 0 0 16px; }
       }
 
+      /* BUG-079-073 — Backlinks render as flat list (Obsidian "Linked mentions"
+         pattern) at the bottom of the body. `<details>` collapses list when >5
+         backlinks exist. No boxed buttons — plain wikilink rows, 28px tall. */
       #page-backlinks {
         margin-top: 36px;
         padding-top: 16px;
@@ -3723,20 +3578,51 @@
         color: var(--text-muted);
         margin-bottom: 6px;
       }
-      .backlink-item {
-        display: inline-block;
-        padding: 2px 9px;
-        margin: 2px 3px 2px 0;
-        background: var(--bg-card);
-        border: 1px solid var(--border-subtle);
-        border-radius: 10px;
-        font-size: 11px;
-        color: var(--accent);
-        cursor: pointer;
-        transition: border-color 0.15s;
+      .backlinks {
+        list-style: none;
+        padding: 0;
+        margin: 0;
       }
-      .backlink-item:hover {
-        border-color: var(--accent);
+      .backlinks li {
+        height: 28px;
+        line-height: 28px;
+        padding: 0;
+        margin: 0;
+      }
+      .backlinks a.wikilink {
+        display: inline-block;
+        font-size: 13px;
+        color: var(--accent);
+        text-decoration: none;
+        cursor: pointer;
+        transition: color 0.12s;
+        padding: 0;
+      }
+      .backlinks a.wikilink:hover {
+        color: var(--text-bright);
+        text-decoration: underline;
+      }
+      details.backlinks-collapsed > summary {
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+        list-style: none;
+      }
+      details.backlinks-collapsed > summary::-webkit-details-marker { display: none; }
+      details.backlinks-collapsed > summary::before {
+        content: "▸ ";
+        display: inline-block;
+        font-size: 9px;
+        transform: translateY(-1px);
+        margin-right: 4px;
+        transition: transform 0.15s;
+      }
+      details.backlinks-collapsed[open] > summary::before {
+        transform: rotate(90deg) translateX(-2px);
       }
 
       .code-copy {
@@ -3808,67 +3694,6 @@
       }
       .graph-search-bar input::placeholder {
         color: var(--text-muted);
-      }
-      /* ── Jarvis graph aesthetic ── */
-      .graph-node circle {
-        filter: drop-shadow(0 0 6px rgba(79, 158, 255, 0.6));
-        transition: filter 200ms;
-      }
-      .graph-node:hover circle {
-        filter: drop-shadow(0 0 16px rgba(79, 158, 255, 1)) drop-shadow(0 0 32px rgba(0, 200, 255, 0.4));
-      }
-      .hub-node circle {
-        animation: pulse-hub 2.5s ease-in-out infinite;
-      }
-      @keyframes pulse-hub {
-        0%, 100% {
-          filter: drop-shadow(0 0 8px rgba(79, 158, 255, 0.7));
-          transform: scale(1);
-        }
-        50% {
-          filter: drop-shadow(0 0 24px rgba(79, 158, 255, 1)) drop-shadow(0 0 36px rgba(0, 200, 255, 0.6));
-          transform: scale(1.05);
-        }
-      }
-      .graph-link-jarvis {
-        stroke-dasharray: 6 3;
-        animation: flow-link 8s linear infinite;
-        stroke-opacity: 0.5;
-      }
-      @keyframes flow-link {
-        to { stroke-dashoffset: -9; }
-      }
-      /* Graph legend */
-      .graph-legend {
-        position: absolute;
-        bottom: 14px;
-        right: 14px;
-        background: rgba(5, 10, 24, 0.85);
-        border: 1px solid rgba(79, 158, 255, 0.2);
-        border-radius: 6px;
-        padding: 8px 10px;
-        font-size: 10px;
-        color: rgba(160, 200, 255, 0.7);
-        opacity: 0;
-        transition: opacity 200ms;
-        pointer-events: none;
-        z-index: 10;
-      }
-      #graph-view:hover .graph-legend {
-        opacity: 1;
-      }
-      .graph-legend-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 4px;
-      }
-      .graph-legend-row:last-child { margin-bottom: 0; }
-      .graph-legend-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        flex-shrink: 0;
       }
       .graph-view-floating {
         position: absolute;
@@ -4772,22 +4597,89 @@
         animation: fadeIn 0.2s ease-out;
       }
 
-      @media (max-width: 480px) {
+      /* BUG-079-214: tablet — sidebar collapses by default, rail stays visible */
+      @media (max-width: 1200px) and (min-width: 769px) {
+        #sidebar:not(.mobile-open) {
+          width: 0;
+          min-width: 0;
+          border-right: none;
+          overflow: hidden;
+        }
+      }
+
+      /* BUG-079-214: mobile — sidebar slides off-screen, hamburger appears */
+      @media (max-width: 768px) {
         #icon-rail {
           display: none;
         }
         #sidebar {
-          display: none;
+          position: fixed;
+          top: 0;
+          left: 0;
+          height: 100vh;
+          width: 280px;
+          min-width: 280px;
+          max-width: 85vw;
+          transform: translateX(-100%);
+          transition: transform 200ms ease;
+          box-shadow: 0 0 24px rgba(0, 0, 0, 0.35);
+          z-index: 900;
+        }
+        #sidebar.mobile-open {
+          transform: translateX(0);
+        }
+        #mobile-hamburger {
+          display: flex !important;
+        }
+        #mobile-sidebar-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.45);
+          z-index: 899;
         }
         #resize-handle {
           display: none;
         }
+        #content {
+          width: 100%;
+        }
         #page-view {
-          padding: 16px 20px 40px;
+          padding: 56px 16px 40px;
         }
         #home-view {
-          padding: 20px;
+          padding: 56px 16px 20px;
         }
+      }
+
+      /* Mobile hamburger button — hidden by default, shown via media query */
+      #mobile-hamburger {
+        display: none;
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 950;
+        width: 36px;
+        height: 36px;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-elevated, var(--bg-surface));
+        border: 1px solid var(--border, var(--border-subtle));
+        border-radius: 8px;
+        color: var(--text);
+        cursor: pointer;
+        padding: 0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      }
+      #mobile-hamburger:hover {
+        background: var(--bg-hover);
+      }
+
+      /* Mobile sidebar backdrop — shown when sidebar is open on mobile */
+      #mobile-sidebar-backdrop {
+        display: none;
+      }
+      body.sidebar-open #mobile-sidebar-backdrop {
+        display: block;
       }
 
       /* History / Audit Trail View */
@@ -8892,6 +8784,320 @@
         font-size: 13px;
       }
 
+      /* ── MCP Connect (OAuth 2.1 client — Chairman #79) ── */
+      .mcp-server-add {
+        background: linear-gradient(135deg, rgba(79,158,255,0.06), rgba(78,201,176,0.04));
+        border: 1px solid rgba(79,158,255,0.18);
+        border-radius: 10px;
+        padding: 18px 20px;
+        margin-bottom: 24px;
+      }
+      .mcp-server-add-header { margin-bottom: 12px; }
+      .mcp-server-add-header h3 {
+        margin: 0 0 2px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-bright);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .mcp-server-add-header h3::before {
+        content: '';
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent);
+      }
+      .mcp-server-add-header p {
+        margin: 0;
+        font-size: 12px;
+        color: var(--text-muted);
+        line-height: 1.5;
+      }
+      .mcp-server-add-header p code {
+        background: rgba(255,255,255,0.05);
+        padding: 1px 5px;
+        border-radius: 3px;
+        font-size: 11px;
+        color: var(--accent);
+      }
+      .mcp-server-add-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .mcp-server-add-row input {
+        flex: 1;
+        min-width: 0;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 7px 10px;
+        font-size: 13px;
+        color: var(--text);
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+      }
+      .mcp-server-add-row input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(79,158,255,0.15);
+      }
+      .mcp-server-add-row input::placeholder { color: var(--text-muted); }
+      .mcp-btn-primary {
+        padding: 7px 16px;
+        border-radius: var(--radius);
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.12s, transform 0.08s;
+        white-space: nowrap;
+      }
+      .mcp-btn-primary:hover { background: #3a8ff0; }
+      .mcp-btn-primary:active { transform: translateY(1px); }
+      .mcp-btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .mcp-server-catalog {
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 1px dashed rgba(255,255,255,0.06);
+      }
+      .mcp-server-catalog summary {
+        cursor: pointer;
+        font-size: 12px;
+        color: var(--text-secondary);
+        padding: 4px 0;
+        user-select: none;
+        list-style: none;
+      }
+      .mcp-server-catalog summary::-webkit-details-marker { display: none; }
+      .mcp-server-catalog summary::before {
+        content: '▸';
+        display: inline-block;
+        width: 12px;
+        transition: transform 0.15s;
+        color: var(--text-muted);
+      }
+      .mcp-server-catalog[open] summary::before { transform: rotate(90deg); }
+      .mcp-server-catalog summary:hover { color: var(--text-bright); }
+      .mcp-catalog-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .mcp-catalog-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: 8px;
+        padding: 10px 12px;
+        cursor: pointer;
+        transition: border-color 0.12s, background 0.12s;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .mcp-catalog-card:hover { border-color: var(--accent); background: var(--bg-hover); }
+      .mcp-catalog-card-name {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-bright);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .mcp-catalog-card-name .badge {
+        font-size: 9px;
+        background: rgba(79,158,255,0.15);
+        color: var(--accent);
+        padding: 1px 5px;
+        border-radius: 3px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+      .mcp-catalog-card-desc {
+        font-size: 11px;
+        color: var(--text-muted);
+        line-height: 1.35;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .mcp-connected-list {
+        margin-top: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .mcp-connected-card {
+        background: var(--bg-surface);
+        border: 1px solid rgba(78,201,176,0.25);
+        border-radius: 8px;
+        padding: 12px 14px;
+      }
+      .mcp-connected-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .mcp-connected-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-bright);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .mcp-connected-title::before {
+        content: '';
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 6px var(--green);
+      }
+      .mcp-connected-url {
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 2px;
+        word-break: break-all;
+      }
+      .mcp-connected-actions { display: flex; gap: 6px; flex-shrink: 0; }
+      .mcp-btn-ghost {
+        padding: 4px 10px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text-secondary);
+        font-size: 11px;
+        cursor: pointer;
+        transition: background 0.12s, color 0.12s;
+      }
+      .mcp-btn-ghost:hover { background: var(--bg-hover); color: var(--text-bright); }
+      .mcp-btn-ghost.danger:hover { color: #f87171; border-color: rgba(248,113,113,0.4); }
+      .mcp-connected-tools {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px dashed rgba(255,255,255,0.05);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .mcp-tool-chip {
+        font-size: 11px;
+        padding: 3px 9px;
+        border-radius: 5px;
+        background: rgba(79,158,255,0.08);
+        color: var(--accent);
+        border: 1px solid rgba(79,158,255,0.15);
+        cursor: pointer;
+        transition: background 0.12s;
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+      }
+      .mcp-tool-chip:hover { background: rgba(79,158,255,0.16); }
+      .mcp-toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: var(--bg-card);
+        border: 1px solid var(--accent);
+        border-radius: 8px;
+        padding: 12px 16px;
+        color: var(--text-bright);
+        font-size: 12px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        z-index: 9999;
+        animation: mcpToastIn 0.22s ease-out;
+      }
+      .mcp-toast.err { border-color: #f87171; }
+      .mcp-toast.ok { border-color: var(--green); }
+      @keyframes mcpToastIn {
+        from { transform: translateY(10px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      .mcp-invoke-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9998;
+        padding: 20px;
+      }
+      .mcp-invoke-body {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px;
+        width: 520px;
+        max-width: 100%;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+      .mcp-invoke-body h3 {
+        margin: 0 0 4px;
+        font-size: 15px;
+        color: var(--text-bright);
+      }
+      .mcp-invoke-body h3 code {
+        font-size: 13px;
+        color: var(--accent);
+        background: rgba(79,158,255,0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      .mcp-invoke-body label {
+        display: block;
+        margin: 12px 0 4px;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+      .mcp-invoke-body textarea {
+        width: 100%;
+        min-height: 100px;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 8px 10px;
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 12px;
+        color: var(--text);
+        resize: vertical;
+        outline: none;
+      }
+      .mcp-invoke-body textarea:focus { border-color: var(--accent); }
+      .mcp-invoke-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .mcp-invoke-result {
+        margin-top: 12px;
+        background: #0e0e0e;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius);
+        padding: 10px 12px;
+        font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+        font-size: 11px;
+        color: var(--text);
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 240px;
+        overflow-y: auto;
+      }
+      .mcp-invoke-result.err { color: #f87171; }
+
       /* ══════════════════════════════════════════════
          Observer — Experiment History (killer moat)
          ══════════════════════════════════════════════ */
@@ -9584,6 +9790,36 @@
     </style>
   </head>
   <body>
+    <!-- BUG-079-214: Mobile hamburger toggle + backdrop -->
+    <button
+      id="mobile-hamburger"
+      type="button"
+      aria-label="Open sidebar"
+      aria-controls="sidebar"
+      aria-expanded="false"
+      onclick="toggleMobileSidebar()"
+    >
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="18" x2="21" y2="18" />
+      </svg>
+    </button>
+    <div
+      id="mobile-sidebar-backdrop"
+      onclick="closeMobileSidebar()"
+      aria-hidden="true"
+    ></div>
     <div id="shell">
       <div id="shell-body">
         <!-- Icon Rail -->
@@ -10364,7 +10600,8 @@
                 <div id="page-meta"></div>
                 <div id="page-dyn-meta" style="display:none"></div>
                 <div id="page-entity-profile" class="page-entity-profile"></div>
-                <div id="page-toc"></div>
+                <div id="page-toc" style="display:none"></div>
+                <aside id="page-outline" aria-label="Page outline"></aside>
                 <div id="page-fact-timeline" style="display: none"></div>
                 <div id="page-body" class="md"></div>
                 <div id="page-encyclopedia-chrome"></div>
@@ -10449,6 +10686,15 @@
                     </button>
                     <button class="graph-btn" id="graph-reset" title="Reset">
                       ⟲
+                    </button>
+                    <button
+                      class="graph-btn"
+                      id="graph-settings-toggle"
+                      title="Toggle display settings"
+                      aria-expanded="false"
+                      aria-controls="graph-settings-panel"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                     </button>
                   </div>
                 </div>
@@ -11378,14 +11624,29 @@
             <div id="connectors-view">
               <div class="conn-header">
                 <h2>Connectors</h2>
-                <p>Connect your tools and data sources</p>
+                <p>Paste any MCP server URL or pick a curated integration.</p>
               </div>
+              <!-- BUG-079-090: MCP OAuth 2.1 client — one protocol for all servers. Chairman Prompt #79. -->
+              <section class="mcp-server-add" aria-labelledby="mcp-add-heading">
+                <div class="mcp-server-add-header">
+                  <h3 id="mcp-add-heading">Connect via MCP</h3>
+                  <p>
+                    Paste any <code>MCP 2025-06-18</code> server URL. WikiMem handles OAuth automatically — discovery, dynamic client registration, PKCE, token refresh. One protocol instead of per-provider flows.
+                  </p>
+                </div>
+                <div class="mcp-server-add-row">
+                  <input id="mcp-server-url" type="url" spellcheck="false" autocomplete="off" placeholder="https://mcp.example.com/mcp" />
+                  <button id="mcp-server-connect" class="mcp-btn-primary" onclick="mcpConnectFromInput()">Connect</button>
+                </div>
+                <div id="mcp-add-status" class="mcp-add-status" style="display:none"></div>
+                <div id="mcp-connected-servers" class="mcp-connected-list"></div>
+              </section>
               <div class="conn-toolbar">
                 <div class="conn-search-wrap">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                   </svg>
-                  <input class="conn-search" id="conn-search-input" type="text" placeholder="Search connectors…" oninput="renderConnectorsGrid()" />
+                  <input class="conn-search" id="conn-search-input" type="text" placeholder="Search legacy connectors…" oninput="renderConnectorsGrid()" />
                 </div>
                 <div class="conn-tabs" id="conn-tabs">
                   <button class="conn-tab active" data-cat="all" onclick="setConnectorCat(this)">All</button>
@@ -11402,6 +11663,44 @@
               <div class="conn-body">
                 <div class="conn-grid" id="conn-grid">
                   <div class="conn-empty">Loading connectors…</div>
+                </div>
+              </div>
+            </div>
+
+            <div id="observer-view">
+              <div class="obs-header">
+                <div>
+                  <h2>Observer — Self-Improvement Engine</h2>
+                  <p>Nightly quality scans, experiment history, and auto-improvements. The killer moat — competitors don't show their AI's homework.</p>
+                </div>
+                <div class="obs-header-actions">
+                  <button class="obs-run-btn" id="obs-run-now-btn" onclick="runObserverFromView()" title="Trigger an immediate observer run">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    Run Observer Now
+                  </button>
+                  <button class="obs-refresh-btn" id="obs-refresh-btn" onclick="loadObserverView()" title="Reload">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="obs-body" id="obs-body">
+                <div id="obs-loading" style="padding:48px;text-align:center;color:var(--text-muted);font-size:13px">Loading observer state…</div>
+                <div id="obs-summary-section" style="display:none">
+                  <div class="obs-summary-card" id="obs-summary-card"></div>
+                </div>
+                <div id="obs-experiments-section" style="display:none;margin-top:24px">
+                  <h3 style="font-size:14px;font-weight:600;color:var(--text-bright);margin:0 0 12px">Experiment Timeline</h3>
+                  <div id="obs-timeline-chart" style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:16px;margin-bottom:16px;min-height:120px"></div>
+                  <div id="obs-experiments-list" style="display:flex;flex-direction:column;gap:8px"></div>
+                </div>
+                <div id="obs-reports-section" style="display:none;margin-top:24px">
+                  <h3 style="font-size:14px;font-weight:600;color:var(--text-bright);margin:0 0 12px">Recent Reports</h3>
+                  <div id="obs-reports-list" style="display:flex;flex-direction:column;gap:6px"></div>
+                </div>
+                <div id="obs-empty-state" style="display:none;padding:48px;text-align:center;color:var(--text-muted);font-size:13px">
+                  <div style="font-size:32px;margin-bottom:12px">🔬</div>
+                  <div style="font-size:15px;color:var(--text-bright);margin-bottom:6px">No observer runs yet</div>
+                  <div style="margin-bottom:16px">Click "Run Observer Now" to score every page, find weak spots, and auto-improve the wiki.</div>
                 </div>
               </div>
             </div>
@@ -12048,37 +12347,84 @@
       }
 
       // ── Views ──
+      // BUG-079-020 FIX: Atomically hide ALL views, then show the active one.
+      // Relying on classList.toggle('active') alone was leaving prior views
+      // rendered in rare cases (race with transitions / stale CSS specificity).
+      // Force display:none on every view + toggle .active in one pass.
+      const ALL_VIEW_IDS = [
+        "home-view",
+        "page-view",
+        "graph-view",
+        "settings-view",
+        "history-view",
+        "pipeline-view",
+        "timelapse-view",
+        "folder-view",
+        "connectors-view",
+        "observer-view",
+      ];
+      const VIEW_ID_FOR_MODE = {
+        home: "home-view",
+        page: "page-view",
+        graph: "graph-view",
+        settings: "settings-view",
+        history: "history-view",
+        pipeline: "pipeline-view",
+        timelapse: "timelapse-view",
+        folder: "folder-view",
+        connectors: "connectors-view",
+        observer: "observer-view",
+      };
+      // BUG-079-214: Mobile sidebar toggle (hamburger)
+      function toggleMobileSidebar() {
+        const sb = document.getElementById("sidebar");
+        const btn = document.getElementById("mobile-hamburger");
+        if (!sb) return;
+        const isOpen = sb.classList.toggle("mobile-open");
+        document.body.classList.toggle("sidebar-open", isOpen);
+        if (btn) btn.setAttribute("aria-expanded", String(isOpen));
+      }
+      function closeMobileSidebar() {
+        const sb = document.getElementById("sidebar");
+        const btn = document.getElementById("mobile-hamburger");
+        if (!sb) return;
+        sb.classList.remove("mobile-open");
+        document.body.classList.remove("sidebar-open");
+        if (btn) btn.setAttribute("aria-expanded", "false");
+      }
+      // Auto-close sidebar on mobile when a tree item (file/link) is tapped.
+      document.addEventListener("click", function (e) {
+        try {
+          if (window.innerWidth > 768) return;
+          const sb = document.getElementById("sidebar");
+          if (!sb || !sb.classList.contains("mobile-open")) return;
+          const t = e.target;
+          if (!(t instanceof Element)) return;
+          // Only close on file taps, not folder toggles or sidebar actions.
+          const fileRow = t.closest(".tree-item.tree-file, .tree-item.bookmark-row");
+          if (fileRow) closeMobileSidebar();
+        } catch (_) { /* silent */ }
+      });
+      // Expose for inline handlers (onclick="toggleMobileSidebar()")
+      window.toggleMobileSidebar = toggleMobileSidebar;
+      window.closeMobileSidebar = closeMobileSidebar;
+
       function showView(mode) {
         state.viewMode = mode;
-        document
-          .getElementById("home-view")
-          ?.classList.toggle("active", mode === "home");
-        document
-          .getElementById("page-view")
-          ?.classList.toggle("active", mode === "page");
-        document
-          .getElementById("graph-view")
-          ?.classList.toggle("active", mode === "graph");
-        document
-          .getElementById("settings-view")
-          ?.classList.toggle("active", mode === "settings");
-        document
-          .getElementById("history-view")
-          ?.classList.toggle("active", mode === "history");
-        document
-          .getElementById("pipeline-view")
-          ?.classList.toggle("active", mode === "pipeline");
-        document
-          .getElementById("timelapse-view")
-          ?.classList.toggle("active", mode === "timelapse");
-        // UXO-021: folder view
-        document
-          .getElementById("folder-view")
-          ?.classList.toggle("active", mode === "folder");
-        // UXO-040: connectors view
-        document
-          .getElementById("connectors-view")
-          ?.classList.toggle("active", mode === "connectors");
+        const targetId = VIEW_ID_FOR_MODE[mode];
+        for (const vid of ALL_VIEW_IDS) {
+          const el = document.getElementById(vid);
+          if (!el) continue;
+          if (vid === targetId) {
+            el.classList.add("active");
+            // Let the .active CSS rule control display — clear any forced inline.
+            el.style.removeProperty("display");
+          } else {
+            el.classList.remove("active");
+            // Hard-hide: inline display:none overrides any stale rule / specificity.
+            el.style.display = "none";
+          }
+        }
 
         // UXO-020: hide explorer sidebar + resize handle when settings is open
         const sidebar = document.getElementById("sidebar");
@@ -12137,6 +12483,12 @@
         const railConnectors = document.getElementById("rail-connectors");
         if (railConnectors)
           railConnectors.classList.toggle("active", mode === "connectors");
+        const railObserver = document.getElementById("rail-observer");
+        if (railObserver)
+          railObserver.classList.toggle("active", mode === "observer");
+        const railSettings = document.getElementById("rail-settings");
+        if (railSettings)
+          railSettings.classList.toggle("active", mode === "settings");
         const sbGear = document.getElementById("sb-settings-btn");
         if (sbGear)
           sbGear.style.color = mode === "settings" ? "var(--accent)" : "";
@@ -12504,6 +12856,52 @@
         return c;
       }
 
+      // BUG-079-104: Modifier-aware tree-item click router.
+      // - plain click: open in current tab (replace).
+      // - Cmd/Ctrl+click: open in a NEW tab, keep current tab active (background).
+      // - Shift+click: open in a NEW tab and switch to it (foreground).
+      // Middle-click also opens in new tab (browser convention) via auxclick handler below.
+      function handleTreeItemClick(event, titleOrPath, kind) {
+        try {
+          const isMod = event && (event.metaKey || event.ctrlKey);
+          const isShift = event && event.shiftKey;
+          const newTab = isMod || isShift;
+          if (kind === "wiki") {
+            if (newTab) {
+              const prevActive = state.activeTabId;
+              // openPage will push a new tab; we restore the previous activeTabId
+              // (background tab behavior) unless Shift was held (foreground).
+              const p = openPage(titleOrPath);
+              if (isMod && !isShift) {
+                Promise.resolve(p).then(() => {
+                  if (prevActive && state.tabs.some((t) => t.id === prevActive)) {
+                    activateTab(prevActive);
+                  }
+                });
+              }
+            } else {
+              openPage(titleOrPath);
+            }
+          } else {
+            if (newTab) {
+              const prevActive = state.activeTabId;
+              const p = viewRawFile(titleOrPath);
+              if (isMod && !isShift) {
+                Promise.resolve(p).then(() => {
+                  if (prevActive && state.tabs.some((t) => t.id === prevActive)) {
+                    activateTab(prevActive);
+                  }
+                });
+              }
+            } else {
+              viewRawFile(titleOrPath);
+            }
+          }
+        } catch (err) {
+          console.warn("[tree-click] failed", err);
+        }
+      }
+
       function renderTreeNodes(nodes, depth, rootType) {
         if (!nodes || !nodes.length) return "";
         let html = "";
@@ -12547,10 +12945,12 @@
           } else {
             const label = node.title || node.name.replace(".md", "");
             const icon = fileIcon(node.type, node.name);
+            // BUG-079-104: Cmd/Ctrl+click opens in background tab (doesn't switch).
+            // Shift+click also opens a new tab (foreground). Plain click = replace current.
             const click =
               node.type === "wiki"
-                ? `openPage('${esc(label)}')`
-                : `viewRawFile('${esc(node.path)}')`;
+                ? `handleTreeItemClick(event,'${esc(label)}','wiki')`
+                : `handleTreeItemClick(event,'${esc(node.path)}','raw')`;
             const starIcon = node.type === "wiki"
               ? `<span class="bookmark-star" style="margin-left:auto;padding:0 4px;opacity:0.4;cursor:pointer;display:flex;align-items:center;flex-shrink:0" title="${isBookmarked(label) ? "Remove bookmark" : "Bookmark"}" onclick="event.stopPropagation();toggleBookmarkTitle('${esc(label)}')">${isBookmarked(label) ? starFilled : starOutline}</span>`
               : "";
@@ -12650,6 +13050,12 @@
           viewMode: "connectors",
           icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
         },
+        observer: {
+          id: "__view:observer",
+          title: "Observer",
+          viewMode: "observer",
+          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93L12 22"/><path d="M12 2a4 4 0 0 0-4 4c0 1.95 1.4 3.58 3.25 3.93"/><line x1="4.5" y1="9" x2="19.5" y2="9"/></svg>',
+        },
       };
 
       function isViewTab(tabId) {
@@ -12686,6 +13092,7 @@
         if (viewKey === "pipeline") loadPipelineView();
         if (viewKey === "timelapse") loadTimelapse();
         if (viewKey === "connectors") initConnectorsView();
+        if (viewKey === "observer") loadObserverView();
       }
 
       function activateTab(tabId) {
@@ -12698,6 +13105,7 @@
             if (vType === "pipeline") loadPipelineView();
             if (vType === "timelapse") loadTimelapse();
             if (vType === "connectors") initConnectorsView();
+            if (vType === "observer") loadObserverView();
           }
         } else {
           openPage(tabId, true);
@@ -12735,7 +13143,7 @@
             const dirtyDot = t.dirty
               ? '<span class="tab-dirty-dot"></span>'
               : "";
-            return `<div class="tab${active}" data-tab-idx="${idx}" draggable="true" onclick="activateTab('${esc(t.id)}')"
+            return `<div class="tab${active}" data-tab-idx="${idx}" draggable="true" title="${esc(t.title)}" onclick="activateTab('${esc(t.id)}')"
           ondragstart="event.dataTransfer.setData('tab-idx','${idx}');event.dataTransfer.effectAllowed='move';this.style.opacity='0.4'"
           ondragend="this.style.opacity='1'"
           ondragover="event.preventDefault();this.classList.add('tab-drag-over')"
@@ -12915,104 +13323,64 @@
       }
 
       /** CRM-style profile chrome for entity & concept pages (UX-031). */
-      function buildEntityProfileHtml(page, backlinks, ledeMd) {
-        const fm = page.frontmatter || {};
-        const title = page.title;
-        const typeRaw = String(fm.type || "entity").toLowerCase();
-        const typeSafe = typeRaw.replace(/[^a-z0-9-]/g, "") || "entity";
-        const typeLabel = esc(fm.type || "Entity");
-        const tags = (fm.tags || [])
-          .map((t) => `<span class="meta-badge meta-tag">${esc(t)}</span>`)
-          .join(" ");
-        const sourceItems = (fm.sources || [])
-          .map((s) => {
-            const short = String(s).split("/").slice(-2).join("/");
-            return `<li><span class="meta-source-path" title="${esc(s)}">${esc(short)}</span></li>`;
-          })
-          .join("");
-        const related = (fm.related || [])
-          .map((r) => {
-            const name = r.replace(/^\[\[|\]\]$/g, "");
-            return `<span class="entity-related-chip" onclick="openPage('${esc(name)}')">${esc(name)}</span>`;
-          })
-          .join("");
+      // BUG-079-075: Human-readable date helper. Accepts ISO-8601 or anything `new Date()` parses.
+      function humanDate(iso) {
+        if (!iso) return "";
+        const s = String(iso).trim();
+        if (!s) return "";
+        const d = new Date(s);
+        if (isNaN(d.getTime())) return s;
+        return d.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+      }
 
-        let ledeHtml = "";
-        if (ledeMd && String(ledeMd).trim()) {
-          ledeHtml = `<div class="entity-summary entity-summary--lede md" role="region" aria-label="Summary">${renderWikilinks(renderMarkdown(String(ledeMd).trim()))}</div>`;
+      // BUG-079-075 — Relative-date helper. Returns "just now", "3 minutes ago",
+      // "3 hours ago", "3 days ago" for dates inside the last 7 days; otherwise
+      // falls back to humanDate(). Blueprint §6: relative for <=7d, absolute beyond.
+      function relativeDate(iso) {
+        if (!iso) return "";
+        const s = String(iso).trim();
+        if (!s) return "";
+        const d = new Date(s);
+        if (isNaN(d.getTime())) return s;
+        const now = Date.now();
+        const diff = now - d.getTime();
+        const abs = Math.abs(diff);
+        const MIN = 60 * 1000;
+        const HOUR = 60 * MIN;
+        const DAY = 24 * HOUR;
+        const WEEK = 7 * DAY;
+        // Future dates (rare, clock skew) → just show absolute.
+        if (diff < -MIN) return humanDate(iso);
+        if (abs < MIN) return "just now";
+        if (abs < HOUR) {
+          const mins = Math.max(1, Math.round(abs / MIN));
+          return mins + (mins === 1 ? " minute ago" : " minutes ago");
         }
+        if (abs < DAY) {
+          const hrs = Math.max(1, Math.round(abs / HOUR));
+          return hrs + (hrs === 1 ? " hour ago" : " hours ago");
+        }
+        if (abs < WEEK) {
+          const days = Math.max(1, Math.round(abs / DAY));
+          return days + (days === 1 ? " day ago" : " days ago");
+        }
+        return humanDate(iso);
+      }
 
-        const mentionedBlock =
-          backlinks.length > 0
-            ? `<section class="entity-section entity-mentioned" aria-labelledby="entity-mentioned-h"><h3 id="entity-mentioned-h" class="entity-section-title">Mentioned in</h3><ul class="entity-mentioned-list">${backlinks
-                .map(
-                  (b) =>
-                    `<li><button type="button" class="entity-mentioned-link" onclick="openPage('${esc(b)}')">${esc(b)}</button></li>`,
-                )
-                .join("")}</ul></section>`
-            : `<section class="entity-section entity-mentioned entity-mentioned--empty" aria-labelledby="entity-mentioned-h"><h3 id="entity-mentioned-h" class="entity-section-title">Mentioned in</h3><p class="entity-empty-hint">No other pages link here yet.</p></section>`;
-
-        const firstAdded = fm.created ? esc(String(fm.created)) : "—";
-        const lastMod =
-          fm.updated || fm.created
-            ? esc(String(fm.updated || fm.created))
-            : "—";
-        const n = backlinks.length;
-        const refLabel = `${n} page${n === 1 ? "" : "s"}`;
-
-        const activityBlock = `<section class="entity-activity" aria-label="Activity timeline"><div class="entity-activity-track"><div class="entity-activity-node"><span class="entity-activity-label">First added</span><span class="entity-activity-value">${firstAdded}</span></div><div class="entity-activity-node"><span class="entity-activity-label">Last modified</span><span class="entity-activity-value">${lastMod}</span></div><div class="entity-activity-node"><span class="entity-activity-label">Referenced by</span><span class="entity-activity-value">${esc(refLabel)}</span></div></div></section>`;
-
-        const tagsRow = `<div class="entity-infobox-dl-row"><dt>Tags</dt><dd class="entity-infobox-tags">${tags}<button type="button" class="meta-add-tag entity-tag-add" onclick="addTagToPage('${esc(title)}')" title="Add tag">+</button></dd></div>`;
-
-        // Custom frontmatter key-value rows (role, date_founded, confidence, etc.)
-        const skipInfoboxKeys = new Set([
-          "tags", "sources", "related", "type", "category", "created",
-          "updated", "title", "summary", "added_by",
-        ]);
-        const customInfoboxRows = Object.entries(fm)
-          .filter(([k]) => !skipInfoboxKeys.has(k))
-          .map(([k, v]) => {
-            const label = k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-            const val = Array.isArray(v) ? v.join(", ") : String(v);
-            return `<div class="entity-infobox-dl-row"><dt>${esc(label)}</dt><dd>${esc(val)}</dd></div>`;
-          })
-          .join("");
-
-        // See also: wikilinks from the page
-        const seenLinks = new Set();
-        const seeAlsoLinks = (page.wikilinks || [])
-          .filter((l) => {
-            const n = String(l).trim();
-            if (!n || n.toLowerCase() === String(title).toLowerCase()) return false;
-            const key = n.toLowerCase();
-            if (seenLinks.has(key)) return false;
-            seenLinks.add(key);
-            return true;
-          })
-          .slice(0, 8)
-          .map((name) => `<li><a href="#" class="wikilink" data-wikilink="${esc(name)}" onclick="event.preventDefault();if(!state.editing)openPage('${esc(name)}')">${esc(name)}</a></li>`)
-          .join("");
-        const seeAlsoRow = seeAlsoLinks
-          ? `<div class="entity-infobox-dl-row"><dt>See also</dt><dd><ul class="entity-source-ul entity-seealso-ul">${seeAlsoLinks}</ul></dd></div>`
-          : "";
-
-        return `<div class="entity-profile-layout">
-        <aside class="page-infobox entity-infobox" aria-label="Entity profile">
-          <div class="entity-infobox-brand"><span class="entity-type-badge entity-type-badge--${typeSafe}">${typeLabel}</span></div>
-          <h2 class="entity-infobox-title">${esc(title)}</h2>
-          <dl class="entity-infobox-dl">
-            ${tagsRow}
-            ${fm.created ? `<div class="entity-infobox-dl-row"><dt>Created</dt><dd><time class="entity-infobox-time" datetime="${esc(String(fm.created))}">${esc(String(fm.created))}</time></dd></div>` : ""}
-            ${fm.updated ? `<div class="entity-infobox-dl-row"><dt>Updated</dt><dd><time class="entity-infobox-time" datetime="${esc(String(fm.updated))}">${esc(String(fm.updated))}</time></dd></div>` : ""}
-            ${(fm.sources || []).length ? `<div class="entity-infobox-dl-row"><dt>Sources</dt><dd><ul class="entity-source-ul">${sourceItems}</ul></dd></div>` : ""}
-            ${(fm.related || []).length ? `<div class="entity-infobox-dl-row"><dt>Related</dt><dd class="entity-infobox-related">${related}</dd></div>` : ""}
-            ${customInfoboxRows}
-            ${seeAlsoRow}
-          </dl>
-        </aside>
-        ${ledeHtml}
-        <div class="entity-profile-sections">${mentionedBlock}${activityBlock}</div>
-      </div>`;
+      // BUG-079-070/073/074/076: Entity infobox, "Mentioned in" boxed buttons, and
+      // FIRST ADDED / LAST MODIFIED / REFERENCED BY card all consolidated away.
+      // Body flow now uses: Properties panel (single metadata) → optional plain lede → body → inline backlinks.
+      // This function is kept as a no-op for backwards compatibility with call sites; it emits only the
+      // plain-prose lede when one is provided. No infobox, no mentioned-in, no activity card.
+      function buildEntityProfileHtml(page, backlinks, ledeMd) {
+        if (ledeMd && String(ledeMd).trim()) {
+          return `<div class="entity-lede md" role="region" aria-label="Summary">${renderWikilinks(renderMarkdown(String(ledeMd).trim()))}</div>`;
+        }
+        return "";
       }
 
       // ── UXO-038: Page header bookmark toggle ──
@@ -13026,16 +13394,36 @@
         if (countEl) countEl.textContent = getBookmarks().length || "";
       }
 
+      // BUG-079-215: Humanize a slug-shaped string ("artificial-intelligence" -> "Artificial Intelligence").
+      // Used when the backend falls back to filename basename because no frontmatter `title:` is set.
+      function humanizeSlug(s) {
+        if (!s) return "";
+        if (!/^[a-z0-9][a-z0-9-]*$/.test(s) || !s.includes("-")) return s;
+        return s.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      }
+
       // ── Open page ──
       async function openPage(title, fromTab) {
         try {
+          // BUG-079-218: close any open search/command-palette overlay BEFORE
+          // transitioning to the page view. Otherwise the overlay stays open
+          // on top and blocks interaction with the new page.
+          if (typeof closeSearchOverlay === "function") closeSearchOverlay();
+          // BUG-079-021: switch view IMMEDIATELY so the user sees the page surface
+          // before the API fetch completes (avoids stale home/folder view flicker).
+          showView("page");
           if (state.editing) exitEditMode(true);
           pushRecentPage(title);
           const page = await api("/api/pages/" + encodeURIComponent(title));
-          if (!fromTab) openTab(title, page.title, "wiki");
+          // BUG-079-215: prefer frontmatter.title; else humanize slug fallback.
+          const displayTitle =
+            (page.frontmatter && page.frontmatter.title) ||
+            humanizeSlug(page.title) ||
+            page.title;
+          if (!fromTab) openTab(title, displayTitle, "wiki");
           state.activeTabId = title;
           state.editPagePath = page.path || null;
-          state.editPageTitle = page.title;
+          state.editPageTitle = displayTitle;
           state.editPageSlug =
             (page.path || "").split("/").pop()?.replace(/\.md$/, "") || title;
           state.editTabType = "wiki";
@@ -13045,7 +13433,7 @@
           document.getElementById("page-edit-btn").style.display = "";
           updatePageBookmarkBtn(page.title);
           const titleEl = document.getElementById("page-title");
-          titleEl.textContent = page.title;
+          titleEl.textContent = displayTitle;
           titleEl.setAttribute("contenteditable", "true");
           titleEl.setAttribute("spellcheck", "false");
           titleEl.onblur = () => commitTitleEdit(titleEl, page.title);
@@ -13117,10 +13505,14 @@
           const customProps = Object.entries(fm).filter(
             ([k]) => !skipKeys.has(k),
           );
+          // BUG-079-012: Normalize custom property labels to Title Case.
           const customRows = customProps
             .map(([k, v]) => {
               const val = Array.isArray(v) ? v.join(", ") : String(v);
-              return `<div class="meta-row"><span class="meta-key">${esc(k)}</span><div class="meta-val"><span class="meta-val-editable" onclick="startEditProperty(this,'${esc(page.title)}','${esc(k)}')">${esc(val)}</span></div></div>`;
+              const label = String(k)
+                .replace(/_/g, " ")
+                .replace(/\b\w/g, (c) => c.toUpperCase());
+              return `<div class="meta-row"><span class="meta-key">${esc(label)}</span><div class="meta-val"><span class="meta-val-editable" onclick="startEditProperty(this,'${esc(page.title)}','${esc(k)}')">${esc(val)}</span></div></div>`;
             })
             .join("");
 
@@ -13131,7 +13523,8 @@
           </div>
           <div class="meta-props-grid">
             <div class="meta-row"><span class="meta-key">Type</span><div class="meta-val">${typeSelect}</div></div>
-            ${fm.created ? `<div class="meta-row"><span class="meta-key">Created</span><div class="meta-val"><span class="meta-date meta-val-editable" onclick="startEditProperty(this,'${esc(page.title)}','created')">${esc(fm.created)}</span></div></div>` : ""}
+            ${fm.created ? `<div class="meta-row"><span class="meta-key">Created</span><div class="meta-val"><span class="meta-date meta-val-editable" onclick="startEditProperty(this,'${esc(page.title)}','created')">${esc(humanDate(fm.created))}</span></div></div>` : ""}
+            ${fm.updated ? `<div class="meta-row"><span class="meta-key">Updated</span><div class="meta-val"><span class="meta-date meta-val-editable" onclick="startEditProperty(this,'${esc(page.title)}','updated')">${esc(humanDate(fm.updated))}</span></div></div>` : ""}
             <div class="meta-row"><span class="meta-key">Tags</span><div class="meta-val">${tags}<span class="meta-add-chip" onclick="startInlineTagAdd(this,'${esc(page.title)}')">+</span></div></div>
             <div class="meta-row"><span class="meta-key">Sources</span><div class="meta-val">${sourcePaths}<span class="meta-add-chip" onclick="startInlineSourceAdd(this,'${esc(page.title)}')">+</span></div></div>
             <div class="meta-row"><span class="meta-key">Related</span><div class="meta-val">${related}<span class="meta-add-chip" onclick="startInlineRelatedAdd(this,'${esc(page.title)}')">+</span></div></div>
@@ -13209,14 +13602,24 @@
           if (isEntityProfile) {
             blContainer.innerHTML = "";
           } else if (backlinks.length) {
-            blContainer.innerHTML =
-              `<div class="backlinks-title">Linked from (${backlinks.length})</div>` +
-              backlinks
-                .map(
-                  (b) =>
-                    `<span class="backlink-item" onclick="openPage('${esc(b)}')">${esc(b)}</span>`,
-                )
-                .join("");
+            // BUG-079-073 — Flat <ul class="backlinks"> list. Collapse behind
+            // <details> when >5 entries so long pages don't grow a tall rail.
+            const items = backlinks
+              .map(
+                (b) =>
+                  `<li><a class="wikilink" onclick="openPage('${esc(b)}')">${esc(b)}</a></li>`,
+              )
+              .join("");
+            const summaryLabel = `Linked mentions · ${backlinks.length}`;
+            if (backlinks.length > 5) {
+              blContainer.innerHTML =
+                `<details class="backlinks-collapsed"><summary>${summaryLabel}</summary>` +
+                `<ul class="backlinks">${items}</ul></details>`;
+            } else {
+              blContainer.innerHTML =
+                `<div class="backlinks-title">${summaryLabel}</div>` +
+                `<ul class="backlinks">${items}</ul>`;
+            }
           } else {
             blContainer.innerHTML = "";
           }
@@ -13232,10 +13635,13 @@
           const is404 = err && (err.status === 404 || (err.message && err.message.includes("404")));
           if (is404) {
             showView("page");
-            document.getElementById("page-title").textContent = title;
+            // BUG-079-215: humanize slug for 404 fallback too.
+            document.getElementById("page-title").textContent = humanizeSlug(title) || title;
             document.getElementById("page-breadcrumbs").innerHTML = `<span onclick="showView('home')" style="cursor:pointer">Wiki</span><span class="breadcrumb-sep">›</span><span style="color:var(--text-dim)">${esc(title)}</span>`;
             document.getElementById("page-meta").innerHTML = "";
             document.getElementById("page-toc").innerHTML = "";
+            const outlineEl404 = document.getElementById("page-outline");
+            if (outlineEl404) { outlineEl404.innerHTML = ""; outlineEl404.classList.remove("has-headings"); }
             const encEl = document.getElementById("page-encyclopedia-chrome");
             if (encEl) encEl.innerHTML = "";
             const epEl = document.getElementById("page-entity-profile");
@@ -13261,60 +13667,45 @@
         }
       }
 
-      // ── UXO-039: Dynamic metadata union panel ──
-      function renderDynMeta(page, backlinks) {
+      // BUG-079-010/079 — METADATA card is a duplicate of the Properties panel. Disabled.
+      // Properties panel (rendered into #page-meta) is the ONE canonical metadata surface.
+      function renderDynMeta(_page, _backlinks) {
         const el = document.getElementById("page-dyn-meta");
         if (!el) return;
-        const fm = page.frontmatter || {};
-        const typeVal = fm.type || fm.category || "";
-        const categoryVal = fm.category || "";
-        const tags = Array.isArray(fm.tags) ? fm.tags : (fm.tags ? [fm.tags] : []);
-        const sourceVal = fm.source || (Array.isArray(fm.sources) && fm.sources.length ? fm.sources[0] : "");
-        const updatedVal = fm.updated || fm.created || "";
-        // Get mtime from allPages cache
-        const pageInfo = (state.allPages || []).find(p => p.title === page.title);
-        const mtimeVal = pageInfo && pageInfo.mtime ? new Date(pageInfo.mtime).toLocaleDateString(undefined, { year:"numeric", month:"short", day:"numeric" }) : "";
-        const blCount = backlinks ? backlinks.length : 0;
-
-        // Only show if page has meaningful frontmatter metadata
-        const hasMeta = typeVal || categoryVal || tags.length || sourceVal || updatedVal;
-        if (!hasMeta) { el.style.display = "none"; el.innerHTML = ""; return; }
-
-        const rows = [];
-        if (typeVal) rows.push(`<div class="dyn-meta-row"><span class="dyn-meta-label">Type</span><span class="dyn-meta-val">${esc(typeVal)}</span></div>`);
-        if (categoryVal && categoryVal !== typeVal) rows.push(`<div class="dyn-meta-row"><span class="dyn-meta-label">Category</span><span class="dyn-meta-val">${esc(categoryVal)}</span></div>`);
-        if (tags.length) {
-          const chips = tags.map(t => `<span class="dyn-meta-tag">${esc(t)}</span>`).join("");
-          rows.push(`<div class="dyn-meta-row"><span class="dyn-meta-label">Tags</span><span class="dyn-meta-val">${chips}</span></div>`);
-        }
-        if (sourceVal) {
-          const srcShort = String(sourceVal).replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
-          rows.push(`<div class="dyn-meta-row"><span class="dyn-meta-label">Source</span><span class="dyn-meta-val" title="${esc(String(sourceVal))}">${esc(srcShort)}</span></div>`);
-        }
-        if (updatedVal) rows.push(`<div class="dyn-meta-row"><span class="dyn-meta-label">Updated</span><span class="dyn-meta-val">${esc(String(updatedVal))}</span></div>`);
-        else if (mtimeVal) rows.push(`<div class="dyn-meta-row"><span class="dyn-meta-label">Updated</span><span class="dyn-meta-val">${esc(mtimeVal)}</span></div>`);
-        rows.push(`<div class="dyn-meta-row"><span class="dyn-meta-label">Backlinks</span><span class="dyn-meta-val">${blCount}</span></div>`);
-
-        el.innerHTML = `<div class="dyn-meta-title">Metadata</div>${rows.join("")}`;
-        el.style.display = "";
+        el.innerHTML = "";
+        el.style.display = "none";
       }
 
+      // BUG-079-077 — Populate #page-outline (right-sticky at ≥1200px, collapsed
+       // <details> at 900-1199, hidden <900 via CSS). Legacy #page-toc kept as
+       // hidden no-op so old script paths that poke it don't throw.
       function buildToc(container) {
-        const tocEl = document.getElementById("page-toc");
+        const outlineEl = document.getElementById("page-outline");
+        const legacyToc = document.getElementById("page-toc");
+        if (legacyToc) legacyToc.innerHTML = "";
+        if (!outlineEl) return;
         const headings = container.querySelectorAll("h1, h2, h3, h4");
         if (headings.length < 3) {
-          tocEl.innerHTML = "";
+          outlineEl.innerHTML = "";
+          outlineEl.classList.remove("has-headings");
           return;
         }
-        let html = '<div class="toc-title">Contents</div>';
+        const rows = [];
         headings.forEach((h, i) => {
           const level = h.tagName.toLowerCase();
           const id = "heading-" + i;
           h.id = id;
           const text = h.textContent.substring(0, 60);
-          html += `<a class="toc-item toc-${level}" onclick="document.getElementById('${id}').scrollIntoView({behavior:'smooth',block:'start'})">${esc(text)}</a>`;
+          rows.push(
+            `<li><a class="outline-item outline-${level}" data-outline-target="${id}" onclick="document.getElementById('${id}').scrollIntoView({behavior:'smooth',block:'start'})">${esc(text)}</a></li>`,
+          );
         });
-        tocEl.innerHTML = html;
+        // Both breakpoints render the same list; 900-1199 wraps it in <details>.
+        // We ship ONE markup and rely on CSS to collapse (no DOM-swap needed).
+        outlineEl.innerHTML =
+          `<details open><summary class="outline-title">Contents · ${headings.length}</summary>` +
+          `<ul class="outline-list">${rows.join("")}</ul></details>`;
+        outlineEl.classList.add("has-headings");
       }
 
       // COMP-MP-002: Fact timeline — shows page version history from git
@@ -13337,13 +13728,9 @@
           ];
           const rows = allEntries
             .map((v, i) => {
-              const ts = v.timestamp
-                ? new Date(v.timestamp).toLocaleDateString(undefined, {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })
-                : "";
+              // BUG-079-075 — Human/relative date with ISO in title=".
+              const ts = v.timestamp ? relativeDate(v.timestamp) : "";
+              const tsTitle = v.timestamp ? esc(String(v.timestamp)) : "";
               const badge = v.isCurrent
                 ? `<span class="ft-version-badge">current</span>`
                 : `<span class="ft-version-badge ft-old">v${allEntries.length - i}</span>`;
@@ -13351,7 +13738,7 @@
                 ? `<div class="ft-source">${esc(String(v.summary).substring(0, 80))}</div>`
                 : "";
               return `<div class="ft-entry${v.isCurrent ? " ft-current" : ""}">
-                <div class="ft-entry-header">${badge}<span class="ft-timestamp">${esc(ts)}</span></div>
+                <div class="ft-entry-header">${badge}<span class="ft-timestamp" title="${tsTitle}">${esc(ts)}</span></div>
                 ${summary}
               </div>`;
             })
@@ -13468,6 +13855,8 @@
           document.getElementById("page-meta").innerHTML =
             `<span class="meta-badge meta-type">${typeLabel}</span><span class="meta-badge">${sizeStr}</span>`;
           document.getElementById("page-toc").innerHTML = "";
+          const outlineRawEl = document.getElementById("page-outline");
+          if (outlineRawEl) { outlineRawEl.innerHTML = ""; outlineRawEl.classList.remove("has-headings"); }
           const enc = document.getElementById("page-encyclopedia-chrome");
           if (enc) enc.innerHTML = "";
           const entityProf = document.getElementById("page-entity-profile");
@@ -14127,6 +14516,15 @@
               label: "Duplicate",
               icon: "⧉",
               action: () => duplicateFile(title, path, type),
+            },
+            {
+              label: "Copy Link",
+              icon: "🔗",
+              action: () => {
+                // BUG-079-050 (NAVIGATOR-1): wikilink form for pasting into notes
+                navigator.clipboard.writeText(`[[${title}]]`);
+                showToast("✓ Wikilink copied");
+              },
             },
             {
               label: "Copy Path",
@@ -15308,14 +15706,11 @@
 
           let html = "";
           for (const entry of filtered) {
-            const date = new Date(entry.date);
-            const dateStr =
-              date.toLocaleDateString() +
-              " " +
-              date.toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              });
+            // BUG-079-075 — humanDate / relativeDate, ISO on hover via title=".
+            // Raw ISO timestamps never reach the user in the audit trail.
+            const rawIso = entry.date || "";
+            const dateStr = relativeDate(rawIso) || humanDate(rawIso);
+            const dateTitle = rawIso ? String(rawIso) : "";
             const filesCount = entry.filesChanged?.length || 0;
             const commitId = "commit-" + entry.hashShort;
             const actor = inferActor(entry);
@@ -15346,7 +15741,7 @@
                 ${commitTypeBadge}
                 <span class="commit-msg">${esc(displayMsg)}</span>
               </div>
-              <div class="commit-meta">${entry.author} · ${dateStr}${filesCount ? ` · ${filesCount} files` : ""}</div>
+              <div class="commit-meta">${entry.author} · <span title="${esc(dateTitle)}">${esc(dateStr)}</span>${filesCount ? ` · ${filesCount} files` : ""}</div>
               <div class="commit-files" id="${commitId}">
                 ${(entry.filesChanged || []).map((f) => `<div style="padding:2px 0;font-family:var(--font-mono)">${esc(f)}</div>`).join("")}
                 <div style="margin-top:8px;display:flex;gap:6px">
@@ -15368,10 +15763,13 @@
         if (el) el.classList.toggle("open");
       }
 
+      // Shared restore implementation used by both the Source Control view and
+      // the Time-Lapse view. Uses the atomic /api/git/restore endpoint which
+      // creates a new branch from the commit AND checks it out in one op.
       async function restoreToCommit(hash, hashShort) {
         if (
           !confirm(
-            `Restore wiki to commit ${hashShort}? This creates a new branch from that commit.`,
+            `Restore wiki to commit ${hashShort}?\n\nThis creates a new branch "wiki/restore-${hashShort}" from this point and checks it out. No existing work is lost.`,
           )
         )
           return;
@@ -15382,15 +15780,32 @@
             body: JSON.stringify({ hash }),
           }).then((r) => r.json());
           if (result.restored) {
-            alert(result.message);
-            loadGitHistory();
-            loadTree();
-            loadStatus();
+            if (typeof showToast === "function") {
+              showToast(`Restored to commit ${hashShort} on branch ${result.branch || `wiki/restore-${hashShort}`}`);
+            } else {
+              alert(result.message);
+            }
+            // Refresh the surfaces that reflect the branch/HEAD state.
+            if (typeof loadGitHistory === "function") loadGitHistory();
+            if (typeof loadGitBadge === "function") loadGitBadge();
+            if (typeof loadTree === "function") loadTree();
+            if (typeof loadStatus === "function") loadStatus();
+            if (typeof loadHome === "function") loadHome();
+            // If the Time-Lapse view is visible, refresh its commit list so the
+            // new branch's HEAD becomes the current marker.
+            const tlView = document.getElementById("timelapse-view");
+            if (tlView && tlView.style.display !== "none" && typeof loadTimelapse === "function") {
+              loadTimelapse();
+            }
           } else {
-            alert("Restore failed: " + result.message);
+            const msg = "Restore failed: " + (result.message || result.error || "unknown error");
+            if (typeof showToast === "function") showToast(msg, 4000);
+            else alert(msg);
           }
         } catch (err) {
-          alert("Restore failed: " + err.message);
+          const msg = "Restore failed: " + (err.message || String(err));
+          if (typeof showToast === "function") showToast(msg, 4000);
+          else alert(msg);
         }
       }
 
@@ -15841,26 +16256,6 @@
         const tooltip = document.getElementById("tooltip");
         const width = container.clientWidth;
         const height = container.clientHeight;
-
-        // ── Jarvis: SVG gradient defs ──────────────────────────────────────
-        const defs = svg.append("defs");
-        const grad = defs
-          .append("linearGradient")
-          .attr("id", "gradient-blue-cyan")
-          .attr("x1", "0%")
-          .attr("y1", "0%")
-          .attr("x2", "100%")
-          .attr("y2", "100%");
-        grad
-          .append("stop")
-          .attr("offset", "0%")
-          .attr("stop-color", "#4f9eff")
-          .attr("stop-opacity", "0.6");
-        grad
-          .append("stop")
-          .attr("offset", "100%")
-          .attr("stop-color", "#00c8ff")
-          .attr("stop-opacity", "0.3");
 
         const g = svg.append("g");
         const zoom = d3
@@ -18507,11 +18902,18 @@
 
       // ── Search ──
       function openSearch() {
-        document.getElementById("search-overlay").classList.add("visible");
+        // BUG-079-210: harden visibility — clear any stray inline styles that
+        // could override the `.visible` class, then force flex + focus on input.
+        const ov = document.getElementById("search-overlay");
+        ov.style.display = "";            // clear inline "none" left by closeSearchOverlay
+        ov.style.visibility = "";         // clear inline "hidden"
+        ov.style.opacity = "";            // clear inline "0"
+        ov.classList.add("visible");
         document.getElementById("rail-search").classList.add("active");
         const input = document.getElementById("search-input");
         input.value = "";
-        input.focus();
+        // setTimeout ensures focus lands after layout paints the overlay
+        setTimeout(() => input.focus(), 0);
         state.searchResults = [];
         state.searchIndex = 0;
         renderSearchResults();
@@ -18519,6 +18921,16 @@
       function closeSearch() {
         document.getElementById("search-overlay").classList.remove("visible");
         document.getElementById("rail-search").classList.remove("active");
+      }
+      // BUG-079-218: centralized overlay-close helper used by openPage/openFolder
+      // to prevent the search or command palette from blocking the new view.
+      function closeSearchOverlay() {
+        const so = document.getElementById("search-overlay");
+        if (so) { so.classList.remove("visible"); so.style.display = "none"; }
+        const rs = document.getElementById("rail-search");
+        if (rs) rs.classList.remove("active");
+        const po = document.getElementById("palette-overlay");
+        if (po) { po.classList.remove("visible"); po.style.display = "none"; }
       }
       let _searchDebounce = null;
       function doSearch(query) {
@@ -18685,10 +19097,16 @@
       let paletteIndex = 0;
 
       function openPalette() {
-        document.getElementById("palette-overlay").classList.add("visible");
+        // BUG-079-211: harden visibility — clear stray inline styles and
+        // defer focus until overlay has painted.
+        const ov = document.getElementById("palette-overlay");
+        ov.style.display = "";
+        ov.style.visibility = "";
+        ov.style.opacity = "";
+        ov.classList.add("visible");
         const input = document.getElementById("palette-input");
         input.value = "";
-        input.focus();
+        setTimeout(() => input.focus(), 0);
         paletteFiltered = [...commands];
         paletteIndex = 0;
         renderPalette();
@@ -19483,8 +19901,30 @@
         if (isMod && !e.shiftKey && e.key === "g") { e.preventDefault(); railGraphClick(); }
         // ── Cmd+, — Settings ──
         if (isMod && e.key === ",") { e.preventDefault(); railSettingsClick(); }
-        // ── Cmd+B — Toggle Sidebar ──
+        // ── Cmd+B — Toggle Sidebar (BUG-079-052) ──
         if (isMod && e.key === "b") { e.preventDefault(); document.getElementById("sidebar").classList.toggle("collapsed"); }
+        // ── [ / ] — Collapse / Expand all sidebar sections (Linear parity, BUG-079-052) ──
+        // Plain-key bindings: only when no modifier and not typing in an input.
+        if (!isMod && !inInput && e.key === "[") {
+          e.preventDefault();
+          document
+            .querySelectorAll("#sidebar .tree-children")
+            .forEach((el) => {
+              if (el.id === "wiki-tree" || el.id === "raw-tree" || el.id === "connectors-tree" || el.id === "history-tree" || el.id === "bookmarks-tree") {
+                el.classList.add("collapsed");
+              }
+            });
+        }
+        if (!isMod && !inInput && e.key === "]") {
+          e.preventDefault();
+          document
+            .querySelectorAll("#sidebar .tree-children")
+            .forEach((el) => {
+              if (el.id === "wiki-tree" || el.id === "raw-tree" || el.id === "connectors-tree" || el.id === "history-tree" || el.id === "bookmarks-tree") {
+                el.classList.remove("collapsed");
+              }
+            });
+        }
         // ── Cmd+W — Close Tab ──
         if (isMod && !e.shiftKey && e.key === "w") { e.preventDefault(); if (state.activeTabId) closeTab(state.activeTabId); }
         // ── Cmd+N — New Page ──
@@ -20321,13 +20761,58 @@
       }
 
       // ── OAuth Connect ──
+      // BUG-079-212: Provide immediate UI feedback so the user knows the click registered.
+      // Disables all matching Connect buttons, shows a progress toast, and surfaces errors.
+      function _oauthButtonsForProvider(provider) {
+        const key = String(provider || "").toLowerCase();
+        const buttons = new Set();
+        const byId = document.getElementById("oauth-connect-" + key);
+        if (byId) buttons.add(byId);
+        document.querySelectorAll("button").forEach((b) => {
+          const oc = b.getAttribute && b.getAttribute("onclick");
+          if (!oc) return;
+          // Matches: startOAuthConnect('slack') OR connectorAction('slack', false)
+          const re = new RegExp(
+            "(?:startOAuthConnect|connectorAction)\\(\\s*['\"]" + key + "['\"]",
+            "i",
+          );
+          if (re.test(oc)) buttons.add(b);
+        });
+        return Array.from(buttons);
+      }
+      function _setOAuthButtonsPending(buttons, pending) {
+        buttons.forEach((b) => {
+          if (pending) {
+            if (!b.dataset._origText) b.dataset._origText = b.textContent;
+            b.disabled = true;
+            b.textContent = "Connecting…";
+            b.style.opacity = "0.7";
+            b.style.cursor = "wait";
+          } else {
+            b.disabled = false;
+            if (b.dataset._origText) {
+              b.textContent = b.dataset._origText;
+              delete b.dataset._origText;
+            }
+            b.style.opacity = "";
+            b.style.cursor = "";
+          }
+        });
+      }
+
       async function startOAuthConnect(provider) {
+        const buttons = _oauthButtonsForProvider(provider);
+        _setOAuthButtonsPending(buttons, true);
+        const prettyName =
+          provider.charAt(0).toUpperCase() + provider.slice(1);
+        showToast("Opening " + prettyName + " authorization…");
         try {
           const res = await fetch(
             "/api/auth/start/" + encodeURIComponent(provider),
           );
           const data = await res.json();
           if (data.error === "no_credentials") {
+            _setOAuthButtonsPending(buttons, false);
             // GitHub: try device flow (no client_secret needed — just needs client_id)
             if (provider === "github") {
               showPipelineDeviceFlow();
@@ -20338,7 +20823,11 @@
             return;
           }
           if (data.error) {
-            showToast("OAuth: " + (data.message || data.error));
+            _setOAuthButtonsPending(buttons, false);
+            showToast(
+              "✗ " + prettyName + " failed: " + (data.message || data.error),
+              4000,
+            );
             return;
           }
           if (data.url) {
@@ -20347,19 +20836,46 @@
               "_blank",
               "width=600,height=700",
             );
-            // Poll for completion — when the popup closes, refresh status
-            if (popup) {
-              const poll = setInterval(() => {
-                if (popup.closed) {
-                  clearInterval(poll);
-                  loadOAuthStatus();
-                  renderOAuthIntegrations();
-                }
-              }, 1000);
+            if (!popup || popup.closed || typeof popup.closed === "undefined") {
+              // Popup blocker fired — give the user a visible way forward
+              _setOAuthButtonsPending(buttons, false);
+              showToast(
+                "✗ Popup blocked — allow popups for this site and retry",
+                5000,
+              );
+              return;
             }
+            showToast("Waiting for " + prettyName + " authorization…", 4000);
+            // Poll for completion — when the popup closes, refresh status
+            const poll = setInterval(() => {
+              if (popup.closed) {
+                clearInterval(poll);
+                _setOAuthButtonsPending(buttons, false);
+                showToast("✓ " + prettyName + " connection updated");
+                loadOAuthStatus();
+                renderOAuthIntegrations();
+              }
+            }, 1000);
+            // Safety: release the pending state after 2 min even if popup never closes
+            setTimeout(() => {
+              if (!popup.closed) {
+                clearInterval(poll);
+                _setOAuthButtonsPending(buttons, false);
+              }
+            }, 120000);
+          } else {
+            _setOAuthButtonsPending(buttons, false);
+            showToast(
+              "✗ " + prettyName + " returned no authorization URL",
+              4000,
+            );
           }
         } catch (err) {
-          showToast("OAuth failed: " + (err.message || "unknown"));
+          _setOAuthButtonsPending(buttons, false);
+          showToast(
+            "✗ " + prettyName + " failed: " + (err.message || "unknown"),
+            4000,
+          );
         }
       }
 
@@ -21507,6 +22023,362 @@
           _connectorTokenStatus = {};
         }
         renderConnectorsGrid();
+        // BUG-079-090: MCP OAuth 2.1 client — Chairman Prompt #79
+        mcpLoadCatalog();
+        mcpRefreshConnected();
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // MCP OAuth 2.1 Client — Chairman Prompt #79 (2026-04-23)
+      // Anthropic-parity: paste any MCP-compliant server URL → auto OAuth →
+      // token storage → tools/list → invoke. One protocol for every tool.
+      // ════════════════════════════════════════════════════════════════════
+      let _mcpPollHandle = null;
+
+      function mcpToast(msg, kind) {
+        const existing = document.querySelector(".mcp-toast");
+        if (existing) existing.remove();
+        const el = document.createElement("div");
+        el.className = "mcp-toast" + (kind === "err" ? " err" : kind === "ok" ? " ok" : "");
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 3600);
+      }
+
+      function mcpEscape(s) {
+        return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+      }
+
+      // BUG-079-090B: cache MCP catalog globally so every connector click
+      // can check whether a remote MCP server exists for that provider.
+      // Populated by mcpLoadCatalog and also pre-loaded at page start.
+      window._mcpKnownServers = window._mcpKnownServers || [];
+
+      async function mcpPreloadCatalog() {
+        try {
+          const res = await fetch("/api/mcp-client/known-servers");
+          const data = await res.json();
+          window._mcpKnownServers = Array.isArray(data.servers) ? data.servers : [];
+          // BUG-079-090C: also cache the preregistered-only setup metadata so
+          // when DCR fails we can show the user the OAuth-app registration URL.
+          window._mcpSetupMeta = (data.preregistered_only_setup && data.preregistered_only_setup.providers) || {};
+        } catch (_) { /* ignore — mcpLoadCatalog will retry when Connectors view opens */ }
+      }
+      // Fire preload immediately so connectorAction has data when user clicks a card
+      if (typeof document !== "undefined") {
+        if (document.readyState === "complete" || document.readyState === "interactive") {
+          mcpPreloadCatalog();
+        } else {
+          document.addEventListener("DOMContentLoaded", mcpPreloadCatalog);
+        }
+      }
+
+      async function mcpLoadCatalog() {
+        const host = document.getElementById("mcp-server-catalog-grid");
+        if (!host) return;
+        try {
+          const res = await fetch("/api/mcp-client/known-servers");
+          const data = await res.json();
+          const servers = Array.isArray(data.servers) ? data.servers : [];
+          window._mcpKnownServers = servers;
+          // Self-test only shown on localhost (or when env opts in)
+          const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+          const filtered = servers.filter((s) => s.id !== "wikimem-self-test" || isLocal);
+          if (!filtered.length) {
+            host.innerHTML = '<div class="conn-empty" style="padding:20px 0">No catalog entries yet.</div>';
+            return;
+          }
+          host.innerHTML = filtered.map((s) => `
+            <div class="mcp-catalog-card" onclick="mcpPrefill(${JSON.stringify(s.url)})" title="Click to prefill the URL above">
+              <div class="mcp-catalog-card-name">
+                ${mcpEscape(s.name)}
+                ${s.badge ? `<span class="badge">${mcpEscape(s.badge)}</span>` : ""}
+              </div>
+              <div class="mcp-catalog-card-desc">${mcpEscape(s.description || "")}</div>
+            </div>
+          `).join("");
+        } catch (err) {
+          host.innerHTML = `<div class="conn-empty" style="padding:20px 0;color:#f87171">Failed to load catalog: ${mcpEscape(err.message || err)}</div>`;
+        }
+      }
+
+      function mcpPrefill(url) {
+        const input = document.getElementById("mcp-server-url");
+        if (!input) return;
+        input.value = url;
+        input.focus();
+      }
+
+      async function mcpConnectFromInput() {
+        const input = document.getElementById("mcp-server-url");
+        const btn = document.getElementById("mcp-server-connect");
+        if (!input || !btn) return;
+        const mcpUrl = (input.value || "").trim();
+        if (!mcpUrl) {
+          mcpToast("Paste an MCP server URL first", "err");
+          input.focus();
+          return;
+        }
+        let valid;
+        try {
+          valid = new URL(mcpUrl);
+        } catch {
+          mcpToast("That's not a valid URL", "err");
+          return;
+        }
+        const isLocal = valid.hostname === "localhost" || valid.hostname === "127.0.0.1";
+        if (valid.protocol !== "https:" && !isLocal) {
+          mcpToast("MCP URL must be HTTPS (localhost exempted)", "err");
+          return;
+        }
+        btn.disabled = true;
+        btn.textContent = "Connecting…";
+        try {
+          const res = await fetch("/api/mcp-client/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mcpUrl }),
+          });
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            throw new Error(errBody.error || `HTTP ${res.status}`);
+          }
+          const { authorizeUrl } = await res.json();
+          // Open popup centred on the screen for nice UX
+          const w = 600, h = 800;
+          const left = (screen.width - w) / 2;
+          const top = (screen.height - h) / 2;
+          const popup = window.open(
+            authorizeUrl,
+            "mcp-oauth",
+            `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`,
+          );
+          if (!popup) {
+            mcpToast("Popup blocked — allow popups and try again", "err");
+            return;
+          }
+          mcpToast("Complete consent in the popup…");
+          mcpStartPolling();
+          input.value = "";
+        } catch (err) {
+          mcpToast("Register failed: " + (err.message || err), "err");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Connect";
+        }
+      }
+
+      function mcpStartPolling() {
+        // Listen for postMessage from the callback page first (faster)
+        const onMessage = (ev) => {
+          if (ev.origin !== location.origin) return;
+          const d = ev.data;
+          if (d && d.type === "wikimem-mcp-connected") {
+            mcpStopPolling();
+            mcpToast("Connected: " + (d.mcpUrl || "server"), "ok");
+            mcpRefreshConnected();
+          }
+        };
+        window.addEventListener("message", onMessage);
+
+        // Fallback: poll the list endpoint every 1.2s for up to 120s
+        let ticks = 0;
+        const baseline = _mcpCurrentUrls || new Set();
+        _mcpPollHandle = setInterval(async () => {
+          ticks += 1;
+          try {
+            const res = await fetch("/api/mcp-client/list");
+            const { servers } = await res.json();
+            const current = new Set((servers || []).map((s) => s.mcp_url));
+            for (const u of current) {
+              if (!baseline.has(u)) {
+                mcpStopPolling();
+                mcpToast("Connected: " + u, "ok");
+                mcpRefreshConnected();
+                window.removeEventListener("message", onMessage);
+                return;
+              }
+            }
+          } catch {}
+          if (ticks > 100) {
+            mcpStopPolling();
+            window.removeEventListener("message", onMessage);
+          }
+        }, 1200);
+      }
+
+      function mcpStopPolling() {
+        if (_mcpPollHandle) {
+          clearInterval(_mcpPollHandle);
+          _mcpPollHandle = null;
+        }
+      }
+
+      let _mcpCurrentUrls = new Set();
+
+      async function mcpRefreshConnected() {
+        const host = document.getElementById("mcp-connected-servers");
+        if (!host) return;
+        try {
+          const res = await fetch("/api/mcp-client/list");
+          const { servers } = await res.json();
+          _mcpCurrentUrls = new Set((servers || []).map((s) => s.mcp_url));
+          if (!servers || !servers.length) {
+            host.innerHTML = "";
+            return;
+          }
+          host.innerHTML = `<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Connected MCP servers</div>`;
+          for (const srv of servers) {
+            const card = document.createElement("div");
+            card.className = "mcp-connected-card";
+            card.id = "mcp-card-" + btoa(srv.mcp_url).replace(/[^a-z0-9]/gi, "");
+            const expiresIn = srv.expires_at ? Math.max(0, Math.round((srv.expires_at - Date.now()) / 60000)) : null;
+            const expLabel = expiresIn !== null ? (expiresIn > 0 ? `token expires in ${expiresIn}m` : "token expired — will auto-refresh") : "";
+            card.innerHTML = `
+              <div class="mcp-connected-head">
+                <div>
+                  <div class="mcp-connected-title">${mcpEscape(srv.label || srv.mcp_url)}</div>
+                  <div class="mcp-connected-url">${mcpEscape(srv.mcp_url)}</div>
+                  <div style="font-size:10px;color:var(--text-muted);margin-top:4px">${mcpEscape(srv.scope || "")} · ${mcpEscape(expLabel)}</div>
+                </div>
+                <div class="mcp-connected-actions">
+                  <button class="mcp-btn-ghost" onclick="mcpLoadTools(${JSON.stringify(srv.mcp_url)})">Tools</button>
+                  <button class="mcp-btn-ghost danger" onclick="mcpDisconnect(${JSON.stringify(srv.mcp_url)})">Disconnect</button>
+                </div>
+              </div>
+              <div class="mcp-connected-tools" id="tools-${card.id}"></div>
+            `;
+            host.appendChild(card);
+            // Lazy-load tools for each connected server
+            mcpLoadTools(srv.mcp_url);
+          }
+        } catch (err) {
+          host.innerHTML = `<div class="conn-empty" style="color:#f87171">Failed to load servers: ${mcpEscape(err.message || err)}</div>`;
+        }
+      }
+
+      async function mcpLoadTools(mcpUrl) {
+        const cardId = "mcp-card-" + btoa(mcpUrl).replace(/[^a-z0-9]/gi, "");
+        const host = document.getElementById("tools-" + cardId);
+        if (!host) return;
+        host.innerHTML = `<span style="font-size:11px;color:var(--text-muted)">Loading tools…</span>`;
+        try {
+          const res = await fetch("/api/mcp-client/tools?serverUrl=" + encodeURIComponent(mcpUrl));
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            throw new Error(errBody.error || `HTTP ${res.status}`);
+          }
+          const { tools } = await res.json();
+          if (!tools || !tools.length) {
+            host.innerHTML = `<span style="font-size:11px;color:var(--text-muted)">Server exposes no tools</span>`;
+            return;
+          }
+          host.innerHTML = tools
+            .map(
+              (t) =>
+                `<span class="mcp-tool-chip" title="${mcpEscape(t.description || "")}" onclick='mcpOpenInvoke(${JSON.stringify(mcpUrl)}, ${JSON.stringify(t.name)}, ${JSON.stringify(t.inputSchema || {})})'>${mcpEscape(t.name)}</span>`,
+            )
+            .join("");
+        } catch (err) {
+          host.innerHTML = `<span style="font-size:11px;color:#f87171">Tools: ${mcpEscape(err.message || err)}</span>`;
+        }
+      }
+
+      function mcpOpenInvoke(mcpUrl, toolName, schema) {
+        const overlay = document.createElement("div");
+        overlay.className = "mcp-invoke-modal";
+        overlay.onclick = (e) => {
+          if (e.target === overlay) overlay.remove();
+        };
+        const suggested = mcpSchemaToExampleArgs(schema);
+        overlay.innerHTML = `
+          <div class="mcp-invoke-body" onclick="event.stopPropagation()">
+            <h3>Invoke <code>${mcpEscape(toolName)}</code></h3>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;word-break:break-all">${mcpEscape(mcpUrl)}</div>
+            <label for="mcp-invoke-args">Arguments (JSON)</label>
+            <textarea id="mcp-invoke-args" spellcheck="false">${mcpEscape(JSON.stringify(suggested, null, 2))}</textarea>
+            <div class="mcp-invoke-actions">
+              <button class="mcp-btn-ghost" onclick="this.closest('.mcp-invoke-modal').remove()">Cancel</button>
+              <button class="mcp-btn-primary" onclick="mcpDoInvoke(this, ${JSON.stringify(mcpUrl)}, ${JSON.stringify(toolName)})">Invoke</button>
+            </div>
+            <div id="mcp-invoke-result" class="mcp-invoke-result" style="display:none"></div>
+          </div>
+        `;
+        document.body.appendChild(overlay);
+        setTimeout(() => document.getElementById("mcp-invoke-args")?.focus(), 50);
+      }
+
+      function mcpSchemaToExampleArgs(schema) {
+        try {
+          if (!schema || typeof schema !== "object") return {};
+          const props = schema.properties;
+          if (!props || typeof props !== "object") return {};
+          const out = {};
+          for (const [k, v] of Object.entries(props)) {
+            const t = (v && v.type) || "string";
+            if (t === "string") out[k] = "";
+            else if (t === "number" || t === "integer") out[k] = 0;
+            else if (t === "boolean") out[k] = false;
+            else if (t === "array") out[k] = [];
+            else if (t === "object") out[k] = {};
+            else out[k] = null;
+          }
+          return out;
+        } catch {
+          return {};
+        }
+      }
+
+      async function mcpDoInvoke(btn, mcpUrl, toolName) {
+        const argsTextarea = document.getElementById("mcp-invoke-args");
+        const resultEl = document.getElementById("mcp-invoke-result");
+        if (!argsTextarea || !resultEl) return;
+        let args;
+        try {
+          args = JSON.parse(argsTextarea.value || "{}");
+        } catch (e) {
+          resultEl.className = "mcp-invoke-result err";
+          resultEl.style.display = "block";
+          resultEl.textContent = "Invalid JSON: " + e.message;
+          return;
+        }
+        btn.disabled = true;
+        btn.textContent = "Invoking…";
+        try {
+          const res = await fetch("/api/mcp-client/invoke", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ serverUrl: mcpUrl, toolName, args }),
+          });
+          const body = await res.json();
+          resultEl.className = "mcp-invoke-result" + (res.ok ? "" : " err");
+          resultEl.style.display = "block";
+          resultEl.textContent = JSON.stringify(body, null, 2);
+        } catch (err) {
+          resultEl.className = "mcp-invoke-result err";
+          resultEl.style.display = "block";
+          resultEl.textContent = "Invoke failed: " + (err.message || err);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Invoke";
+        }
+      }
+
+      async function mcpDisconnect(mcpUrl) {
+        if (!confirm("Disconnect from " + mcpUrl + "?\n\nLocal tokens will be deleted.")) return;
+        try {
+          const res = await fetch("/api/mcp-client/connection?serverUrl=" + encodeURIComponent(mcpUrl), {
+            method: "DELETE",
+          });
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            throw new Error(errBody.error || `HTTP ${res.status}`);
+          }
+          mcpToast("Disconnected", "ok");
+          mcpRefreshConnected();
+        } catch (err) {
+          mcpToast("Disconnect failed: " + (err.message || err), "err");
+        }
       }
 
       function setConnectorCat(btn) {
@@ -21543,9 +22415,9 @@
           const initial = c.name.charAt(0).toUpperCase();
           const iconStyle = `background:${c.color};`;
           const isComingSoon = c.method === "coming_soon";
-          const iconHtml = c.icon_slug
-            ? `<div class="conn-icon" style="${iconStyle}"><img src="https://cdn.simpleicons.org/${c.icon_slug}/ffffff" width="20" height="20" alt="${initial}" style="display:block;object-fit:contain;width:20px;height:20px" onerror="this.style.display='none';this.parentNode.textContent='${initial}'" /></div>`
-            : `<div class="conn-icon" style="${iconStyle}">${initial}</div>`;
+          // BUG-079-200 — no external CDN (cdn.simpleicons.org 404s for slack/teams/outlook/onedrive/s3/linkedin/openai).
+          // Inline first-letter pill gives 100% uptime, 0 requests, matches brand color.
+          const iconHtml = `<div class="conn-icon" style="${iconStyle}">${initial}</div>`;
 
           const statusBadge = isComingSoon
             ? '<span class="conn-status-badge" style="background:rgba(120,120,140,0.12);color:var(--text-muted)">Coming soon</span>'
@@ -21601,6 +22473,42 @@
           return;
         }
 
+        // BUG-079-090B — Anthropic-parity MCP-first routing.
+        // Before falling back to legacy per-provider PAT/OAuth, check whether
+        // a remote MCP server exists for this provider in the curated catalog.
+        // If yes, kick off the MCP OAuth 2.1 flow. Chairman requires every
+        // connector to route through MCP, not legacy PAT paste modals.
+        // Alias map: some Atlassian products are covered by a single MCP server.
+        const MCP_ALIAS = {
+          "jira": "atlassian",
+          "confluence": "atlassian",
+          "github": "github-copilot",
+          "gmail": "google-workspace",
+          "gdrive": "google-workspace",
+          "gcal": "google-workspace",
+          "gchat": "google-workspace",
+          "gmeet": "google-workspace",
+          "outlook": "microsoft-graph",
+          "onedrive": "microsoft-graph",
+          "teams": "microsoft-graph",
+        };
+        const lookupId = MCP_ALIAS[connId] || connId;
+        const mcpServers = Array.isArray(window._mcpKnownServers) ? window._mcpKnownServers : [];
+        const mcpMatch = mcpServers.find((s) => {
+          if (!s || !s.url) return false;
+          if (s.id === lookupId) return true;
+          if (s.id === connId) return true;
+          const sName = String(s.name || "").toLowerCase();
+          const cName = String(c.name || "").toLowerCase();
+          if (sName === cName) return true;
+          if (sName.startsWith(cName) || cName.startsWith(sName)) return true;
+          return false;
+        });
+        if (mcpMatch) {
+          startMcpConnectForProvider(mcpMatch.url, c.name, connId);
+          return;
+        }
+
         switch (c.method) {
           case "oauth":
             if (typeof startOAuthConnect === "function") startOAuthConnect(c.oauthKey);
@@ -21628,6 +22536,169 @@
 
       function connectorComingSoon(name) {
         showToast(`${name} — coming soon! Star us on GitHub to get notified.`);
+      }
+
+      // BUG-079-090C — Anthropic-parity walkthrough for providers whose MCP
+      // server doesn't support RFC 7591 DCR. Shows the OAuth-app register URL,
+      // collects a user-pasted client_id, retries the MCP register with that
+      // staticClientId. Mirrors the "Advanced" client_id field that Claude
+      // Connectors expose for self-hosted clients (per Anthropic docs).
+      function showMcpRegistrationWalkthrough(serverUrl, providerName, connId) {
+        // Resolve the lookup id (handles aliases like jira → atlassian).
+        const MCP_ALIAS_LOCAL = {
+          "jira": "atlassian", "confluence": "atlassian",
+          "github": "github-copilot",
+          "gmail": "google-workspace", "gdrive": "google-workspace",
+          "gcal": "google-workspace", "gchat": "google-workspace", "gmeet": "google-workspace",
+          "outlook": "microsoft-graph", "onedrive": "microsoft-graph", "teams": "microsoft-graph",
+        };
+        const lookupId = MCP_ALIAS_LOCAL[connId] || connId;
+        const meta = (window._mcpSetupMeta || {})[lookupId] || {};
+        const registerUrl = meta.register_url || `https://${new URL(serverUrl).hostname}`;
+        const callbackUrl = meta.callback_url || `${location.origin}/api/mcp-client/callback`;
+        const notes = meta.notes || `Register an OAuth app for ${providerName}, paste the client_id below.`;
+
+        // Reuse the generic conn modal helper if available, else inline.
+        const bodyHtml = `
+          <div style="font-size:13px;line-height:1.6;color:var(--text-primary)">
+            <div style="background:var(--bg-elevated,#1a1a26);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:10px;padding:14px 16px;margin-bottom:14px">
+              <div style="font-weight:600;margin-bottom:6px">Why this step?</div>
+              <div style="color:var(--text-muted,#9aa0aa);font-size:12px">
+                ${mcpEscape(providerName)}'s MCP server requires a pre-registered OAuth client (it doesn't support automatic registration).
+                Anthropic ships their own client_id with Claude — for self-hosted WikiMem, you register one yourself, once. Paste it below.
+              </div>
+            </div>
+
+            <div style="margin-bottom:12px">
+              <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Step 1 — Register an OAuth app</div>
+              <a href="${mcpEscape(registerUrl)}" target="_blank" rel="noopener" style="color:var(--accent,#4f9eff);text-decoration:none;font-weight:500">
+                Open ${mcpEscape(providerName)} developer console ↗
+              </a>
+            </div>
+
+            <div style="margin-bottom:12px">
+              <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Step 2 — Set redirect URI to</div>
+              <code style="display:block;background:var(--bg-elevated,#1a1a26);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:6px;padding:8px 10px;font-family:var(--font-mono,monospace);font-size:12px;word-break:break-all">${mcpEscape(callbackUrl)}</code>
+              <button onclick="navigator.clipboard.writeText('${mcpEscape(callbackUrl)}'); showToast('Copied!');" style="margin-top:6px;background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--text-muted);cursor:pointer">Copy</button>
+            </div>
+
+            <div style="margin-bottom:12px">
+              <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Step 3 — Paste the client_id</div>
+              <input id="mcp-walkthrough-client-id" type="text" placeholder="abc123-def456-..." style="width:100%;padding:9px 12px;background:var(--bg,#0e0e14);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:8px;color:var(--text-primary);font-family:var(--font-mono,monospace);font-size:13px" />
+            </div>
+
+            <div style="margin-bottom:6px;padding:10px 12px;background:var(--bg,#0e0e14);border-left:2px solid var(--accent,#4f9eff);border-radius:0 6px 6px 0;font-size:11px;color:var(--text-muted);line-height:1.5">
+              <strong style="color:var(--text-primary);font-weight:500">Provider notes:</strong> ${mcpEscape(notes)}
+            </div>
+          </div>
+        `;
+        const footerHtml = `
+          <button onclick="document.getElementById('conn-generic-modal').remove()" style="background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:8px 14px;cursor:pointer">Cancel</button>
+          <button id="mcp-walkthrough-connect" style="background:var(--accent,#4f9eff);color:white;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:500">Connect</button>
+        `;
+        if (typeof _showConnectorModal === "function") {
+          _showConnectorModal(`Connect ${providerName} via MCP`, bodyHtml, footerHtml);
+        } else {
+          // Inline fallback
+          let modal = document.getElementById("conn-generic-modal");
+          if (!modal) {
+            modal = document.createElement("div");
+            modal.id = "conn-generic-modal";
+            modal.style.cssText = "position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px)";
+            document.body.appendChild(modal);
+          }
+          modal.innerHTML = `<div style="background:var(--surface-raised,#1e1e2e);border:1px solid var(--border,rgba(255,255,255,0.08));border-radius:12px;padding:24px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+            <h3 style="margin:0 0 16px;font-size:16px;font-weight:600;color:var(--text-primary)">Connect ${mcpEscape(providerName)} via MCP</h3>
+            <div>${bodyHtml}</div>
+            <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">${footerHtml}</div>
+          </div>`;
+        }
+
+        const btn = document.getElementById("mcp-walkthrough-connect");
+        if (btn) {
+          btn.onclick = async () => {
+            const input = document.getElementById("mcp-walkthrough-client-id");
+            const clientId = (input && input.value || "").trim();
+            if (!clientId) {
+              showToast("Please paste a client_id first.");
+              return;
+            }
+            const m = document.getElementById("conn-generic-modal");
+            if (m) m.remove();
+            await startMcpConnectForProvider(serverUrl, providerName, connId, clientId);
+          };
+        }
+      }
+
+      // BUG-079-090B — MCP-first connector helper. Called by connectorAction
+      // when the clicked provider has a matching entry in the MCP catalog.
+      // Replaces legacy PAT paste modals with the MCP OAuth 2.1 flow.
+      // Optional staticClientId is supplied when the user pasted a
+      // pre-registered client_id via the setup walkthrough (BUG-079-090C).
+      async function startMcpConnectForProvider(serverUrl, providerName, connId, staticClientId) {
+        try {
+          showToast(`Opening ${providerName} (MCP OAuth 2.1)…`);
+          const body = { serverUrl, mcpUrl: serverUrl };
+          if (staticClientId) body.staticClientId = staticClientId;
+          const res = await fetch("/api/mcp-client/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) {
+            const txt = await res.text();
+            // BUG-079-090C — graceful "DCR not supported" handoff. When the
+            // server can't auto-register and we have setup metadata for this
+            // provider, show the user the OAuth-app registration walkthrough.
+            const noDcr = /no registration_endpoint|no static client_id|client_id was supplied/i.test(txt);
+            if (noDcr && !staticClientId) {
+              showMcpRegistrationWalkthrough(serverUrl, providerName, connId);
+              return;
+            }
+            showToast(`MCP connect failed: ${txt.slice(0, 140)}`);
+            return;
+          }
+          const data = await res.json();
+          if (data.authorizeUrl) {
+            const popup = window.open(
+              data.authorizeUrl,
+              `mcp-auth-${connId}`,
+              "width=620,height=820,menubar=no,toolbar=no,location=yes",
+            );
+            if (!popup || popup.closed) {
+              showToast("Popup blocked — please allow popups and try again.");
+              return;
+            }
+            showToast(`Waiting for ${providerName} authorization…`);
+            // Poll /list every 1.5s for up to 120s
+            const start = Date.now();
+            const poll = setInterval(async () => {
+              if (Date.now() - start > 120000) {
+                clearInterval(poll);
+                showToast(`${providerName} authorization timed out — try again.`);
+                return;
+              }
+              try {
+                const lr = await fetch("/api/mcp-client/list");
+                if (!lr.ok) return;
+                const list = await lr.json();
+                const entries = Array.isArray(list.servers) ? list.servers : (Array.isArray(list) ? list : []);
+                const connected = entries.find((e) => e.serverUrl === serverUrl || e.url === serverUrl);
+                if (connected) {
+                  clearInterval(poll);
+                  showToast(`${providerName} connected via MCP!`);
+                  // Refresh connectors UI if visible
+                  if (typeof renderConnectorGrid === "function") renderConnectorGrid();
+                  if (typeof mcpRefreshConnected === "function") mcpRefreshConnected();
+                }
+              } catch (_) { /* keep polling */ }
+            }, 1500);
+          } else {
+            showToast(`Unexpected response from MCP register — check server logs.`);
+          }
+        } catch (e) {
+          showToast(`MCP connect error: ${e.message}`);
+        }
       }
 
       // ─── Generic modal helper ────────────────────────────────────────────────────
@@ -22020,6 +23091,312 @@
           closeTab(VIEW_TABS.connectors.id);
         } else {
           openViewTab("connectors");
+        }
+      }
+
+      function railObserverClick() {
+        if (state.activeTabId === VIEW_TABS.observer.id) {
+          closeTab(VIEW_TABS.observer.id);
+        } else {
+          openViewTab("observer");
+        }
+      }
+
+      async function loadObserverView() {
+        const loading = document.getElementById("obs-loading");
+        const summary = document.getElementById("obs-summary-section");
+        const exps = document.getElementById("obs-experiments-section");
+        const reports = document.getElementById("obs-reports-section");
+        const empty = document.getElementById("obs-empty-state");
+        if (!loading) return;
+        loading.style.display = "block";
+        if (summary) summary.style.display = "none";
+        if (exps) exps.style.display = "none";
+        if (reports) reports.style.display = "none";
+        if (empty) empty.style.display = "none";
+
+        let experiments = [];
+        let reportList = [];
+        let lastReport = null;
+
+        try {
+          const expRes = await fetch("/api/observer/experiments");
+          if (expRes.ok) {
+            const expData = await expRes.json();
+            const raw = Array.isArray(expData)
+              ? expData
+              : expData.experiments || [];
+            // BUG-079-216: dedupe by id | hypothesis+timestamp so repeated
+            // server entries don't render 3× in the observer timeline.
+            const seen = new Set();
+            experiments = raw.filter((e) => {
+              const key =
+                e.id ||
+                `${e.timestamp || ""}|${e.hypothesis || e.action || e.title || ""}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+          }
+        } catch (err) {
+          console.warn("[observer] experiments fetch failed:", err);
+        }
+
+        try {
+          const repRes = await fetch("/api/observer/reports");
+          if (repRes.ok) {
+            const repData = await repRes.json();
+            reportList = Array.isArray(repData)
+              ? repData
+              : repData.reports || [];
+            if (reportList.length > 0) {
+              // BUG-079-201: server returns ["2026-04-24.json"] — strip .json before GET
+              const rawId = reportList[0].date || reportList[0].id || reportList[0] || "";
+              const latestId = String(rawId).replace(/\.json$/, "");
+              try {
+                const detailRes = await fetch(
+                  "/api/observer/reports/" + encodeURIComponent(latestId),
+                );
+                if (detailRes.ok) lastReport = await detailRes.json();
+              } catch (err) {
+                console.warn("[observer] latest report fetch failed:", err);
+              }
+            }
+          }
+        } catch (err) {
+          console.warn("[observer] reports fetch failed:", err);
+        }
+
+        loading.style.display = "none";
+
+        if (experiments.length === 0 && reportList.length === 0 && !lastReport) {
+          if (empty) empty.style.display = "block";
+          return;
+        }
+
+        if (lastReport) {
+          summary.style.display = "block";
+          const card = document.getElementById("obs-summary-card");
+          const pct =
+            lastReport.maxScore > 0
+              ? Math.round(
+                  (lastReport.averageScore / lastReport.maxScore) * 100,
+                )
+              : 0;
+          const barColor =
+            pct >= 80
+              ? "var(--green)"
+              : pct >= 50
+                ? "var(--amber)"
+                : "var(--red)";
+          card.innerHTML =
+            '<div class="obs-stat"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px">Quality</div><div style="font-size:24px;font-weight:600;color:' +
+            barColor +
+            '">' +
+            pct +
+            '%</div><div style="font-size:11px;color:var(--text-secondary)">' +
+            (lastReport.averageScore || 0) +
+            "/" +
+            (lastReport.maxScore || 0) +
+            "</div></div>" +
+            '<div class="obs-stat"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px">Pages</div><div style="font-size:24px;font-weight:600;color:var(--text-bright)">' +
+            (lastReport.totalPages || 0) +
+            '</div><div style="font-size:11px;color:var(--text-secondary)">scored</div></div>' +
+            '<div class="obs-stat"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px">Issues</div><div style="font-size:24px;font-weight:600;color:var(--amber)">' +
+            ((lastReport.orphanCount || 0) +
+              (lastReport.gapCount || 0) +
+              (lastReport.contradictionCount || 0)) +
+            '</div><div style="font-size:11px;color:var(--text-secondary)">orphans + gaps + conflicts</div></div>' +
+            '<div class="obs-stat"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px">Improvements</div><div style="font-size:24px;font-weight:600;color:var(--green)">' +
+            ((lastReport.improvements && lastReport.improvements.length) || 0) +
+            '</div><div style="font-size:11px;color:var(--text-secondary)">applied</div></div>';
+        }
+
+        if (experiments.length > 0) {
+          exps.style.display = "block";
+          const chart = document.getElementById("obs-timeline-chart");
+          const w = 700;
+          const h = 100;
+          const pad = 16;
+          const max =
+            Math.max(...experiments.map((e) => e.scoreAfter || e.score || 0), 100) ||
+            100;
+          const pts = experiments
+            .slice(-30)
+            .map((e, i, arr) => {
+              const x =
+                pad +
+                (i * (w - 2 * pad)) / Math.max(arr.length - 1, 1);
+              const y =
+                h - pad - ((e.scoreAfter || e.score || 0) / max) * (h - 2 * pad);
+              return [x, y, e];
+            });
+          let path = "";
+          pts.forEach((p, i) => {
+            path += (i === 0 ? "M" : "L") + p[0].toFixed(1) + "," + p[1].toFixed(1);
+          });
+          let svg =
+            '<svg viewBox="0 0 ' +
+            w +
+            " " +
+            h +
+            '" style="width:100%;height:120px"><path d="' +
+            path +
+            '" fill="none" stroke="var(--accent)" stroke-width="2"/>';
+          pts.forEach((p) => {
+            svg +=
+              '<circle cx="' +
+              p[0].toFixed(1) +
+              '" cy="' +
+              p[1].toFixed(1) +
+              '" r="3" fill="var(--accent)"><title>Score: ' +
+              (p[2].scoreAfter || p[2].score || 0) +
+              "/" +
+              max +
+              "</title></circle>";
+          });
+          svg += "</svg>";
+          chart.innerHTML = svg;
+
+          const list = document.getElementById("obs-experiments-list");
+          list.innerHTML = experiments
+            .slice(-10)
+            .reverse()
+            .map((e) => {
+              const dt = e.timestamp
+                ? new Date(e.timestamp).toLocaleString()
+                : "unknown";
+              const delta =
+                e.scoreAfter != null && e.scoreBefore != null
+                  ? e.scoreAfter - e.scoreBefore
+                  : null;
+              const deltaTxt =
+                delta != null
+                  ? '<span style="font-size:11px;color:' +
+                    (delta > 0
+                      ? "var(--green)"
+                      : delta < 0
+                        ? "var(--red)"
+                        : "var(--text-muted)") +
+                    ';font-weight:500">' +
+                    (delta > 0 ? "+" : "") +
+                    delta +
+                    " pts</span>"
+                  : "";
+              return (
+                '<div style="padding:12px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-md)">' +
+                '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:6px">' +
+                '<div style="font-size:13px;color:var(--text-bright);font-weight:500">' +
+                esc(e.hypothesis || e.action || e.title || "Experiment") +
+                "</div>" +
+                deltaTxt +
+                "</div>" +
+                '<div style="font-size:11px;color:var(--text-muted)">' +
+                dt +
+                (e.duration ? " · " + e.duration + "ms" : "") +
+                (e.llmCalls ? " · " + e.llmCalls + " LLM calls" : "") +
+                "</div>" +
+                (e.result
+                  ? '<div style="margin-top:6px;font-size:12px;color:var(--text-secondary)">' +
+                    esc(typeof e.result === "string" ? e.result : JSON.stringify(e.result).slice(0, 200)) +
+                    "</div>"
+                  : "") +
+                "</div>"
+              );
+            })
+            .join("");
+        }
+
+        if (reportList.length > 0) {
+          reports.style.display = "block";
+          const list = document.getElementById("obs-reports-list");
+          list.innerHTML = reportList
+            .slice(0, 10)
+            .map((r) => {
+              const id = r.date || r.id || r;
+              return (
+                '<div style="padding:8px 12px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);font-size:12px;display:flex;justify-content:space-between;align-items:center">' +
+                '<span style="color:var(--text-bright)">' +
+                esc(String(id)) +
+                "</span>" +
+                '<button onclick="loadObserverReportInView(\'' +
+                esc(String(id)) +
+                "')\" style=\"font-size:11px;padding:3px 8px;background:transparent;border:1px solid var(--border);color:var(--text-secondary);border-radius:var(--radius-sm);cursor:pointer\">View</button>" +
+                "</div>"
+              );
+            })
+            .join("");
+        }
+      }
+
+      async function loadObserverReportInView(id) {
+        try {
+          const res = await fetch(
+            "/api/observer/reports/" + encodeURIComponent(id),
+          );
+          if (!res.ok) {
+            alert("Failed to load report: " + id);
+            return;
+          }
+          const data = await res.json();
+          const card = document.getElementById("obs-summary-card");
+          const summary = document.getElementById("obs-summary-section");
+          if (summary) summary.style.display = "block";
+          const pct =
+            data.maxScore > 0
+              ? Math.round((data.averageScore / data.maxScore) * 100)
+              : 0;
+          const barColor =
+            pct >= 80
+              ? "var(--green)"
+              : pct >= 50
+                ? "var(--amber)"
+                : "var(--red)";
+          card.innerHTML =
+            '<div class="obs-stat" style="grid-column:span 4"><div style="font-size:11px;color:var(--text-muted)">Viewing report: ' +
+            esc(id) +
+            '</div><div style="font-size:18px;font-weight:600;color:' +
+            barColor +
+            ';margin-top:4px">' +
+            pct +
+            "% — " +
+            (data.averageScore || 0) +
+            "/" +
+            (data.maxScore || 0) +
+            " · " +
+            (data.totalPages || 0) +
+            " pages · " +
+            ((data.improvements && data.improvements.length) || 0) +
+            " improvements</div></div>";
+        } catch (err) {
+          console.error("[observer] loadReportInView err:", err);
+        }
+      }
+
+      async function runObserverFromView() {
+        const btn = document.getElementById("obs-run-now-btn");
+        if (!btn) return;
+        const orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML =
+          '<svg width="14" height="14" class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-dasharray="40 60"/></svg> Running…';
+        try {
+          const res = await fetch("/api/observer/run", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ autoImprove: false }),
+          });
+          if (!res.ok) {
+            const errText = await res.text();
+            alert("Observer run failed: " + errText.slice(0, 200));
+            return;
+          }
+          await loadObserverView();
+        } catch (err) {
+          alert("Observer run error: " + (err && err.message ? err.message : err));
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = orig;
         }
       }
 
@@ -22678,43 +24055,12 @@
         tlState._treeHasRendered = true;
       }
 
-      async function restoreToCommit(hash, shortHash) {
-        if (
-          !confirm(
-            `Restore wiki to checkpoint ${shortHash}?\n\nThis will create a new branch "wiki/restore-${shortHash}" from this point.`,
-          )
-        )
-          return;
-        try {
-          const result = await fetch("/api/git/branch", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: `wiki/restore-${shortHash}`,
-              fromHash: hash,
-            }),
-          }).then((r) => r.json());
-          if (result.created) {
-            const sw = await fetch("/api/git/checkout", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ branch: `wiki/restore-${shortHash}` }),
-            }).then((r) => r.json());
-            if (sw.switched) {
-              alert(
-                `Restored to ${shortHash} on branch wiki/restore-${shortHash}. You can now edit the wiki from this point.`,
-              );
-              loadGitBadge();
-              loadTree();
-              loadHome();
-            }
-          } else {
-            alert("Failed: " + result.message);
-          }
-        } catch (err) {
-          alert("Restore failed: " + err.message);
-        }
-      }
+      // NOTE: The time-lapse view uses the shared `restoreToCommit` defined
+      // near the audit-trail section (line ~15071). That function uses the
+      // atomic /api/git/restore endpoint (creates branch + checks out in one
+      // op) and refreshes the time-lapse view afterward. Do NOT duplicate it
+      // here — the previous buggy two-step (branch + checkout) version was
+      // removed as part of #NEW-RESTORE-FIX.
 
       async function renderTimelapseGraph(commit, idx, opts = {}) {
         const { crossfade = false } = opts;
@@ -23230,6 +24576,12 @@
       document
         .getElementById("rail-connectors")
         .addEventListener("click", railConnectorsClick);
+      document
+        .getElementById("rail-observer")
+        .addEventListener("click", railObserverClick);
+      document
+        .getElementById("rail-settings")
+        .addEventListener("click", railSettingsClick);
       document
         .getElementById("sb-settings-btn")
         .addEventListener("click", railSettingsClick);
@@ -23894,7 +25246,11 @@
         bar.classList.add("visible");
       }
 
-      // ── TOC scroll spy ──
+      // ── Outline scroll spy (BUG-079-077 + Row 11) ──
+      // Uses IntersectionObserver to toggle `.outline-item.is-active` as the
+      // associated <h2>/<h3>/<h4> crosses the top of the reading area. Matches
+      // the Obsidian "Another Sticky Headings" pattern: the current on-screen
+      // section is boldened, previous sections fade.
       let _tocSpyCleanup = null;
 
       function initTocScrollSpy() {
@@ -23902,41 +25258,71 @@
           _tocSpyCleanup();
           _tocSpyCleanup = null;
         }
-        const tocEl = document.getElementById("page-toc");
-        if (!tocEl || !tocEl.innerHTML) return;
+        const outlineEl = document.getElementById("page-outline");
+        if (!outlineEl || !outlineEl.innerHTML) return;
         const container = document.getElementById("content");
         if (!container) return;
 
-        const items = Array.from(tocEl.querySelectorAll(".toc-item"));
+        const items = Array.from(outlineEl.querySelectorAll(".outline-item"));
         if (!items.length) return;
 
-        const headingIds = items.map((a) => {
-          const m = a.getAttribute("onclick")?.match(/getElementById\('([^']+)'\)/);
-          return m ? m[1] : null;
-        }).filter(Boolean);
+        const idToItem = new Map();
+        items.forEach((a) => {
+          const id = a.getAttribute("data-outline-target");
+          if (id) idToItem.set(id, a);
+        });
+        const headings = Array.from(idToItem.keys())
+          .map((id) => document.getElementById(id))
+          .filter(Boolean);
+        if (!headings.length) return;
 
-        function onScroll() {
-          const containerTop = container.getBoundingClientRect().top;
-          let activeId = headingIds[0];
-          for (const id of headingIds) {
-            const el = document.getElementById(id);
-            if (!el) continue;
-            const rect = el.getBoundingClientRect();
-            if (rect.top - containerTop <= 80) {
-              activeId = id;
-            }
-          }
+        const visible = new Set();
+
+        function setActive(id) {
           items.forEach((a) => {
-            const m = a.getAttribute("onclick")?.match(/getElementById\('([^']+)'\)/);
-            const id = m ? m[1] : null;
-            a.classList.toggle("toc-active", id === activeId);
+            a.classList.toggle(
+              "is-active",
+              a.getAttribute("data-outline-target") === id,
+            );
           });
         }
 
-        container.addEventListener("scroll", onScroll, { passive: true });
-        _tocSpyCleanup = () =>
-          container.removeEventListener("scroll", onScroll);
-        onScroll();
+        const io = new IntersectionObserver(
+          (entries) => {
+            for (const e of entries) {
+              if (e.isIntersecting) visible.add(e.target.id);
+              else visible.delete(e.target.id);
+            }
+            // Choose the first heading that is currently visible, in document
+            // order. Falls back to last-scrolled-past heading when nothing is
+            // on screen.
+            let activeId = null;
+            for (const h of headings) {
+              if (visible.has(h.id)) { activeId = h.id; break; }
+            }
+            if (!activeId) {
+              // None visible → pick the last heading whose top is above the
+              // container's top (user scrolled past it).
+              const containerTop = container.getBoundingClientRect().top;
+              for (const h of headings) {
+                if (h.getBoundingClientRect().top - containerTop <= 80) {
+                  activeId = h.id;
+                }
+              }
+            }
+            if (activeId) setActive(activeId);
+          },
+          {
+            root: container,
+            // Trigger slightly before the heading hits the top so the active
+            // row updates just as the user arrives.
+            rootMargin: "-72px 0px -60% 0px",
+            threshold: 0,
+          },
+        );
+
+        headings.forEach((h) => io.observe(h));
+        _tocSpyCleanup = () => io.disconnect();
       }
 
       // ── Back to top button ──

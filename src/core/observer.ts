@@ -21,6 +21,28 @@ import cron from 'node-cron';
 import { listWikiPages, readWikiPage } from './vault.js';
 import type { VaultConfig } from './vault.js';
 import { appendAuditEntry } from './audit-trail.js';
+import { runKarp003 } from './observer-patterns/karp-003-categorize.js';
+import type { CategorizeResult } from './observer-patterns/karp-003-categorize.js';
+import { runKarp007 } from './observer-patterns/karp-007-summary.js';
+import type { WikiSummaryResult } from './observer-patterns/karp-007-summary.js';
+import { runKarp010 } from './observer-patterns/karp-010-citations.js';
+import type { CitationsResult } from './observer-patterns/karp-010-citations.js';
+import { runKarp012 } from './observer-patterns/karp-012-semantic.js';
+import type { SemanticResult } from './observer-patterns/karp-012-semantic.js';
+
+/** KARP pattern identifiers (stable strings — used by CLI `--karp` flag + `/api/karp/:pattern`). */
+export type KarpPatternName = 'auto-categorize' | 'wiki-summary' | 'citations' | 'semantic';
+
+export interface KarpResults {
+  /** KARP-003 — auto-categorize pages missing a `category` frontmatter field. */
+  autoCategorize?: CategorizeResult;
+  /** KARP-007 — wiki-wide summary (writes `<wikiDir>/INDEX.md`). */
+  wikiSummary?: WikiSummaryResult;
+  /** KARP-010 — citation scoring of outbound URLs (sets `citationScore` frontmatter). */
+  citations?: CitationsResult;
+  /** KARP-012 — semantic similarity edges between pages (writes `.wikimem/semantic-edges-cache.json`). */
+  semantic?: SemanticResult;
+}
 
 // ─── Scoring ─────────────────────────────────────────────────────────────────
 
